@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modern Navigation</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Top Navigation -->
+    <nav class="topnav">
+        <div class="nav-container">
+            <div class="nav-left">
+                <button class="menu-toggle" id="menuToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <div class="logo">
+                    <img src="bunya logo.jpg" alt="Bunya Logo" class="logo-img">
+                    <h2>BSS OB/OG INVESTMENT GROUP SYSTEM</h2>
+                </div>
+            </div>
+            
+            <div class="nav-center" style="display: none;">
+                <div class="search-box">
+                    <i class="fas fa-search"></i>
+                    <input type="text" placeholder="Search...">
+                </div>
+            </div>
+            
+            <div class="nav-right">
+                <button class="nav-btn" title="Notifications">
+                    <i class="fas fa-bell"></i>
+                    <span class="badge pulse">3</span>
+                </button>
+                <button class="nav-btn" title="Messages">
+                    <i class="fas fa-envelope"></i>
+                    <span class="status-dot"></span>
+                </button>
+                <div class="profile" id="profileDropdown">
+                    <span>Welcome back, <strong style="color: green;">John Deo</strong></span>
+                    <i class="fas fa-chevron-down dropdown-arrow"></i>
+                    <div class="profile-avatar">
+                        <img src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=40&h=40&fit=crop&crop=face" alt="Profile">
+                        <div class="status-indicator online"></div>
+                    </div>
+                    <div class="dropdown-menu">
+                        <a href="#" class="dropdown-item">
+                            <i class="fas fa-user"></i> Profile
+                        </a>
+                        <a href="#" class="dropdown-item">
+                            <i class="fas fa-cog"></i> Settings
+                        </a>
+                        <div class="dropdown-divider"></div>
+                        <a href="#" class="dropdown-item">
+                            <i class="fas fa-sign-out-alt"></i> Logout
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-user">
+            <div class="user-avatar">
+                <i class="fas fa-user"></i>
+            </div>
+            <div class="user-info">
+                <h4>John Doe</h4>
+                <span>Administrator</span>
+            </div>
+        </div>
+        
+        <nav class="sidebar-nav">
+            <div class="nav-item search-item">
+                <i class="fas fa-search"></i>
+                <input type="text" id="sidebarSearchInput" placeholder="Search...">
+                <button class="clear-search" id="clearSearch" style="display: none;">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <a href="#" class="nav-item">
+                <i class="fas fa-home"></i>
+                <span>Home</span>
+            </a>
+            <a href="#" class="nav-item">
+                <i class="fas fa-chart-line"></i>
+                <span>Analytics</span>
+                <span class="nav-badge">New</span>
+            </a>
+            <a href="#" class="nav-item">
+                <i class="fas fa-users"></i>
+                <span>Users</span>
+                <span class="nav-count">1.2k</span>
+            </a>
+            <a href="#" class="nav-item">
+                <i class="fas fa-box"></i>
+                <span>Products</span>
+            </a>
+            <a href="#" class="nav-item">
+                <i class="fas fa-shopping-cart"></i>
+                <span>Orders</span>
+                <span class="nav-count">24</span>
+            </a>
+            <a href="#" class="nav-item">
+                <i class="fas fa-file-alt"></i>
+                <span>Reports</span>
+            </a>
+            <a href="#" class="nav-item" id="settingsNav">
+                <i class="fas fa-cog"></i>
+                <span>Settings</span>
+            </a>
+        </nav>
+
+    </aside>
+    
+    <!-- Sidebar Toggle Button -->
+    <button class="sidebar-toggle" id="sidebarToggle">
+        <i class="fas fa-chevron-right"></i>
+    </button>
+
+    <!-- Overlay -->
+    <div class="overlay" id="overlay"></div>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <div class="content">
+            <div class="settings-panel" id="settingsPanel" style="display: none;">
+                <h2>Settings</h2>
+                <div class="settings-section">
+                    <h3>Appearance</h3>
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <i class="fas fa-moon"></i>
+                            <div>
+                                <strong id="themeLabel">Dark Mode</strong>
+                                <p>Toggle dark/light theme</p>
+                            </div>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="themeToggle">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <i class="fas fa-compress-arrows-alt"></i>
+                            <div>
+                                <strong>Compact Mode</strong>
+                                <p>Reduce spacing for more content</p>
+                            </div>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+                <div class="settings-section">
+                    <h3>Notifications</h3>
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <i class="fas fa-bell"></i>
+                            <div>
+                                <strong>Push Notifications</strong>
+                                <p>Receive push notifications</p>
+                            </div>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <i class="fas fa-envelope"></i>
+                            <div>
+                                <strong>Email Notifications</strong>
+                                <p>Receive email updates</p>
+                            </div>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <i class="fas fa-volume-up"></i>
+                            <div>
+                                <strong>Sound Effects</strong>
+                                <p>Play sounds for notifications</p>
+                            </div>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+                <div class="settings-section">
+                    <h3>Privacy & Security</h3>
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <i class="fas fa-user-secret"></i>
+                            <div>
+                                <strong>Private Mode</strong>
+                                <p>Hide your online status</p>
+                            </div>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <i class="fas fa-lock"></i>
+                            <div>
+                                <strong>Two-Factor Authentication</strong>
+                                <p>Add extra security to your account</p>
+                            </div>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <i class="fas fa-shield-alt"></i>
+                            <div>
+                                <strong>Activity Tracking</strong>
+                                <p>Allow analytics and tracking</p>
+                            </div>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+                <div class="settings-section">
+                    <h3>Language & Region</h3>
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <i class="fas fa-globe"></i>
+                            <div>
+                                <strong>Language</strong>
+                                <p>Select your preferred language</p>
+                            </div>
+                        </div>
+                        <select class="setting-select">
+                            <option>English</option>
+                            <option>Spanish</option>
+                            <option>French</option>
+                            <option>German</option>
+                        </select>
+                    </div>
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <i class="fas fa-clock"></i>
+                            <div>
+                                <strong>Timezone</strong>
+                                <p>Set your local timezone</p>
+                            </div>
+                        </div>
+                        <select class="setting-select">
+                            <option>UTC-8 (PST)</option>
+                            <option>UTC-5 (EST)</option>
+                            <option>UTC+0 (GMT)</option>
+                            <option>UTC+1 (CET)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="page-header">
+                <div class="header-content">
+                    <h1>Welcome back, John! 👋</h1>
+                    <p>Here's what's happening with your projects today.</p>
+                </div>
+                <div class="header-stats">
+                    <div class="stat-item">
+                        <div class="stat-icon">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                        <div class="stat-info">
+                            <span class="stat-value">+12.5%</span>
+                            <span class="stat-label">Growth</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="cards">
+                <div class="card featured">
+                    <div class="card-header">
+                        <h3>Revenue Overview</h3>
+                        <div class="card-actions">
+                            <button class="card-btn"><i class="fas fa-ellipsis-h"></i></button>
+                        </div>
+                    </div>
+                    <div class="card-content">
+                        <div class="metric">
+                            <span class="metric-value">$24,500</span>
+                            <span class="metric-change positive">+8.2%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: 75%"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Active Users</h3>
+                        <span class="status-badge success">Live</span>
+                    </div>
+                    <div class="card-content">
+                        <div class="metric">
+                            <span class="metric-value">1,234</span>
+                            <span class="metric-change positive">+5.4%</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Conversion Rate</h3>
+                        <span class="status-badge warning">Needs Attention</span>
+                    </div>
+                    <div class="card-content">
+                        <div class="metric">
+                            <span class="metric-value">3.2%</span>
+                            <span class="metric-change negative">-2.1%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+    
+    <!-- Loading Indicator -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner">
+            <div class="spinner"></div>
+            <span>Loading...</span>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

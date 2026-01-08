@@ -1,0 +1,2 @@
+# This file should be deleted: 2024_01_20_000008_create_dividends_table.php
+# It's a duplicate of: 2024_01_01_000010_create_dividends_table.php
