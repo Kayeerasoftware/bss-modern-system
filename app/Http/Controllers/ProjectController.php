@@ -47,7 +47,19 @@ class ProjectController extends Controller
 
     public function destroy($id)
     {
-        Project::findOrFail($id)->delete();
+        $project = Project::findOrFail($id);
+        $projectName = $project->name;
+        $project->delete();
+        
+        \DB::table('audit_logs')->insert([
+            'user' => auth()->user()->name ?? 'Admin',
+            'action' => 'Project Deleted',
+            'details' => "Deleted project: {$projectName}",
+            'timestamp' => now(),
+            'created_at' => now(),
+            'updated_at' => now()
+        ]);
+        
         return response()->json(['message' => 'Project deleted successfully']);
     }
 }

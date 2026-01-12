@@ -14,32 +14,64 @@ use Illuminate\Support\Facades\Hash;
 class CrudController extends Controller
 {
     // Member CRUD Operations
+    public function getNextMemberId()
+    {
+        $allMembers = Member::all();
+        if ($allMembers->isEmpty()) {
+            return response()->json(['next_id' => 'BSS001']);
+        }
+        
+        $maxNum = $allMembers->map(function($m) {
+            return intval(substr($m->member_id, 3));
+        })->max();
+        
+        $nextId = 'BSS' . str_pad($maxNum + 1, 3, '0', STR_PAD_LEFT);
+        return response()->json(['next_id' => $nextId]);
+    }
+
     public function createMember(Request $request)
     {
-        $validated = $request->validate([
-            'full_name' => 'required|string|max:255',
-            'email' => 'required|email|unique:members',
-            'location' => 'required|string|max:255',
-            'occupation' => 'required|string|max:255',
-            'contact' => 'required|string|max:20',
-            'role' => 'required|in:client,shareholder,cashier,td,ceo'
-        ]);
+        try {
+            $validated = $request->validate([
+                'full_name' => 'required|string|max:255',
+                'email' => 'required|email|unique:members',
+                'location' => 'required|string|max:255',
+                'occupation' => 'required|string|max:255',
+                'contact' => 'required|string|max:20',
+                'role' => 'required|in:client,shareholder,cashier,td,ceo'
+            ]);
 
-        $member = Member::create([
-            'member_id' => 'BSS' . str_pad(Member::count() + 1, 3, '0', STR_PAD_LEFT),
-            'full_name' => $validated['full_name'],
-            'email' => $validated['email'],
-            'location' => $validated['location'],
-            'occupation' => $validated['occupation'],
-            'contact' => $validated['contact'],
-            'role' => $validated['role'],
-            'savings' => 0,
-            'loan' => 0,
-            'savings_balance' => 0,
-            'password' => Hash::make('password123')
-        ]);
+            $allMembers = Member::all();
+            if ($allMembers->isEmpty()) {
+                $memberId = 'BSS001';
+            } else {
+                $maxNum = $allMembers->map(function($m) {
+                    return intval(substr($m->member_id, 3));
+                })->max();
+                $memberId = 'BSS' . str_pad($maxNum + 1, 3, '0', STR_PAD_LEFT);
+            }
 
-        return response()->json(['success' => true, 'member' => $member]);
+            $member = Member::create([
+                'member_id' => $memberId,
+                'full_name' => $validated['full_name'],
+                'email' => $validated['email'],
+                'location' => $validated['location'],
+                'occupation' => $validated['occupation'],
+                'contact' => $validated['contact'],
+                'role' => $validated['role'],
+                'savings' => 0,
+                'loan' => 0,
+                'balance' => 0,
+                'savings_balance' => 0,
+                'password' => Hash::make('password123')
+            ]);
+
+            return response()->json(['success' => true, 'member' => $member]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['success' => false, 'message' => 'Validation failed', 'errors' => $e->errors()], 422);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
     }
 
     public function updateMember(Request $request, $id)
@@ -75,9 +107,50 @@ class CrudController extends Controller
 
     public function deleteMember($id)
     {
-        $member = Member::findOrFail($id);
-        $member->delete();
-        return response()->json(['success' => true]);
+        try {
+            $member = Member::find($id);
+            
+            if (!$member) {
+                return response()->json(['success' => false, 'message' => 'Member not found'], 404);
+            }
+            
+            $memberName = $member->full_name;
+            $memberId = $member->member_id;
+            
+            \DB::beginTransaction();
+            
+            // Delete all related records
+            \DB::table('loans')->where('member_id', $memberId)->delete();
+            \DB::table('transactions')->where('member_id', $memberId)->delete();
+            \DB::table('shares')->where('member_id', $memberId)->delete();
+            \DB::table('savings_history')->where('member_id', $memberId)->delete();
+            \DB::table('dividends')->where('member_id', $memberId)->delete();
+            \DB::table('portfolio_performances')->where('member_id', $memberId)->delete();
+            \DB::table('chat_messages')->where('sender_id', $memberId)->orWhere('receiver_id', $memberId)->delete();
+            
+            $member->delete();
+            
+            \DB::commit();
+            
+            $user = 'Admin';
+            if (auth()->check() && auth()->user()) {
+                $user = auth()->user()->name;
+            }
+            
+            \DB::table('audit_logs')->insert([
+                'user' => $user,
+                'action' => 'Member Deleted',
+                'details' => "Deleted member: {$memberName} ({$memberId})",
+                'timestamp' => now(),
+                'created_at' => now(),
+                'updated_at' => now()
+            ]);
+            
+            return response()->json(['success' => true, 'message' => 'Member deleted successfully']);
+        } catch (\Exception $e) {
+            \DB::rollBack();
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
     }
 
     // Loan CRUD Operations
@@ -107,7 +180,21 @@ class CrudController extends Controller
     public function approveLoan($id)
     {
         $loan = Loan::findOrFail($id);
-        $loan->update(['status' => 'approved']);
+        
+        $updater = 'Admin';
+        if (auth()->check()) {
+            $updater = ucfirst(auth()->user()->role);
+        } elseif (session('member_id')) {
+            $member = Member::where('member_id', session('member_id'))->first();
+            if ($member) {
+                $updater = ucfirst($member->role);
+            }
+        }
+        
+        $loan->update([
+            'status' => 'approved',
+            'updated_by' => $updater
+        ]);
 
         // Update member's loan balance
         $member = Member::where('member_id', $loan->member_id)->first();
@@ -121,7 +208,21 @@ class CrudController extends Controller
     public function rejectLoan($id)
     {
         $loan = Loan::findOrFail($id);
-        $loan->update(['status' => 'rejected']);
+        
+        $updater = 'Admin';
+        if (auth()->check()) {
+            $updater = ucfirst(auth()->user()->role);
+        } elseif (session('member_id')) {
+            $member = Member::where('member_id', session('member_id'))->first();
+            if ($member) {
+                $updater = ucfirst($member->role);
+            }
+        }
+        
+        $loan->update([
+            'status' => 'rejected',
+            'updated_by' => $updater
+        ]);
         return response()->json(['success' => true, 'loan' => $loan]);
     }
 
@@ -144,7 +245,19 @@ class CrudController extends Controller
     public function deleteLoan($id)
     {
         $loan = Loan::findOrFail($id);
+        $loanId = $loan->loan_id;
+        $amount = $loan->amount;
         $loan->delete();
+        
+        \DB::table('audit_logs')->insert([
+            'user' => auth()->user()->name ?? 'Admin',
+            'action' => 'Loan Deleted',
+            'details' => "Deleted loan: {$loanId} (UGX " . number_format($amount) . ")",
+            'timestamp' => now(),
+            'created_at' => now(),
+            'updated_at' => now()
+        ]);
+        
         return response()->json(['success' => true]);
     }
 
@@ -166,7 +279,20 @@ class CrudController extends Controller
     public function deleteTransaction($id)
     {
         $transaction = Transaction::findOrFail($id);
+        $txnId = $transaction->transaction_id;
+        $amount = $transaction->amount;
+        $type = $transaction->type;
         $transaction->delete();
+        
+        \DB::table('audit_logs')->insert([
+            'user' => auth()->user()->name ?? 'Admin',
+            'action' => 'Transaction Deleted',
+            'details' => "Deleted {$type} transaction: {$txnId} (UGX " . number_format($amount) . ")",
+            'timestamp' => now(),
+            'created_at' => now(),
+            'updated_at' => now()
+        ]);
+        
         return response()->json(['success' => true]);
     }
 
@@ -181,10 +307,14 @@ class CrudController extends Controller
         ]);
 
         $member = Member::where('member_id', $validated['member_id'])->first();
-        $balanceBefore = $member->savings;
+
+        // Check sufficient balance for withdrawal/transfer
+        if (in_array($validated['type'], ['withdrawal', 'transfer']) && $member->savings < $validated['amount']) {
+            return response()->json(['success' => false, 'message' => 'Insufficient balance'], 400);
+        }
 
         $transaction = Transaction::create([
-            'transaction_id' => 'TXN' . str_pad(Transaction::count() + 1, 3, '0', STR_PAD_LEFT),
+            'transaction_id' => 'TXN' . \Illuminate\Support\Str::random(6),
             'member_id' => $validated['member_id'],
             'amount' => $validated['amount'],
             'type' => $validated['type'],
@@ -194,10 +324,12 @@ class CrudController extends Controller
         // Update member balance
         if ($validated['type'] === 'deposit') {
             $member->increment('savings', $validated['amount']);
-            $member->increment('savings_balance', $validated['amount']);
-        } elseif ($validated['type'] === 'withdrawal') {
+            $member->increment('balance', $validated['amount']);
+        } elseif (in_array($validated['type'], ['withdrawal', 'transfer'])) {
             $member->decrement('savings', $validated['amount']);
-            $member->decrement('savings_balance', $validated['amount']);
+            $member->decrement('balance', $validated['amount']);
+        } elseif ($validated['type'] === 'loan_payment') {
+            $member->decrement('loan', $validated['amount']);
         }
 
         return response()->json(['success' => true, 'transaction' => $transaction]);
@@ -250,7 +382,18 @@ class CrudController extends Controller
     public function deleteProject($id)
     {
         $project = Project::findOrFail($id);
+        $projectName = $project->name;
         $project->delete();
+        
+        \DB::table('audit_logs')->insert([
+            'user' => auth()->user()->name ?? 'Admin',
+            'action' => 'Project Deleted',
+            'details' => "Deleted project: {$projectName}",
+            'timestamp' => now(),
+            'created_at' => now(),
+            'updated_at' => now()
+        ]);
+        
         return response()->json(['success' => true]);
     }
 

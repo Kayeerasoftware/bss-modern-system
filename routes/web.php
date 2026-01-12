@@ -23,6 +23,49 @@ use App\Http\Controllers\CompleteDashboardController;
 use App\Http\Controllers\ShareholderController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ChatController;
+use App\Http\Controllers\Api\AdminController;
+use App\Http\Controllers\Api\NotificationController as ApiNotificationController;
+use App\Http\Controllers\Api\BackupController as ApiBackupController;
+use App\Http\Controllers\Api\BulkController;
+use App\Http\Controllers\Api\SystemHealthController;
+use App\Http\Controllers\Api\PermissionController;
+
+// Admin API Routes (no auth required for demo)
+Route::get('/api/admin/dashboard', [AdminController::class, 'dashboard']);
+Route::get('/api/settings', [AdminController::class, 'getSettings']);
+Route::post('/api/settings', [AdminController::class, 'updateSettings']);
+Route::get('/api/audit-logs', [AdminController::class, 'getAuditLogs']);
+Route::get('/api/backups', [ApiBackupController::class, 'index']);
+Route::post('/api/backups/create', [ApiBackupController::class, 'create']);
+Route::post('/api/backups/restore', [ApiBackupController::class, 'restore']);
+Route::get('/api/backups/{id}/download', [ApiBackupController::class, 'download']);
+Route::delete('/api/backups/{id}', [ApiBackupController::class, 'destroy']);
+Route::get('/api/financial-summary', [AdminController::class, 'getFinancialSummary']);
+Route::get('/api/system/health', [SystemHealthController::class, 'getHealth']);
+Route::post('/api/system/clear-cache', [SystemHealthController::class, 'clearCache']);
+Route::post('/api/system/optimize-db', [SystemHealthController::class, 'optimizeDatabase']);
+Route::post('/api/system/diagnostics', [SystemHealthController::class, 'runDiagnostics']);
+Route::get('/api/system/health-report', [SystemHealthController::class, 'exportHealthReport']);
+Route::get('/api/roles', [AdminController::class, 'getRoles']);
+Route::get('/api/users', [AdminController::class, 'getUsers']);
+Route::post('/api/users', [AdminController::class, 'createUser']);
+Route::post('/api/users/{id}/toggle-status', [AdminController::class, 'toggleUserStatus']);
+Route::delete('/api/users/{id}', [AdminController::class, 'deleteUser']);
+Route::get('/api/members/export', [BulkController::class, 'exportMembers']);
+Route::post('/api/members/import', [BulkController::class, 'importMembers']);
+Route::post('/api/emails/bulk', [AdminController::class, 'sendBulkEmail']);
+Route::get('/api/reports/generate', [AdminController::class, 'generateReport']);
+Route::get('/api/reports/view/{id}', [AdminController::class, 'viewReport']);
+Route::get('/api/reports/recent', [AdminController::class, 'getRecentReports']);
+Route::delete('/api/reports/{id}', [AdminController::class, 'deleteReport']);
+Route::post('/api/notifications/send', [ApiNotificationController::class, 'send']);
+Route::get('/api/notifications/history', [ApiNotificationController::class, 'history']);
+Route::get('/api/notifications/stats', [ApiNotificationController::class, 'stats']);
+Route::post('/api/notifications/{id}/resend', [ApiNotificationController::class, 'resend']);
+Route::delete('/api/notifications/{id}', [ApiNotificationController::class, 'destroy']);
+Route::get('/api/permissions', [PermissionController::class, 'getAllPermissions']);
+Route::get('/api/permissions/role/{role}', [PermissionController::class, 'getRolePermissions']);
+Route::post('/api/permissions/role/{role}', [PermissionController::class, 'updateRolePermissions']);
 
 // Public Routes
 Route::get('/', function () {
@@ -125,6 +168,7 @@ Route::post('/api/chat/mark-read', [ChatController::class, 'markAsRead']);
 
 // CRUD Operations (no auth for demo)
 Route::post('/api/members', [CrudController::class, 'createMember']);
+Route::get('/api/members/next-id', [CrudController::class, 'getNextMemberId']);
 Route::put('/api/members/{id}', [CrudController::class, 'updateMember']);
 Route::delete('/api/members/{id}', [CrudController::class, 'deleteMember']);
 Route::get('/api/members/{memberId}/data', [CrudController::class, 'getMemberData']);
@@ -162,32 +206,32 @@ Route::middleware(['auth'])->group(function () {
 
     // Notification routes
     Route::get('/api/notifications', [NotificationController::class, 'index']);
-    Route::post('/api/notifications', [NotificationController::class, 'store']);
+    Route::post('/api/notifications/create', [NotificationController::class, 'store']);
     Route::post('/api/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
 
-    // Report routes
-    Route::get('/api/reports/financial', [ReportController::class, 'financialSummary']);
-    Route::get('/api/reports/members', [ReportController::class, 'memberReport']);
-    Route::get('/api/reports/loans', [ReportController::class, 'loanReport']);
+    // Report routes (moved to public admin routes)
+    // Route::get('/api/reports/financial', [ReportController::class, 'financialSummary']);
+    // Route::get('/api/reports/members', [ReportController::class, 'memberReport']);
+    // Route::get('/api/reports/loans', [ReportController::class, 'loanReport']);
 
     // Analytics routes
     Route::get('/api/analytics/dashboard', [AnalyticsController::class, 'getDashboardAnalytics']);
     Route::get('/analytics', function () { return view('analytics-dashboard'); })->name('analytics-dashboard');
 
     // Meeting routes
-    Route::get('/api/meetings', [MeetingController::class, 'index']);
-    Route::post('/api/meetings', [MeetingController::class, 'store']);
-    Route::get('/api/meetings/{id}', [MeetingController::class, 'show']);
-    Route::put('/api/meetings/{id}', [MeetingController::class, 'update']);
-    Route::delete('/api/meetings/{id}', [MeetingController::class, 'destroy']);
+    // Route::get('/api/meetings', [MeetingController::class, 'index']);
+    // Route::post('/api/meetings', [MeetingController::class, 'store']);
+    // Route::get('/api/meetings/{id}', [MeetingController::class, 'show']);
+    // Route::put('/api/meetings/{id}', [MeetingController::class, 'update']);
+    // Route::delete('/api/meetings/{id}', [MeetingController::class, 'destroy']);
 
     // Document routes
-    Route::get('/api/documents', [DocumentController::class, 'index']);
-    Route::post('/api/documents', [DocumentController::class, 'store']);
-    Route::get('/api/documents/{id}', [DocumentController::class, 'show']);
-    Route::put('/api/documents/{id}', [DocumentController::class, 'update']);
-    Route::delete('/api/documents/{id}', [DocumentController::class, 'destroy']);
-    Route::get('/api/documents/{id}/download', [DocumentController::class, 'download']);
+    // Route::get('/api/documents', [DocumentController::class, 'index']);
+    // Route::post('/api/documents', [DocumentController::class, 'store']);
+    // Route::get('/api/documents/{id}', [DocumentController::class, 'show']);
+    // Route::put('/api/documents/{id}', [DocumentController::class, 'update']);
+    // Route::delete('/api/documents/{id}', [DocumentController::class, 'destroy']);
+    // Route::get('/api/documents/{id}/download', [DocumentController::class, 'download']);
 
     // Loan Management
     Route::post('/api/loans/{id}/repayment', [LoanController::class, 'repayment']);
@@ -196,14 +240,13 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/api/transactions/member/{memberId}', [TransactionController::class, 'getByMember']);
     Route::get('/api/transactions/summary', [TransactionController::class, 'summary']);
 
-    // Project Management
-    Route::resource('/api/projects', ProjectController::class);
+    // Project Management (authenticated)
     Route::post('/api/projects/{id}/progress', [ProjectController::class, 'updateProgress']);
 
 
-    // Settings Management
-    Route::get('/api/settings', [SettingsController::class, 'getSettings']);
-    Route::post('/api/settings', [SettingsController::class, 'updateSettings']);
+    // Settings Management (moved to public admin routes)
+    // Route::get('/api/settings', [SettingsController::class, 'getSettings']);
+    // Route::post('/api/settings', [SettingsController::class, 'updateSettings']);
     Route::post('/api/settings/reset', [SettingsController::class, 'resetSettings']);
 
     // Share Management Routes
@@ -229,7 +272,7 @@ Route::middleware(['auth'])->group(function () {
 });
 
 // System Health Check
-Route::get('/api/system/health', function() {
+Route::get('/api/system/health-check', function() {
     return response()->json([
         'status' => 'healthy',
         'timestamp' => now(),

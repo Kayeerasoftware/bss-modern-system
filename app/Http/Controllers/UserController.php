@@ -64,7 +64,17 @@ class UserController extends Controller
     public function destroy($id)
     {
         $user = User::findOrFail($id);
+        $userName = $user->name;
         $user->delete();
+        
+        \DB::table('audit_logs')->insert([
+            'user' => auth()->user()->name ?? 'Admin',
+            'action' => 'User Deleted',
+            'details' => "Deleted user: {$userName}",
+            'timestamp' => now(),
+            'created_at' => now(),
+            'updated_at' => now()
+        ]);
 
         return response()->json([
             'success' => true,

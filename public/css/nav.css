@@ -1,0 +1,366 @@
+/* Navigation Styles */
+.nav-item.search-item {
+    display: flex;
+    align-items: center;
+    space-x: 0.5rem;
+    padding: 0.5rem;
+    margin-bottom: 0.5rem;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.5rem;
+    transition: all 0.2s ease;
+}
+
+.nav-item.search-item:focus-within {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.sidebar-toggle {
+    position: fixed;
+    top: calc(3rem + 0.25rem);
+    left: calc(144px - 10px);
+    width: 20px;
+    height: 20px;
+    background: white;
+    border: 1px solid rgba(239, 68, 68, 0.5);
+    border-radius: 50%;
+    color: #ef4444;
+    cursor: pointer;
+    z-index: 1200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: left 0.3s, top 0.3s, transform 0.3s;
+    font-size: 0.6rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.sidebar-toggle:hover {
+    background: #ef4444;
+    color: white;
+    transform: scale(1.1);
+}
+
+.sidebar-toggle i {
+    transition: transform 0.3s;
+    transform: rotate(180deg);
+}
+
+aside.sidebar.collapsed ~ .sidebar-toggle {
+    left: calc(80px - 10px);
+}
+
+aside.sidebar.collapsed ~ .sidebar-toggle i {
+    transform: rotate(0deg);
+}
+
+aside.sidebar:not(.translate-x-0) ~ .sidebar-toggle {
+    transform: translateX(-200px);
+}
+
+aside.sidebar {
+    position: fixed;
+    top: 3rem;
+    left: 0;
+    height: calc(100vh - 3rem);
+    width: 144px;
+    transition: width 0.3s;
+    overflow: hidden;
+    z-index: 999;
+}
+
+aside.sidebar .profile-section {
+    flex-shrink: 0;
+    overflow: visible;
+}
+
+aside.sidebar.collapsed .profile-section {
+    overflow: visible;
+}
+
+aside.sidebar.collapsed .profile-section .p-2 {
+    overflow: visible;
+}
+
+aside.sidebar .scrollable-content {
+    overflow: hidden;
+}
+
+aside.sidebar .scrollable-content > div {
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+aside.sidebar.collapsed {
+    width: 80px;
+}
+
+aside.sidebar.collapsed .scrollable-content > div {
+    overflow-y: auto;
+    overflow-x: visible;
+}
+
+aside.sidebar.collapsed > .p-2 {
+    overflow: visible;
+}
+
+aside.sidebar.collapsed .user-info,
+aside.sidebar.collapsed .nav-item span,
+aside.sidebar.collapsed .search-item input,
+aside.sidebar.collapsed .clear-search,
+aside.sidebar.collapsed .nav-badge,
+aside.sidebar.collapsed .nav-count,
+aside.sidebar.collapsed p {
+    opacity: 0;
+    display: none;
+}
+
+aside.sidebar.collapsed .p-2.border-t.border-blue-200 {
+    overflow: visible;
+}
+
+aside.sidebar.collapsed .sidebar-user {
+    padding: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+aside.sidebar.collapsed .user-avatar {
+    width: 48px;
+    height: 48px;
+    margin: 0 auto;
+}
+
+aside.sidebar.collapsed .user-avatar i {
+    font-size: 1.5rem;
+}
+
+aside.sidebar.collapsed .flex.flex-col.items-center.py-3 {
+    padding: 0.5rem 0;
+    overflow: visible;
+    position: relative;
+}
+
+aside.sidebar .flex.flex-col.items-center.py-3 > div {
+    transition: transform 0.3s ease;
+}
+
+aside.sidebar.collapsed .flex.flex-col.items-center.py-3 > div {
+    margin-bottom: 0;
+    overflow: visible;
+    position: relative;
+    transform: translateX(0);
+}
+
+aside.sidebar.collapsed .nav-item {
+    justify-content: center;
+    padding: 0.75rem;
+}
+
+aside.sidebar.collapsed .nav-item i {
+    font-size: 1.1rem;
+    margin: 0;
+    width: 100%;
+    text-align: center;
+}
+
+aside.sidebar.collapsed .search-item {
+    justify-content: center;
+    padding: 0.75rem;
+    cursor: pointer;
+}
+
+aside.sidebar.collapsed .search-item i {
+    margin: 0;
+}
+
+.main-content {
+    margin-left: 144px;
+    padding-top: 3rem;
+    transition: margin-left 0.3s;
+}
+
+.main-content.sidebar-collapsed {
+    margin-left: 80px;
+}
+
+@media (max-width: 1023px) {
+    .main-content {
+        margin-left: 0;
+    }
+    .sidebar-toggle {
+        display: flex !important;
+    }
+    aside.sidebar:not(.translate-x-0) ~ .sidebar-toggle {
+        transform: translateX(-200px);
+    }
+    aside.sidebar.translate-x-0 ~ .sidebar-toggle {
+        transform: translateX(0);
+    }
+}
+
+@media (max-width: 640px) {
+    .topnav .nav-left .nav-btn:first-child {
+        display: none;
+    }
+}
+
+body {
+    overflow-x: hidden;
+    max-width: 100vw;
+}
+
+html {
+    overflow-x: hidden;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+@media (max-width: 768px) {
+    .topnav {
+        font-size: 0.75rem;
+    }
+    .topnav .nav-container {
+        padding: 0 0.5rem;
+    }
+    .topnav .logo h2 {
+        font-size: 0.5rem;
+    }
+    .topnav .logo img {
+        height: 1.25rem;
+    }
+    .topnav .nav-btn {
+        padding: 0.375rem;
+    }
+    .topnav .nav-btn span {
+        font-size: 0.6rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .topnav .nav-container {
+        padding: 0 0.25rem;
+        gap: 0.25rem;
+    }
+    .topnav .nav-left,
+    .topnav .nav-right {
+        gap: 0.25rem;
+    }
+    .topnav .logo {
+        padding: 0.25rem;
+    }
+    .topnav .logo h2 {
+        display: none;
+    }
+    .topnav .nav-btn > span:not([class*="badge"]):not([class*="status"]) {
+        display: none;
+    }
+    .topnav .nav-btn {
+        padding: 0.25rem 0.5rem;
+    }
+    .topnav .profile span:not([class*="status"]) {
+        display: none;
+    }
+}
+
+@media (max-width: 480px) {
+    .topnav .nav-btn i {
+        display: inline-block !important;
+    }
+    .topnav .badge {
+        display: block !important;
+        position: absolute;
+    }
+    .topnav .status-dot {
+        display: block !important;
+    }
+}
+
+@media (max-width: 768px) {
+    .topnav .nav-center .flex {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.6rem;
+        gap: 0.25rem;
+    }
+    .topnav .nav-center .flex i {
+        font-size: 0.65rem;
+    }
+    .topnav .nav-center .flex span {
+        font-size: 0.6rem;
+        white-space: nowrap;
+    }
+    .topnav .nav-center .flex .bg-white\/20 {
+        padding: 0.125rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .topnav .nav-center {
+        display: flex !important;
+    }
+    .topnav .nav-center > div,
+    .topnav .nav-center > button {
+        padding: 0.125rem 0.25rem !important;
+        font-size: 0.5rem !important;
+    }
+    .topnav .nav-center span {
+        font-size: 0.5rem !important;
+    }
+    .topnav .nav-center i {
+        font-size: 0.55rem !important;
+    }
+}
+
+@media (min-width: 480px) and (max-width: 1023px) {
+    .topnav .nav-center {
+        display: flex !important;
+        flex: 0 0 auto !important;
+    }
+    .topnav .nav-center > * {
+        padding: 0.125rem 0.25rem !important;
+        font-size: 0.45rem !important;
+        gap: 0.125rem !important;
+    }
+    .topnav .nav-center * {
+        font-size: 0.45rem !important;
+    }
+}
+
+@media (min-width: 480px) and (max-width: 1023px) {
+    .topnav .nav-center span {
+        display: inline !important;
+        white-space: nowrap !important;
+    }
+}
+
+@media (max-width: 1023px) {
+    .topnav .nav-center {
+        display: flex !important;
+        flex: 0 0 auto;
+    }
+    .topnav .nav-center > div,
+    .topnav .nav-center > button {
+        display: flex !important;
+        padding: 0.125rem 0.25rem !important;
+        font-size: 0.45rem !important;
+        gap: 0.125rem !important;
+    }
+    .topnav .nav-center span {
+        display: inline !important;
+        font-size: 0.45rem !important;
+        white-space: nowrap !important;
+    }
+    .topnav .nav-center i {
+        font-size: 0.5rem !important;
+    }
+}
+
+@media (max-width: 1023px) {
+    .topnav .nav-center > button.lg\:hidden {
+        display: none !important;
+    }
+}

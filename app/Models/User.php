@@ -68,4 +68,28 @@ class User extends Authenticatable
     {
         return in_array($this->role, ['admin', 'manager', 'treasurer', 'secretary']);
     }
+
+    public function permissions()
+    {
+        return RolePermission::where('role', $this->role)
+            ->with('permission')
+            ->get()
+            ->pluck('permission.name')
+            ->toArray();
+    }
+
+    public function hasPermission(string $permission): bool
+    {
+        return in_array($permission, $this->permissions());
+    }
+
+    public function hasAnyPermission(array $permissions): bool
+    {
+        return !empty(array_intersect($permissions, $this->permissions()));
+    }
+
+    public function hasAllPermissions(array $permissions): bool
+    {
+        return empty(array_diff($permissions, $this->permissions()));
+    }
 }

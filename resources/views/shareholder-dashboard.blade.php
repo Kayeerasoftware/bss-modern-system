@@ -16,31 +16,13 @@
         /* Base Styles */
         html { scroll-behavior: smooth; }
         body { font-family: 'Inter', sans-serif; overflow-x: hidden; }
-        .scroll-mt-20 { scroll-margin-top: 5rem; }
+        .scroll-mt-20 { scroll-margin-top: 6rem; }
 
         /* Scrollbar */
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 3px; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
         ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-
-        /* Search Styles */
-        .nav-item.search-item {
-            display: flex;
-            align-items: center;
-            space-x: 0.5rem;
-            padding: 0.5rem;
-            margin-bottom: 0.5rem;
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 0.5rem;
-            transition: all 0.2s ease;
-        }
-
-        .nav-item.search-item:focus-within {
-            border-color: #3b82f6;
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-        }
 
         /* Animations */
         @keyframes messageSlideIn {
@@ -114,349 +96,66 @@
             padding: 2px 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             font-size: 10px; display: flex; align-items: center; gap: 2px;
         }
-
-        .sidebar-toggle {
-            position: fixed;
-            top: calc(3rem + 0.25rem);
-            left: calc(144px - 10px);
-            width: 20px;
-            height: 20px;
-            background: white;
-            border: 1px solid rgba(239, 68, 68, 0.5);
-            border-radius: 50%;
-            color: #ef4444;
-            cursor: pointer;
-            z-index: 1200;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.3s;
-            font-size: 0.6rem;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }
-
-        .sidebar-toggle:hover {
-            background: #ef4444;
-            color: white;
-            transform: scale(1.1);
-        }
-
-        .sidebar-toggle i {
-            transition: transform 0.3s;
-            transform: rotate(180deg);
-        }
-
-        aside.sidebar.collapsed ~ .sidebar-toggle {
-            left: calc(64px - 10px);
-        }
-
-        aside.sidebar.collapsed ~ .sidebar-toggle i {
-            transform: rotate(0deg);
-        }
-
-        aside.sidebar {
-            position: fixed;
-            top: 3rem;
-            left: 0;
-            height: calc(100vh - 3rem);
-            width: 144px;
-            transition: width 0.3s;
-            overflow-y: auto;
-            overflow-x: hidden;
-            z-index: 999;
-        }
-
-        aside.sidebar.collapsed {
-            width: 64px;
-        }
-
-        aside.sidebar.collapsed .user-info,
-        aside.sidebar.collapsed .nav-item span,
-        aside.sidebar.collapsed .search-item input,
-        aside.sidebar.collapsed .clear-search,
-        aside.sidebar.collapsed .nav-badge,
-        aside.sidebar.collapsed .nav-count,
-        aside.sidebar.collapsed p {
-            opacity: 0;
-            transform: translateY(-20px);
-            transition: opacity 0.2s ease, transform 0.2s ease;
-        }
-
-        aside.sidebar:not(.collapsed) .nav-item span,
-        aside.sidebar:not(.collapsed) .search-item input,
-        aside.sidebar:not(.collapsed) p {
-            opacity: 1;
-            transform: translateY(0);
-            transition: opacity 0.5s ease 0.3s, transform 0.5s ease 0.3s;
-        }
-
-        aside.sidebar.collapsed .sidebar-user {
-            padding: 0.5rem;
-        }
-
-        aside.sidebar.collapsed .user-avatar {
-            width: 40px;
-            height: 40px;
-            margin: 0 auto;
-        }
-
-        aside.sidebar.collapsed .user-avatar i {
-            font-size: 1.25rem;
-        }
-
-        aside.sidebar.collapsed .nav-item {
-            justify-content: center;
-            padding: 0.6rem;
-        }
-
-        aside.sidebar.collapsed .nav-item i {
-            font-size: 1rem;
-            margin: 0;
-        }
-
-        aside.sidebar.collapsed .search-item {
-            justify-content: center;
-            padding: 0.6rem;
-            cursor: pointer;
-        }
-
-        .main-content {
-            margin-left: 144px;
-            padding-top: 3rem;
-            transition: margin-left 0.3s;
-        }
-        
-        .main-content.sidebar-collapsed {
-            margin-left: 64px;
-        }
-        
-        /* Consistent spacing for all sections */
-        section {
-            padding-top: 0.25rem !important;
-        }
-        
-        section .mb-6 {
-            margin-bottom: 1rem !important;
-        }
-        
-        @media (max-width: 1023px) {
-            .main-content {
-                margin-left: 0;
-            }
-        }
-
-        @media (max-width: 1023px) {
-            .sidebar-toggle {
-                display: none !important;
-            }
-        }
-
-        @media (max-width: 767px) {
-            .sidebar-toggle {
-                display: none !important;
-            }
-        }
     </style>
-    <link rel="stylesheet" href="{{ asset('css/sidebar-toggle.css') }}">
-    <script src="{{ asset('js/shareholder-dashboard.js') }}"></script>
-    <script>
-        function alignWithNavbar() {
-            const navbar = document.querySelector('.topnav');
-            const sidebar = document.querySelector('.sidebar');
-            const mainContent = document.querySelector('.main-content');
-            const toggleBtn = document.querySelector('.sidebar-toggle');
-            
-            if (navbar) {
-                const navHeight = navbar.offsetHeight;
-                
-                if (sidebar) {
-                    sidebar.style.top = navHeight + 'px';
-                    sidebar.style.height = `calc(100vh - ${navHeight}px)`;
-                }
-                
-                if (mainContent) {
-                    mainContent.style.paddingTop = navHeight + 'px';
-                }
-                
-                if (toggleBtn) {
-                    toggleBtn.style.top = (navHeight + 4) + 'px';
-                }
-            }
-        }
-        
-        function forceScrollToTop() {
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
-        
-        document.addEventListener('DOMContentLoaded', function() {
-            alignWithNavbar();
-            
-            // Force scroll to top when sidebar links are clicked
-            document.querySelectorAll('.sidebar a').forEach(link => {
-                link.addEventListener('click', forceScrollToTop);
-            });
-        });
-        
-        window.addEventListener('resize', alignWithNavbar);
-    </script>
 </head>
 
-<body class="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 min-h-screen" x-data="{activeLink: 'overview', sidebarOpen: false, sidebarCollapsed: false, showLoanRequestModal: false, showChatModal: false, showPerformanceModal: false, showDividendModal: false, showOpportunitiesModal: false, showProfileModal: false, showProfileViewModal: false, showLogoModal: false, showShareholderModal: false, showCalendarModal: false, showProfileDropdown: false, showMemberChatModal: false, portfolioData: {shares: 1250, dividends: 125000, roi: 12.5, totalValue: 2450000, sharePrice: 1800}, myFinancials: {savings: 1500000, loan: 500000, balance: 1000000}, myLoans: [], chatMessages: [{sender: 'support', text: 'Hello! How can I help you today?', time: new Date().toLocaleTimeString()}], chatInput: '', loanRequest: {amount: '', purpose: '', repayment_months: ''}, investmentProjects: [{id: 1, name: 'Community Water Project', progress: 65, budget: 5000000, expected_roi: 15.0, roi: 12.5}, {id: 2, name: 'Solar Power Initiative', progress: 45, budget: 8000000, expected_roi: 18.5, roi: 16.2}], dividendHistory: [{id: 1, period: 'Q4 2023', amount: 125000, rate: 10, status: 'paid'}], formatCurrency(amount) { return 'UGX ' + (amount || 0).toLocaleString(); }, submitLoanRequest() { if (!this.loanRequest.amount || !this.loanRequest.purpose || !this.loanRequest.repayment_months) { alert('Please fill in all fields'); return; } const newLoan = {id: Date.now(), loan_id: 'LN-2024-' + String(this.myLoans.length + 1).padStart(3, '0'), amount: parseInt(this.loanRequest.amount), purpose: this.loanRequest.purpose, repayment_months: parseFloat(this.loanRequest.repayment_months), status: 'pending', created_at: new Date().toISOString(), monthly_payment: Math.round(parseInt(this.loanRequest.amount) * 1.1 / parseFloat(this.loanRequest.repayment_months))}; this.myLoans.push(newLoan); this.showLoanRequestModal = false; this.loanRequest = {amount: '', purpose: '', repayment_months: ''}; alert('Loan request submitted successfully!'); }, sendMessage() { if (!this.chatInput.trim()) return; this.chatMessages.push({sender: 'user', text: this.chatInput, time: new Date().toLocaleTimeString()}); this.chatInput = ''; setTimeout(() => { this.chatMessages.push({sender: 'support', text: 'Thank you for your message. Our team will get back to you shortly.', time: new Date().toLocaleTimeString()}); }, 1000); }, sendQuickMessage(message) { this.chatMessages.push({sender: 'user', text: message, time: new Date().toLocaleTimeString()}); setTimeout(() => { this.chatMessages.push({sender: 'support', text: 'I understand you need help with that. Let me connect you with the right specialist.', time: new Date().toLocaleTimeString()}); }, 1000); }}">
+<body class="bg-gray-50" x-data="shareholderDashboard()" x-init="$watch('reverseOrderState', function(val) { console.log('Reverse order state changed:', val); })">
 
-    <!-- ==================== TOP NAVIGATION ==================== -->
-    <nav class="topnav fixed top-0 left-0 right-0 h-12 bg-gradient-to-r from-violet-200 via-blue-200 to-cyan-200 backdrop-blur-xl border-b border-violet-300 z-[1000] shadow-2xl ring-2 ring-gradient-to-r ring-from-violet-400 ring-to-cyan-400 ring-opacity-80 shadow-violet-500/30">
-        <div class="nav-container flex items-center justify-between h-full px-6 max-w-full mx-auto">
-            <div class="nav-left flex items-center gap-2">
-                <button @click="sidebarOpen = !sidebarOpen" class="menu-toggle lg:hidden bg-gradient-to-br from-blue-50 to-purple-50 border border-blue-200 text-base text-blue-600 cursor-pointer px-2 py-1.5 rounded-lg transition-all duration-300 hover:from-blue-100 hover:to-purple-100 hover:-translate-y-0.5 hover:shadow-md">
-                    <i class="fas fa-bars"></i>
-                </button>
-                <div class="logo flex items-center gap-2 font-bold text-sm tracking-tight px-3 py-1.5 bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl border border-blue-200 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md hover:border-blue-300 cursor-pointer" @click="showLogoModal = !showLogoModal; console.log('Logo clicked, showLogoModal:', showLogoModal)" :class="showLogoModal ? 'ring-2 ring-blue-400' : ''">
-                    <img src="{{ asset('bunya logo.jpg') }}" alt="BSS Logo" class="logo-img h-6 w-auto object-contain drop-shadow-md transition-all duration-300">
-                    <h2 class="m-0 bg-gradient-to-br from-blue-600 to-purple-600 bg-clip-text text-transparent text-xs font-bold hidden md:block">BSS OB/OG INVESTMENT GROUP SYSTEM</h2>
+    <!-- ==================== HEADER ==================== -->
+    <nav class="bg-gradient-to-r from-blue-900 to-blue-950 text-white shadow-lg fixed top-0 left-0 right-0 z-20">
+        <div class="px-2 sm:px-4 py-3">
+            <div class="grid grid-cols-3 gap-2 items-center">
+                <!-- Left: BSS Investment Group -->
+                <div class="flex items-center space-x-1 sm:space-x-2">
+                    <button @click="sidebarOpen = !sidebarOpen" class="lg:hidden text-white mr-1">
+                        <i class="fas fa-bars text-base sm:text-lg"></i>
+                    </button>
+                    <i class="fas fa-building text-sm sm:text-base md:text-lg lg:text-xl"></i>
+                    <h1 class="text-[10px] sm:text-xs md:text-sm lg:text-base xl:text-lg font-bold truncate">
+                        BSS Investment Group
+                    </h1>
                 </div>
-                <button @click="showChatModal = true" class="nav-btn relative flex items-center justify-center bg-gradient-to-br from-blue-50 to-purple-50 border border-blue-200 px-3 py-1.5 rounded-xl cursor-pointer transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md hover:border-blue-300 group" title="Get Support">
-                    <i class="fas fa-headset text-blue-600 drop-shadow-md"></i>
-                    <span class="bg-gradient-to-br from-blue-600 to-purple-600 bg-clip-text text-transparent text-xs font-bold font-mono ml-2 hidden lg:inline">Get Support</span>
-                    <span class="absolute -top-1 -right-1 bg-red-500 text-white text-[0.6rem] font-bold px-1.5 py-0.5 rounded-full animate-pulse">Live</span>
-                </button>
-            </div>
 
-            <div class="nav-center flex-1 flex justify-center">
-                <div class="flex items-center gap-2 font-bold text-sm tracking-tight px-8 py-1.5 rounded-xl border transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md cursor-pointer hidden lg:flex" style="background: linear-gradient(135deg, #dcfce7, #bbf7d0); border-color: #22c55e;" @click="showShareholderModal = !showShareholderModal" :class="showShareholderModal ? 'ring-2 ring-green-400' : ''">
-                    <div class="bg-white/20 p-1 rounded-lg backdrop-blur-sm">
-                        <i class="fas fa-chart-line text-sm drop-shadow-md" style="color: #16a34a;"></i>
-                    </div>
-                    <span class="text-sm font-bold whitespace-nowrap" style="background: linear-gradient(135deg, #16a34a, #22c55e); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Shareholder Dashboard</span>
+                <!-- Center: Title -->
+                <div class="flex items-center justify-center space-x-1 sm:space-x-2">
+                    <i class="fas fa-chart-pie text-sm sm:text-base md:text-lg lg:text-xl"></i>
+                    <span class="text-[10px] sm:text-xs md:text-sm lg:text-base xl:text-lg font-semibold truncate">
+                        Shareholder Dashboard
+                    </span>
                 </div>
-                <button class="nav-btn relative flex items-center justify-center rounded-xl border transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md px-3 py-1.5 lg:hidden cursor-pointer" style="background: linear-gradient(135deg, #dcfce7, #bbf7d0); border-color: #22c55e;" title="Shareholder Dashboard" @click="showShareholderModal = !showShareholderModal" :class="showShareholderModal ? 'ring-2 ring-green-400' : ''">
-                    <i class="fas fa-chart-line drop-shadow-md" style="color: #16a34a;"></i>
-                </button>
-            </div>
-      {{-- calender model       --}}
-            <div class="nav-right flex items-center gap-2">
-                <button @click="showCalendarModal = true" class="nav-btn relative flex items-center justify-center bg-gradient-to-br from-blue-50 to-purple-50 border border-blue-200 px-3 py-1.5 rounded-xl cursor-pointer transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md hover:border-blue-300" title="Calendar" x-data="{ currentTime: new Date() }" x-init="setInterval(() => { currentTime = new Date() }, 1000)">
-                    <i class="fas fa-calendar-alt text-blue-600 drop-shadow-md"></i>
-                    <span class="bg-gradient-to-br from-blue-600 to-purple-600 bg-clip-text text-transparent text-xs font-bold font-mono ml-2 hidden md:inline" x-text="currentTime.toLocaleDateString() + ' ' + currentTime.toLocaleTimeString()"></span>
-                </button>
-                <button @click="activeLink = 'notifications'; document.getElementById('notifications').scrollIntoView({ behavior: 'smooth' })" class="nav-btn relative flex items-center justify-center bg-gradient-to-br from-blue-50 to-purple-50 border border-blue-200 px-3 py-1.5 rounded-xl cursor-pointer transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md hover:border-blue-300" title="Notifications">
-                    <i class="fas fa-bell text-blue-600 drop-shadow-md"></i>
-                    <span class="badge absolute -top-2 right-0 bg-gradient-to-br from-red-500 to-red-600 text-white text-[0.625rem] font-bold px-1.5 py-0.5 rounded-xl min-w-[1.125rem] text-center shadow-md border-2 border-white animate-pulse">3</span>
-                </button>
-                <button @click="showMemberChatModal = true" class="nav-btn relative flex items-center justify-center bg-gradient-to-br from-blue-50 to-purple-50 border border-blue-200 px-3 py-1.5 rounded-xl cursor-pointer transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md hover:border-blue-300" title="Messages">
-                    <i class="fas fa-envelope text-blue-600 drop-shadow-md"></i>
-                    <span class="status-dot absolute -top-1 right-1.5 w-2.5 h-2.5 bg-gradient-to-br from-green-500 to-green-600 rounded-full border-2 border-white shadow-md animate-pulse"></span>
-                </button>
-                <div class="profile relative">
-                    <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl cursor-pointer transition-all duration-300 bg-gradient-to-br from-blue-50 to-purple-50 border border-blue-200 hover:-translate-y-0.5 hover:shadow-md hover:border-blue-300" @click="showProfileDropdown = !showProfileDropdown">
-                        <span class="bg-gradient-to-br from-blue-600 to-purple-600 bg-clip-text text-transparent text-xs font-bold tracking-tight hidden lg:inline">Welcome back, John Doe</span>
-                        <i class="fas fa-chevron-down dropdown-arrow transition-all duration-300 text-blue-600 text-xs drop-shadow-md hidden lg:inline" :class="showProfileDropdown ? 'rotate-180' : ''"></i>
-                        <div class="profile-avatar relative">
-                            <img src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=40&h=40&fit=crop&crop=face" alt="Profile" class="w-6 h-6 rounded-full object-cover border-2 border-green-500 shadow-md transition-all duration-300">
-                            <div class="status-indicator online absolute bottom-0 right-0 w-2 h-2 rounded-full border-2 border-white bg-gradient-to-br from-green-500 to-green-600 shadow-md animate-pulse"></div>
+
+                <!-- Right: User Info & Logout -->
+                <div class="flex items-center justify-end space-x-1 sm:space-x-2">
+                    <div class="hidden md:flex items-center space-x-2 cursor-pointer" @click="showProfileModal = true">
+                        <div class="text-right">
+                            <p class="text-xs text-blue-200">Welcome back,</p>
+                            <p class="font-semibold text-sm">John Doe</p>
+                        </div>
+                        <div class="w-8 h-8 rounded-full bg-blue-800 flex items-center justify-center overflow-hidden border-2 border-blue-600">
+                            <img x-show="profilePicture" :src="profilePicture" alt="Profile" class="w-full h-full object-cover">
+                            <i x-show="!profilePicture" class="fas fa-user text-sm"></i>
                         </div>
                     </div>
-                    <div x-show="showProfileDropdown"
-                         @click.away="showProfileDropdown = false"
-                         x-transition:enter="transition ease-out duration-200"
-                         x-transition:enter-start="opacity-0 scale-95"
-                         x-transition:enter-end="opacity-100 scale-100"
-                         x-transition:leave="transition ease-in duration-150"
-                         x-transition:leave-start="opacity-100 scale-100"
-                         x-transition:leave-end="opacity-0 scale-95"
-                         class="dropdown-menu absolute top-full right-0 mt-3 w-48 bg-white border border-blue-200 rounded-lg shadow-xl z-[1000] overflow-hidden">
-                        <div class="px-4 py-3 border-b border-gray-100 text-center">
-                            <div class="w-12 h-12 rounded-full bg-gray-300 mx-auto mb-2 overflow-hidden">
-                                <img src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=48&h=48&fit=crop&crop=face" alt="Profile" class="w-full h-full object-cover">
-                            </div>
-                            <p class="text-sm font-semibold text-gray-800">John Doe</p>
-                            <p class="text-xs text-gray-500">Shareholder</p>
-                        </div>
-                        <a href="#" class="dropdown-item flex items-center gap-2 px-3 py-2 text-gray-800 no-underline transition-all duration-200 bg-transparent border-0 w-full text-left cursor-pointer text-xs font-medium relative hover:bg-gradient-to-br hover:from-blue-50 hover:to-purple-50 hover:text-blue-600">
-                            <i class="fas fa-user text-blue-600 text-xs w-3 text-center"></i> Profile
-                        </a>
-                        <a href="#" class="dropdown-item flex items-center gap-2 px-3 py-2 text-gray-800 no-underline transition-all duration-200 bg-transparent border-0 w-full text-left cursor-pointer text-xs font-medium relative hover:bg-gradient-to-br hover:from-blue-50 hover:to-purple-50 hover:text-blue-600">
-                            <i class="fas fa-cog text-blue-600 text-xs w-3 text-center"></i> Settings
-                        </a>
-                        <div class="dropdown-divider h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent my-1"></div>
-                        <form action="http://127.0.0.1:8000/" method="GET" class="m-0">
-                            <button type="submit" class="dropdown-item flex items-center gap-2 px-3 py-2 text-gray-800 no-underline transition-all duration-200 bg-transparent border-0 w-full text-left cursor-pointer text-xs font-medium relative hover:bg-gradient-to-br hover:from-blue-50 hover:to-purple-50 hover:text-blue-600">
-                                <i class="fas fa-sign-out-alt text-blue-600 text-xs w-3 text-center"></i> Logout
-                            </button>
-                        </form>
-                    </div>
+                    <form action="/logout" method="POST" class="inline">
+                        <input type="hidden" name="_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="px-2 md:px-3 py-1 bg-blue-800 hover:bg-blue-950 rounded text-xs flex items-center space-x-1 transition">
+                            <i class="fas fa-sign-out-alt"></i>
+                            <span class="hidden sm:inline">Logout</span>
+                        </button>
+                    </form>
                 </div>
             </div>
         </div>
     </nav>
 
-    <!-- Logo Dropdown -->
-    <div x-show="showLogoModal" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 transform -translate-y-2" x-transition:enter-end="opacity-100 transform translate-y-0" x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 transform translate-y-0" x-transition:leave-end="opacity-0 transform -translate-y-2" @click.away="showLogoModal = false" class="fixed top-12 left-0 right-0 bg-white border-b border-gray-200 shadow-xl z-[1001] p-6">
-        <div class="max-w-md mx-auto text-center">
-            <img src="{{ asset('bunya logo.jpg') }}" alt="BSS Logo" class="h-16 w-auto object-contain mx-auto mb-3 drop-shadow-lg">
-            <h2 class="text-lg font-bold bg-gradient-to-br from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">BSS OB/OG INVESTMENT GROUP SYSTEM</h2>
-            <p class="text-sm text-gray-600 mb-1">Your trusted investment partner</p>
-            <p class="text-xs text-gray-400">Building wealth together since 2020</p>
-        </div>
-    </div>
-
-    <!-- Shareholder Dropdown -->
-    <div x-show="showShareholderModal" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 transform -translate-y-2" x-transition:enter-end="opacity-100 transform translate-y-0" x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 transform translate-y-0" x-transition:leave-end="opacity-0 transform -translate-y-2" @click.away="showShareholderModal = false" class="fixed top-12 left-0 right-0 bg-white border-b border-gray-200 shadow-xl z-[1001] p-6">
-        <div class="max-w-md mx-auto text-center">
-            <div class="w-16 h-16 mx-auto mb-3 bg-gradient-to-br from-green-400 to-emerald-500 rounded-full flex items-center justify-center">
-                <i class="fas fa-chart-line text-white text-2xl"></i>
-            </div>
-            <h2 class="text-lg font-bold bg-gradient-to-br from-green-600 to-emerald-600 bg-clip-text text-transparent mb-2">Shareholder Dashboard</h2>
-            <p class="text-sm text-gray-600 mb-1">Investment portfolio management</p>
-            <p class="text-xs text-gray-400">Track your shares, dividends & returns</p>
-        </div>
-    </div>
-    <div x-show="showLogoModal" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 transform -translate-y-2" x-transition:enter-end="opacity-100 transform translate-y-0" x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 transform translate-y-0" x-transition:leave-end="opacity-0 transform -translate-y-2" @click.away="showLogoModal = false" class="fixed top-12 left-0 right-0 bg-white border-b border-gray-200 shadow-xl z-[1001] p-6">
-        <div class="max-w-md mx-auto text-center">
-            <img src="{{ asset('bunya logo.jpg') }}" alt="BSS Logo" class="h-16 w-auto object-contain mx-auto mb-3 drop-shadow-lg">
-            <h2 class="text-lg font-bold bg-gradient-to-br from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">BSS OB/OG INVESTMENT GROUP SYSTEM</h2>
-            <p class="text-sm text-gray-600 mb-1">Your trusted investment partner</p>
-            <p class="text-xs text-gray-400">Building wealth together since 2020</p>
-        </div>
-    </div>
-
     <!-- ==================== MAIN LAYOUT ==================== -->
-    <div class="flex pt-12">
+    <div class="flex pt-16">
 
         <!-- ==================== SIDEBAR ==================== -->
-        <aside class="sidebar w-36 bg-gradient-to-b from-blue-50 to-blue-100 border-r border-blue-200 fixed left-0 top-12 h-[calc(100vh-3rem)] overflow-y-scroll transition-all duration-300 lg:translate-x-0 z-10 flex flex-col"
-               :class="[sidebarOpen ? 'translate-x-0' : '-translate-x-full', sidebarCollapsed ? 'collapsed' : '']"
-               id="sidebar">
-
+        <aside class="w-36 bg-gradient-to-b from-blue-50 to-blue-100 border-r border-blue-200 fixed left-0 h-[calc(100vh-4rem)] overflow-y-auto transition-transform duration-300 lg:translate-x-0 z-10 flex flex-col"
+               :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full'">
             <div class="p-2 flex-1">
-                <nav class="space-y-1 sidebar-nav">
-
-                                        <!-- User Profile -->
-                    <div class="p-2 border-t border-blue-200">
-                        <div class="flex flex-col items-center py-3">
-                            <div class="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center mb-2 overflow-hidden cursor-pointer" @click="showProfileViewModal = true">
-                                <img x-show="profilePicture" :src="profilePicture" alt="Profile" class="w-full h-full object-cover">
-                                <i x-show="!profilePicture" class="fas fa-user text-blue-600 text-2xl"></i>
-                            </div>
-                            <p class="text-xs font-semibold text-gray-800 text-center">John Doe</p>
-                            <p class="text-[10px] text-gray-500">Shareholder</p>
-                        </div>
-                    </div>
-
-                    <!-- Search Bar -->
-                    <div class="nav-item search-item relative">
-                        <i class="fas fa-search text-gray-500" @click="if(sidebarCollapsed) { sidebarCollapsed = false; }"></i>
-                        <input type="text"
-                               x-model="sidebarSearch"
-                               @input="handleSidebarSearch($event.target.value)"
-                               placeholder="Search menu..."
-                               class="flex-1 bg-transparent border-none outline-none text-xs text-gray-700 placeholder-gray-500 ml-2">
-                        <button x-show="sidebarSearch"
-                                @click="clearSidebarSearch()"
-                                class="text-gray-400 hover:text-gray-600 transition ml-2">
-                            <i class="fas fa-times text-xs"></i>
-                        </button>
-                    </div>
-
+                <nav class="space-y-1">
                     <a href="#overview" @click="sidebarOpen = false; activeLink = 'overview'"
                        :class="activeLink === 'overview' ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-blue-50 hover:text-blue-600'"
                        class="flex items-center space-x-2 px-2 py-2 rounded-lg transition text-xs">
@@ -527,11 +226,6 @@
                     </a>
                 </nav>
 
-                <!-- Sidebar Toggle Button -->
-                <button class="sidebar-toggle hidden lg:block" @click="sidebarCollapsed = !sidebarCollapsed" title="Toggle Sidebar">
-                    <i class="fas fa-chevron-left"></i>
-                </button>
-
                 <!-- Quick Actions -->
                 <div class="mt-4 pt-4 border-t border-blue-200">
                     <p class="px-2 text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-2">Quick Actions</p>
@@ -544,9 +238,6 @@
                                 class="w-full flex items-center space-x-2 px-2 py-2 rounded-lg text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition text-xs text-left">
                             <i class="fas fa-rocket text-purple-500 w-3"></i><span>New Investment</span>
                         </button>
-
-
-
                         <button @click="showChatModal = true; sidebarOpen = false"
                                 class="w-full flex items-center space-x-2 px-2 py-2 rounded-lg text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition text-xs text-left">
                             <i class="fas fa-headset text-blue-500 w-3"></i><span>Get Support</span>
@@ -555,20 +246,31 @@
                 </div>
             </div>
 
+                <!-- User Profile -->
+                <div class="flex flex-col items-center py-3 mt-auto border-t border-blue-200">
+                    <div class="w-20 h-20 rounded-full bg-blue-100 flex items-center justify-center mb-2 overflow-hidden cursor-pointer" @click="showProfileViewModal = true">
+                        <img x-show="profilePicture" :src="profilePicture" alt="Profile" class="w-full h-full object-cover">
+                        <i x-show="!profilePicture" class="fas fa-user text-blue-600 text-3xl"></i>
+                    </div>
+                    <p class="text-xs font-semibold text-gray-800 text-center">John Doe</p>
+                    <p class="text-[10px] text-gray-500">Shareholder</p>
+                </div>
+            </div>
 
+            <!-- Chat Button -->
+            <div class="p-2 border-t border-blue-200">
+                <button @click="showChatModal = true" class="w-full px-2 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-xs flex items-center justify-center space-x-1">
+                    <i class="fas fa-comments"></i><span>Chat</span>
+                </button>
+            </div>
         </aside>
 
-        <!-- Sidebar Toggle Button -->
-        <button class="sidebar-toggle hidden lg:block" @click="sidebarCollapsed = !sidebarCollapsed">
-            <i class="fas fa-chevron-right"></i>
-        </button>
-
         <!-- ==================== MAIN CONTENT ==================== -->
-        <div class="main-content flex-1 overflow-y-auto h-screen" :class="sidebarCollapsed ? 'sidebar-collapsed' : ''">
-            <div class="p-4 md:p-6 lg:p-8 h-full">
+        <div class="flex-1 overflow-y-auto lg:ml-36">
+            <div class="p-4 md:p-6 lg:p-8 space-y-8">
 
                 <!-- ==================== SECTION 1: PORTFOLIO OVERVIEW ==================== -->
-                <section id="overview" class="scroll-mt-20" x-show="activeLink === 'overview'">
+                <section id="overview" class="scroll-mt-20">
                     <div class="mb-6">
                         <h2 class="text-xl md:text-2xl font-bold text-gray-800">Portfolio Overview</h2>
                         <p class="text-sm text-gray-500 mt-1">Your investment summary at a glance</p>
@@ -651,7 +353,7 @@
                 </section>
 
                 <!-- ==================== SECTION 2: PORTFOLIO ANALYTICS ==================== -->
-                <section id="portfolio" class="scroll-mt-20" x-show="activeLink === 'portfolio'">
+                <section id="portfolio" class="scroll-mt-20">
                     <div class="mb-6">
                         <h2 class="text-xl md:text-2xl font-bold text-gray-800">Portfolio Analytics</h2>
                         <p class="text-sm text-gray-500 mt-1">Detailed performance metrics and trends</p>
@@ -883,7 +585,7 @@
                 </section>
 
                 <!-- ==================== SECTION 3: MARKET INSIGHTS ==================== -->
-                <section id="insights" class="scroll-mt-20" x-show="activeLink === 'insights'">
+                <section id="insights" class="scroll-mt-20">
                     <div class="mb-6">
                         <h2 class="text-xl md:text-2xl font-bold text-gray-800">Market Insights</h2>
                         <p class="text-sm text-gray-500 mt-1">Latest announcements and opportunities</p>
@@ -951,7 +653,7 @@
                 </section>
 
                 <!-- ==================== SECTION 4: LOAN MANAGEMENT ==================== -->
-                <section id="loans" class="scroll-mt-20" x-show="activeLink === 'loans'">
+                <section id="loans" class="scroll-mt-20">
                     <div class="mb-6">
                         <h2 class="text-xl md:text-2xl font-bold text-gray-800">My Loan Management</h2>
                         <p class="text-sm text-gray-500 mt-1">View and manage your loan applications</p>
@@ -970,7 +672,7 @@
                         <!-- Financial Summary Cards -->
                         <div class="p-4 md:p-6">
                             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                            <div class="p-4 bg-green-50 rounded-lg border-l-4 border-green-500 ring-1 ring-green-200 shadow-sm">
+                            <div class="p-4 bg-green-50 rounded-lg border-l-4 border-green-500">
                                 <div class="flex justify-between items-center">
                                     <div>
                                         <p class="text-sm text-gray-600">Total Savings</p>
@@ -979,7 +681,7 @@
                                     <i class="fas fa-piggy-bank text-green-600 text-3xl"></i>
                                 </div>
                             </div>
-                            <div class="p-4 bg-red-50 rounded-lg border-l-4 border-red-500 ring-1 ring-red-200 shadow-sm">
+                            <div class="p-4 bg-red-50 rounded-lg border-l-4 border-red-500">
                                 <div class="flex justify-between items-center">
                                     <div>
                                         <p class="text-sm text-gray-600">Total Loan</p>
@@ -988,7 +690,7 @@
                                     <i class="fas fa-hand-holding-usd text-red-600 text-3xl"></i>
                                 </div>
                             </div>
-                            <div class="p-4 bg-blue-50 rounded-lg border-l-4 border-blue-500 ring-1 ring-blue-200 shadow-sm">
+                            <div class="p-4 bg-blue-50 rounded-lg border-l-4 border-blue-500">
                                 <div class="flex justify-between items-center">
                                     <div>
                                         <p class="text-sm text-gray-600">Net Balance</p>
@@ -1059,7 +761,7 @@
                 </section>
 
                 <!-- ==================== SECTION 5: MEMBERS ANALYTICS ==================== -->
-                <section id="members" class="scroll-mt-20 pb-8" x-show="activeLink === 'members'">
+                <section id="members" class="scroll-mt-20 pb-8">
                     <div class="mb-6">
                         <h2 class="text-xl md:text-2xl font-bold text-gray-800">Members Analytics</h2>
                         <p class="text-sm text-gray-500 mt-1">Organization statistics and member directory</p>
@@ -1673,7 +1375,7 @@
                 </section>
 
                 <!-- ==================== SECTION 6: MY PROFILE ==================== -->
-                <section id="profile" class="scroll-mt-20" x-show="activeLink === 'profile'">
+                <section id="profile" class="scroll-mt-20">
                     <div class="mb-6">
                         <h2 class="text-xl md:text-2xl font-bold text-gray-800">My Profile</h2>
                         <p class="text-sm text-gray-500 mt-1">Manage your personal information</p>
@@ -1719,204 +1421,80 @@
                     </div>
                 </section>
 
-                <!-- ==================== SECTION 7: MY SAVINGS ==================== -->
-                <section id="savings" class="scroll-mt-20" x-show="activeLink === 'savings'">
-                    <div class="mb-8">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <h2 class="text-2xl md:text-3xl font-bold text-gray-800">My Savings</h2>
-                                <p class="text-sm text-gray-500 mt-1">Track your savings growth and manage deposits</p>
-                            </div>
-                            <div class="flex items-center space-x-3">
-                                <button class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm">
-                                    <i class="fas fa-plus mr-2"></i>Make Deposit
-                                </button>
-                                <button class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm">
-                                    <i class="fas fa-download mr-2"></i>Export
-                                </button>
-                            </div>
-                        </div>
+                <!-- ==================== SECTION 7: SAVINGS ==================== -->
+                <section id="savings" class="scroll-mt-20">
+                    <div class="mb-6">
+                        <h2 class="text-xl md:text-2xl font-bold text-gray-800">My Savings</h2>
+                        <p class="text-sm text-gray-500 mt-1">Track your savings and deposits</p>
                     </div>
 
-                    <!-- Savings Overview Cards -->
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-8">
-                        <!-- Total Savings -->
-                        <div class="bg-white p-6 rounded-xl shadow-lg border-l-4 border-green-500 hover:shadow-xl transition-shadow">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-6">
+                        <div class="bg-white p-6 rounded-xl shadow-lg border-l-4 border-green-500">
                             <div class="flex items-center justify-between">
                                 <div>
-                                    <p class="text-sm text-gray-600 font-medium">Total Savings</p>
+                                    <p class="text-sm text-gray-600">Total Savings</p>
                                     <p class="text-2xl font-bold text-green-600" x-text="formatCurrency(myFinancials.savings)">UGX 1,500,000</p>
-                                    <p class="text-xs text-gray-500 mt-1">Principal amount</p>
                                 </div>
                                 <div class="p-3 bg-green-100 rounded-full">
                                     <i class="fas fa-piggy-bank text-green-600 text-xl"></i>
                                 </div>
                             </div>
-                            <div class="mt-4">
-                                <div class="flex items-center text-sm text-green-600">
-                                    <i class="fas fa-arrow-up mr-1"></i><span>+12.5% this year</span>
-                                </div>
-                            </div>
                         </div>
-
-                        <!-- This Month Savings -->
-                        <div class="bg-white p-6 rounded-xl shadow-lg border-l-4 border-blue-500 hover:shadow-xl transition-shadow">
+                        <div class="bg-white p-6 rounded-xl shadow-lg border-l-4 border-blue-500">
                             <div class="flex items-center justify-between">
                                 <div>
-                                    <p class="text-sm text-gray-600 font-medium">This Month</p>
+                                    <p class="text-sm text-gray-600">This Month</p>
                                     <p class="text-2xl font-bold text-blue-600">UGX 250,000</p>
-                                    <p class="text-xs text-gray-500 mt-1">December deposits</p>
                                 </div>
                                 <div class="p-3 bg-blue-100 rounded-full">
                                     <i class="fas fa-calendar-check text-blue-600 text-xl"></i>
                                 </div>
                             </div>
-                            <div class="mt-4">
-                                <div class="flex items-center text-sm text-blue-600">
-                                    <i class="fas fa-target mr-1"></i><span>Goal: UGX 300K</span>
-                                </div>
-                            </div>
                         </div>
-
-                        <!-- Interest Earned -->
-                        <div class="bg-white p-6 rounded-xl shadow-lg border-l-4 border-purple-500 hover:shadow-xl transition-shadow">
+                        <div class="bg-white p-6 rounded-xl shadow-lg border-l-4 border-purple-500">
                             <div class="flex items-center justify-between">
                                 <div>
-                                    <p class="text-sm text-gray-600 font-medium">Interest Earned</p>
+                                    <p class="text-sm text-gray-600">Interest Earned</p>
                                     <p class="text-2xl font-bold text-purple-600">UGX 45,000</p>
-                                    <p class="text-xs text-gray-500 mt-1">3% annual rate</p>
                                 </div>
                                 <div class="p-3 bg-purple-100 rounded-full">
                                     <i class="fas fa-percentage text-purple-600 text-xl"></i>
                                 </div>
                             </div>
-                            <div class="mt-4">
-                                <div class="flex items-center text-sm text-purple-600">
-                                    <i class="fas fa-chart-line mr-1"></i><span>Compounding</span>
-                                </div>
-                            </div>
                         </div>
-
-                        <!-- Available Balance -->
-                        <div class="bg-white p-6 rounded-xl shadow-lg border-l-4 border-orange-500 hover:shadow-xl transition-shadow">
+                        <div class="bg-white p-6 rounded-xl shadow-lg border-l-4 border-orange-500">
                             <div class="flex items-center justify-between">
                                 <div>
-                                    <p class="text-sm text-gray-600 font-medium">Available Balance</p>
-                                    <p class="text-2xl font-bold text-orange-600">UGX 1,445,000</p>
-                                    <p class="text-xs text-gray-500 mt-1">After withdrawals</p>
+                                    <p class="text-sm text-gray-600">Withdrawals</p>
+                                    <p class="text-2xl font-bold text-orange-600">UGX 100,000</p>
                                 </div>
                                 <div class="p-3 bg-orange-100 rounded-full">
                                     <i class="fas fa-wallet text-orange-600 text-xl"></i>
                                 </div>
                             </div>
-                            <div class="mt-4">
-                                <div class="flex items-center text-sm text-orange-600">
-                                    <i class="fas fa-shield-alt mr-1"></i><span>Protected</span>
-                                </div>
-                            </div>
                         </div>
                     </div>
 
-                    <!-- Savings Goals & Progress -->
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-                        <!-- Savings Goals -->
-                        <div class="bg-white p-6 rounded-xl shadow-lg">
-                            <div class="flex justify-between items-center mb-4">
-                                <h3 class="text-lg font-semibold text-gray-800">Savings Goals</h3>
-                                <button class="text-blue-600 text-sm hover:underline">
-                                    <i class="fas fa-plus mr-1"></i>Add Goal
+                    <div class="bg-white p-6 rounded-xl shadow-lg">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg font-semibold text-gray-800">Savings History</h3>
+                            <div class="flex items-center space-x-2">
+                                <button @click="toggleReverseOrder('savings')"
+                                        :class="reverseOrderState.savings ? 'bg-purple-600 text-white' : 'bg-gray-200 text-gray-700'"
+                                        class="px-3 py-1 rounded text-xs transition" title="Reverse Order">
+                                    <i class="fas fa-sort-numeric-alt mr-1"></i>
+                                    <span x-text="reverseOrderState.savings ? 'Oldest First' : 'Newest First'"></span>
+                                </button>
+                                <button class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm">
+                                    <i class="fas fa-download mr-2"></i>Export
                                 </button>
                             </div>
-                            <div class="space-y-4">
-                                <div class="p-4 bg-blue-50 rounded-lg">
-                                    <div class="flex justify-between items-center mb-2">
-                                        <h4 class="font-medium text-gray-800">Emergency Fund</h4>
-                                        <span class="text-sm font-bold text-blue-600">75%</span>
-                                    </div>
-                                    <div class="w-full bg-gray-200 rounded-full h-2 mb-2">
-                                        <div class="bg-blue-500 h-2 rounded-full" style="width: 75%"></div>
-                                    </div>
-                                    <div class="flex justify-between text-sm text-gray-600">
-                                        <span>UGX 750,000 / UGX 1,000,000</span>
-                                        <span class="text-blue-600">UGX 250K to go</span>
-                                    </div>
-                                </div>
-                                <div class="p-4 bg-green-50 rounded-lg">
-                                    <div class="flex justify-between items-center mb-2">
-                                        <h4 class="font-medium text-gray-800">Investment Capital</h4>
-                                        <span class="text-sm font-bold text-green-600">60%</span>
-                                    </div>
-                                    <div class="w-full bg-gray-200 rounded-full h-2 mb-2">
-                                        <div class="bg-green-500 h-2 rounded-full" style="width: 60%"></div>
-                                    </div>
-                                    <div class="flex justify-between text-sm text-gray-600">
-                                        <span>UGX 600,000 / UGX 1,000,000</span>
-                                        <span class="text-green-600">UGX 400K to go</span>
-                                    </div>
-                                </div>
-                                <div class="p-4 bg-purple-50 rounded-lg">
-                                    <div class="flex justify-between items-center mb-2">
-                                        <h4 class="font-medium text-gray-800">Education Fund</h4>
-                                        <span class="text-sm font-bold text-purple-600">30%</span>
-                                    </div>
-                                    <div class="w-full bg-gray-200 rounded-full h-2 mb-2">
-                                        <div class="bg-purple-500 h-2 rounded-full" style="width: 30%"></div>
-                                    </div>
-                                    <div class="flex justify-between text-sm text-gray-600">
-                                        <span>UGX 150,000 / UGX 500,000</span>
-                                        <span class="text-purple-600">UGX 350K to go</span>
-                                    </div>
-                                </div>
-                            </div>
                         </div>
-
-                        <!-- Savings Growth Chart -->
-                        <div class="bg-white p-6 rounded-xl shadow-lg">
-                            <div class="flex justify-between items-center mb-4">
-                                <h3 class="text-lg font-semibold text-gray-800">Growth Trend</h3>
-                                <div class="flex space-x-2">
-                                    <button class="px-3 py-1 bg-blue-600 text-white rounded text-xs">6M</button>
-                                    <button class="px-3 py-1 bg-gray-200 text-gray-700 rounded text-xs">1Y</button>
-                                    <button class="px-3 py-1 bg-gray-200 text-gray-700 rounded text-xs">All</button>
-                                </div>
-                            </div>
-                            <div style="height: 250px;">
-                                <canvas id="savingsGrowthChart"></canvas>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Savings History -->
-                    <div class="bg-white rounded-xl shadow-lg overflow-hidden">
-                        <div class="p-6 border-b border-gray-100">
-                            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                                <div>
-                                    <h3 class="text-lg font-semibold text-gray-800">Transaction History</h3>
-                                    <p class="text-sm text-gray-500">Complete record of your savings activity</p>
-                                </div>
-                                <div class="flex items-center space-x-3">
-                                    <select class="px-3 py-2 border rounded-lg text-sm">
-                                        <option value="">All Types</option>
-                                        <option value="deposit">Deposits</option>
-                                        <option value="withdrawal">Withdrawals</option>
-                                        <option value="interest">Interest</option>
-                                    </select>
-                                    <button @click="toggleReverseOrder('savings')"
-                                            :class="reverseOrderState.savings ? 'bg-purple-600 text-white' : 'bg-gray-200 text-gray-700'"
-                                            class="px-3 py-2 rounded text-xs transition" title="Reverse Order">
-                                        <i class="fas fa-sort-numeric-alt mr-1"></i>
-                                        <span x-text="reverseOrderState.savings ? 'Oldest First' : 'Newest First'"></span>
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="overflow-x-auto">
                             <table class="w-full">
                                 <thead class="bg-gray-50">
                                     <tr>
                                         <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
                                         <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
-                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
                                         <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
                                         <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Balance</th>
                                         <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
@@ -1925,89 +1503,33 @@
                                 <tbody class="bg-white divide-y divide-gray-200">
                                     <tr class="hover:bg-gray-50">
                                         <td class="px-4 py-3 text-sm">Dec 15, 2024</td>
-                                        <td class="px-4 py-3 text-sm">
-                                            <span class="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">
-                                                <i class="fas fa-plus mr-1"></i>Deposit
-                                            </span>
-                                        </td>
-                                        <td class="px-4 py-3 text-sm">Monthly savings contribution</td>
+                                        <td class="px-4 py-3 text-sm"><span class="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">Deposit</span></td>
                                         <td class="px-4 py-3 text-sm font-medium text-green-600">+UGX 100,000</td>
-                                        <td class="px-4 py-3 text-sm font-medium">UGX 1,500,000</td>
-                                        <td class="px-4 py-3">
-                                            <span class="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">Completed</span>
-                                        </td>
+                                        <td class="px-4 py-3 text-sm">UGX 1,500,000</td>
+                                        <td class="px-4 py-3"><span class="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">Completed</span></td>
                                     </tr>
                                     <tr class="hover:bg-gray-50">
                                         <td class="px-4 py-3 text-sm">Dec 1, 2024</td>
-                                        <td class="px-4 py-3 text-sm">
-                                            <span class="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">
-                                                <i class="fas fa-plus mr-1"></i>Deposit
-                                            </span>
-                                        </td>
-                                        <td class="px-4 py-3 text-sm">Regular monthly deposit</td>
+                                        <td class="px-4 py-3 text-sm"><span class="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">Deposit</span></td>
                                         <td class="px-4 py-3 text-sm font-medium text-green-600">+UGX 150,000</td>
-                                        <td class="px-4 py-3 text-sm font-medium">UGX 1,400,000</td>
-                                        <td class="px-4 py-3">
-                                            <span class="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">Completed</span>
-                                        </td>
-                                    </tr>
-                                    <tr class="hover:bg-gray-50">
-                                        <td class="px-4 py-3 text-sm">Nov 30, 2024</td>
-                                        <td class="px-4 py-3 text-sm">
-                                            <span class="px-2 py-1 text-xs rounded-full bg-purple-100 text-purple-800">
-                                                <i class="fas fa-percentage mr-1"></i>Interest
-                                            </span>
-                                        </td>
-                                        <td class="px-4 py-3 text-sm">Monthly interest credit</td>
-                                        <td class="px-4 py-3 text-sm font-medium text-purple-600">+UGX 3,750</td>
-                                        <td class="px-4 py-3 text-sm font-medium">UGX 1,253,750</td>
-                                        <td class="px-4 py-3">
-                                            <span class="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">Completed</span>
-                                        </td>
+                                        <td class="px-4 py-3 text-sm">UGX 1,400,000</td>
+                                        <td class="px-4 py-3"><span class="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">Completed</span></td>
                                     </tr>
                                     <tr class="hover:bg-gray-50">
                                         <td class="px-4 py-3 text-sm">Nov 15, 2024</td>
-                                        <td class="px-4 py-3 text-sm">
-                                            <span class="px-2 py-1 text-xs rounded-full bg-red-100 text-red-800">
-                                                <i class="fas fa-minus mr-1"></i>Withdrawal
-                                            </span>
-                                        </td>
-                                        <td class="px-4 py-3 text-sm">Emergency fund withdrawal</td>
+                                        <td class="px-4 py-3 text-sm"><span class="px-2 py-1 text-xs rounded-full bg-red-100 text-red-800">Withdrawal</span></td>
                                         <td class="px-4 py-3 text-sm font-medium text-red-600">-UGX 100,000</td>
-                                        <td class="px-4 py-3 text-sm font-medium">UGX 1,250,000</td>
-                                        <td class="px-4 py-3">
-                                            <span class="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">Completed</span>
-                                        </td>
-                                    </tr>
-                                    <tr class="hover:bg-gray-50">
-                                        <td class="px-4 py-3 text-sm">Nov 1, 2024</td>
-                                        <td class="px-4 py-3 text-sm">
-                                            <span class="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">
-                                                <i class="fas fa-plus mr-1"></i>Deposit
-                                            </span>
-                                        </td>
-                                        <td class="px-4 py-3 text-sm">Monthly savings contribution</td>
-                                        <td class="px-4 py-3 text-sm font-medium text-green-600">+UGX 200,000</td>
-                                        <td class="px-4 py-3 text-sm font-medium">UGX 1,350,000</td>
-                                        <td class="px-4 py-3">
-                                            <span class="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">Completed</span>
-                                        </td>
+                                        <td class="px-4 py-3 text-sm">UGX 1,250,000</td>
+                                        <td class="px-4 py-3"><span class="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">Completed</span></td>
                                     </tr>
                                 </tbody>
                             </table>
-                        </div>
-                        <div class="p-4 border-t border-gray-100 flex justify-between items-center">
-                            <span class="text-sm text-gray-600">Showing 5 of 48 transactions</span>
-                            <div class="flex items-center space-x-2">
-                                <button class="px-3 py-1 border rounded-lg text-sm disabled:opacity-50 bg-gray-100">Previous</button>
-                                <button class="px-3 py-1 border rounded-lg text-sm hover:bg-gray-50">Next</button>
-                            </div>
                         </div>
                     </div>
                 </section>
 
                 <!-- ==================== SECTION 8: DIVIDENDS ==================== -->
-                <section id="dividends" class="scroll-mt-20" x-show="activeLink === 'dividends'">
+                <section id="dividends" class="scroll-mt-20">
                     <div class="mb-6">
                         <h2 class="text-xl md:text-2xl font-bold text-gray-800">Dividend Management</h2>
                         <p class="text-sm text-gray-500 mt-1">View your dividend earnings and history</p>
@@ -2097,7 +1619,7 @@
                 </section>
 
                 <!-- ==================== SECTION 9: INVESTMENTS ==================== -->
-                <section id="investments" class="scroll-mt-20" x-show="activeLink === 'investments'">
+                <section id="investments" class="scroll-mt-20">
                     <div class="mb-6">
                         <h2 class="text-xl md:text-2xl font-bold text-gray-800">My Investments</h2>
                         <p class="text-sm text-gray-500 mt-1">Track your investment portfolio</p>
@@ -2190,7 +1712,7 @@
                 </section>
 
                 <!-- ==================== SECTION 10: TRANSACTIONS ==================== -->
-                <section id="transactions" class="scroll-mt-20" x-show="activeLink === 'transactions'">
+                <section id="transactions" class="scroll-mt-20">
                     <div class="mb-6">
                         <h2 class="text-xl md:text-2xl font-bold text-gray-800">Transaction History</h2>
                         <p class="text-sm text-gray-500 mt-1">View all your financial transactions</p>
@@ -2294,7 +1816,7 @@
                 </section>
 
                 <!-- ==================== SECTION 11: DOCUMENTS ==================== -->
-                <section id="documents" class="scroll-mt-20" x-show="activeLink === 'documents'">
+                <section id="documents" class="scroll-mt-20">
                     <div class="mb-6">
                         <h2 class="text-xl md:text-2xl font-bold text-gray-800">My Documents</h2>
                         <p class="text-sm text-gray-500 mt-1">Access and manage your documents</p>
@@ -2404,7 +1926,7 @@
                 </section>
 
                 <!-- ==================== SECTION 12: NOTIFICATIONS ==================== -->
-                <section id="notifications" class="scroll-mt-20" x-show="activeLink === 'notifications'">
+                <section id="notifications" class="scroll-mt-20">
                     <div class="mb-6">
                         <h2 class="text-xl md:text-2xl font-bold text-gray-800">Notifications</h2>
                         <p class="text-sm text-gray-500 mt-1">Stay updated with your activities</p>
@@ -2500,7 +2022,7 @@
                 </section>
 
                 <!-- ==================== SECTION 13: SETTINGS ==================== -->
-                <section id="settings" class="scroll-mt-20 pb-8" x-show="activeLink === 'settings'">
+                <section id="settings" class="scroll-mt-20 pb-8">
                     <div class="mb-6">
                         <h2 class="text-xl md:text-2xl font-bold text-gray-800">Settings</h2>
                         <p class="text-sm text-gray-500 mt-1">Manage your account preferences</p>
@@ -2636,60 +2158,6 @@
 
             </div>
         </div>
-    </div>
-
-    <!-- ==================== FOOTER ==================== -->
-    <footer class="bg-slate-900 text-white py-12 main-content" :class="sidebarCollapsed ? 'sidebar-collapsed' : ''">
-        <div class="px-4">
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
-                <div class="md:col-span-2">
-                    <div class="flex items-center space-x-3 mb-4">
-                        <img src="{{ asset('bunya logo.jpg') }}" alt="BSS Logo" class="h-10 w-auto">
-                        <div>
-                            <h3 class="text-xl font-bold">BSS Investment Group</h3>
-                            <p class="text-sm text-blue-200">Building wealth together since 2020</p>
-                        </div>
-                    </div>
-                    <p class="text-gray-300 text-sm mb-4">Your trusted partner in investment management, providing secure and profitable opportunities for sustainable financial growth.</p>
-                    <div class="flex space-x-4">
-                        <i class="fab fa-facebook-f text-blue-400 hover:text-blue-300 cursor-pointer transition text-lg"></i>
-                        <i class="fab fa-twitter text-blue-400 hover:text-blue-300 cursor-pointer transition text-lg"></i>
-                        <i class="fab fa-linkedin-in text-blue-400 hover:text-blue-300 cursor-pointer transition text-lg"></i>
-                        <i class="fab fa-instagram text-blue-400 hover:text-blue-300 cursor-pointer transition text-lg"></i>
-                        <i class="fab fa-youtube text-blue-400 hover:text-blue-300 cursor-pointer transition text-lg"></i>
-                        <i class="fab fa-whatsapp text-blue-400 hover:text-blue-300 cursor-pointer transition text-lg"></i>
-                    </div>
-                </div>
-                <div>
-                    <h4 class="text-lg font-semibold mb-4 text-blue-200">Quick Links</h4>
-                    <ul class="space-y-2 text-sm">
-                        <li><a href="#overview" class="text-gray-300 hover:text-white transition">Portfolio</a></li>
-                        <li><a href="#loans" class="text-gray-300 hover:text-white transition">Loans</a></li>
-                        <li><a href="#investments" class="text-gray-300 hover:text-white transition">Investments</a></li>
-                        <li><a href="#dividends" class="text-gray-300 hover:text-white transition">Dividends</a></li>
-                        <li><a href="#members" class="text-gray-300 hover:text-white transition">Members</a></li>
-                    </ul>
-                </div>
-                <div>
-                    <h4 class="text-lg font-semibold mb-4 text-blue-200">Contact & Support</h4>
-                    <ul class="space-y-2 text-sm text-gray-300">
-                        <li class="flex items-center"><i class="fas fa-envelope mr-2 text-blue-400"></i>info@bss-investment.com</li>
-                        <li class="flex items-center"><i class="fas fa-phone mr-2 text-blue-400"></i>+256 700 123 456</li>
-                        <li class="flex items-center"><i class="fas fa-map-marker-alt mr-2 text-blue-400"></i>Kampala, Uganda</li>
-                        <li class="flex items-center"><i class="fas fa-globe mr-2 text-blue-400"></i>www.bss-investment.com</li>
-                    </ul>
-                </div>
-            </div>
-            <div class="border-t border-gray-700 mt-8 pt-6 flex flex-col md:flex-row justify-between items-center">
-                <p class="text-sm text-gray-400">© 2024 BSS Investment Group. All rights reserved.</p>
-                <div class="flex space-x-6 mt-4 md:mt-0">
-                    <a href="#" class="text-sm text-gray-400 hover:text-white transition">Privacy Policy</a>
-                    <a href="#" class="text-sm text-gray-400 hover:text-white transition">Terms of Service</a>
-                    <a href="#" class="text-sm text-gray-400 hover:text-white transition">Support</a>
-                </div>
-            </div>
-        </div>
-    </footer>
     </div>
 
     <!-- ==================== MODALS ==================== -->
@@ -3161,37 +2629,6 @@
                             <i class="fas fa-paper-plane"></i>
                         </button>
                     </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Calendar Modal -->
-    <div x-show="showCalendarModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" style="display: none;">
-        <div class="bg-white rounded-lg w-full max-w-md">
-            <div class="flex justify-between items-center p-6 border-b">
-                <h3 class="text-xl font-bold text-gray-800">Calendar</h3>
-                <button @click="showCalendarModal = false" class="text-gray-500 hover:text-gray-700">
-                    <i class="fas fa-times text-xl"></i>
-                </button>
-            </div>
-            <div class="p-6">
-                <div class="text-center mb-4">
-                    <h4 class="text-lg font-semibold text-blue-600" x-text="new Date().toLocaleDateString('en-US', {weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'})"></h4>
-                    <p class="text-sm text-gray-500" x-text="new Date().toLocaleTimeString()"></p>
-                </div>
-                <div class="grid grid-cols-7 gap-1 text-center text-xs font-medium text-gray-500 mb-2">
-                    <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
-                </div>
-                <div class="grid grid-cols-7 gap-1 text-center text-sm">
-                    <template x-for="day in Array.from({length: 31}, (_, i) => i + 1)" :key="day">
-                        <button class="p-2 hover:bg-blue-100 rounded" :class="day === new Date().getDate() ? 'bg-blue-600 text-white' : 'text-gray-700'" x-text="day"></button>
-                    </template>
-                </div>
-                <div class="mt-4 p-3 bg-blue-50 rounded-lg">
-                    <p class="text-sm font-medium text-blue-800">Upcoming Events</p>
-                    <p class="text-xs text-gray-600 mt-1">• Shareholder Meeting - Dec 20, 2024</p>
-                    <p class="text-xs text-gray-600">• Dividend Payment - Dec 25, 2024</p>
                 </div>
             </div>
         </div>
