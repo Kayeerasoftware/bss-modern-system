@@ -15,10 +15,40 @@ class AdminController extends Controller
 {
     public function dashboard()
     {
-        $members = Member::selectRaw('DATE_FORMAT(created_at, "%b") as month, COUNT(*) as count')
-            ->whereYear('created_at', date('Y'))
-            ->groupBy('month')
-            ->get();
+        // Get all months
+        $months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        
+        // Get member growth for last 12 months including 2025 data
+        $membersGrowth = [];
+        $cumulativeCount = 0;
+        
+        // Start from Dec 2025 to current month 2026
+        for ($i = 12; $i >= 1; $i--) {
+            $monthCount = Member::whereYear('created_at', 2025)
+                ->whereMonth('created_at', $i)
+                ->count();
+            if ($monthCount > 0) {
+                $cumulativeCount += $monthCount;
+                $membersGrowth[] = [
+                    'month' => $months[$i - 1] . ' 25',
+                    'count' => $cumulativeCount
+                ];
+            }
+        }
+        
+        // Add 2026 months
+        $currentMonth = (int)date('n');
+        for ($i = 1; $i <= $currentMonth; $i++) {
+            $monthCount = Member::whereYear('created_at', 2026)
+                ->whereMonth('created_at', $i)
+                ->count();
+            $cumulativeCount += $monthCount;
+            
+            $membersGrowth[] = [
+                'month' => $months[$i - 1],
+                'count' => $cumulativeCount
+            ];
+        }
             
         $loanStats = [
             'pending' => Loan::where('status', 'pending')->count(),
@@ -33,11 +63,51 @@ class AdminController extends Controller
             'fees' => Transaction::where('type', 'fee')->count(),
         ];
         
-        $monthlyRevenue = Transaction::selectRaw('DATE_FORMAT(created_at, "%b") as month, SUM(amount) as total')
-            ->where('type', 'deposit')
-            ->whereYear('created_at', date('Y'))
-            ->groupBy('month')
-            ->get();
+        // Get cumulative revenue for each month
+        $monthlyRevenue = [];
+        $cumulativeRevenue = 0;
+        
+        for ($i = 1; $i <= $currentMonth; $i++) {
+            $monthRevenue = Transaction::where('type', 'deposit')
+                ->whereYear('created_at', date('Y'))
+                ->whereMonth('created_at', $i)
+                ->sum('amount');
+            $cumulativeRevenue += $monthRevenue;
+            
+            $monthlyRevenue[] = [
+                'month' => $months[$i - 1],
+                'total' => $cumulativeRevenue
+            ];
+        }
+        
+        // Get cumulative savings growth
+        $savingsGrowth = [];
+        $cumulativeSavings = 0;
+        
+        for ($i = 12; $i >= 1; $i--) {
+            $monthSavings = Member::whereYear('created_at', 2025)
+                ->whereMonth('created_at', $i)
+                ->sum('savings');
+            if ($monthSavings > 0) {
+                $cumulativeSavings += $monthSavings;
+                $savingsGrowth[] = [
+                    'month' => $months[$i - 1] . ' 25',
+                    'total' => $cumulativeSavings
+                ];
+            }
+        }
+        
+        for ($i = 1; $i <= $currentMonth; $i++) {
+            $monthSavings = Member::whereYear('created_at', 2026)
+                ->whereMonth('created_at', $i)
+                ->sum('savings');
+            $cumulativeSavings += $monthSavings;
+            
+            $savingsGrowth[] = [
+                'month' => $months[$i - 1],
+                'total' => $cumulativeSavings
+            ];
+        }
             
         $projects = Project::select('name', 'progress')->get();
         
@@ -47,17 +117,21 @@ class AdminController extends Controller
             'activeLoans' => Loan::where('status', 'approved')->count(),
             'totalProjects' => Project::count(),
             'pendingApprovals' => Loan::where('status', 'pending')->count(),
-            'membersGrowth' => $members,
+            'approvedLoans' => $loanStats['approved'],
+            'pendingLoans' => $loanStats['pending'],
+            'rejectedLoans' => $loanStats['rejected'],
+            'totalLoanAmount' => Loan::sum('amount'),
+            'totalDeposits' => Transaction::where('type', 'deposit')->sum('amount'),
+            'totalWithdrawals' => Transaction::where('type', 'withdrawal')->sum('amount'),
+            'totalTransfers' => Transaction::where('type', 'transfer')->sum('amount'),
+            'totalFees' => Transaction::where('type', 'fee')->sum('amount'),
+            'netBalance' => Member::sum('savings') + Transaction::where('type', 'deposit')->sum('amount') - Transaction::where('type', 'withdrawal')->sum('amount') - Loan::sum('amount'),
+            'membersGrowth' => $membersGrowth,
             'loanStats' => $loanStats,
             'transactionStats' => $transactionStats,
             'monthlyRevenue' => $monthlyRevenue,
-            'projects' => $projects,
-            'financialOverview' => [
-                'savings' => Member::sum('savings'),
-                'loans' => Loan::sum('amount'),
-                'deposits' => Transaction::where('type', 'deposit')->sum('amount'),
-                'withdrawals' => Transaction::where('type', 'withdrawal')->sum('amount'),
-            ]
+            'savingsGrowth' => $savingsGrowth,
+            'projects' => $projects
         ]);
     }
 

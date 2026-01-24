@@ -11,8 +11,8 @@
     <link href="{{ asset('css/nav.css') }}" rel="stylesheet">
 </head>
 <body class="bg-gray-50" x-data="clientDashboard()">
-    @include('navs.topnav')
-    @include('navs.sidenav')
+    @include('navs.client-topnav')
+    @include('navs.client-sidenav')
 
     <!-- Main Content -->
     <div class="main-content ml-0 lg:ml-36 mt-12 transition-all duration-300" :class="sidebarCollapsed ? 'lg:ml-16' : 'lg:ml-36'">
@@ -223,11 +223,11 @@
                                 <tr class="border-b hover:bg-gray-50">
                                     <td class="py-3 text-sm" x-text="transaction.date">2024-01-15</td>
                                     <td class="py-3">
-                                        <span class="px-2 py-1 text-xs rounded-full" 
+                                        <span class="px-2 py-1 text-xs rounded-full"
                                               :class="transaction.type === 'deposit' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'"
                                               x-text="transaction.type">Deposit</span>
                                     </td>
-                                    <td class="py-3 text-sm font-medium" 
+                                    <td class="py-3 text-sm font-medium"
                                         :class="transaction.type === 'deposit' ? 'text-green-600' : 'text-red-600'"
                                         x-text="formatCurrency(transaction.amount)">UGX 100,000</td>
                                     <td class="py-3">
@@ -264,7 +264,7 @@
                         </div>
                     </template>
                 </div>
-                
+
                 <div class="space-y-4">
                     <h4 class="font-medium text-gray-700">Savings Predictions</h4>
                     <div class="space-y-3">
@@ -282,7 +282,7 @@
                         </div>
                     </div>
                 </div>
-                
+
                 <div class="space-y-4">
                     <h4 class="font-medium text-gray-700">Monthly Comparison</h4>
                     <div class="space-y-3">
@@ -313,7 +313,7 @@
         document.addEventListener('DOMContentLoaded', function() {
             setTimeout(initializeClientCharts, 500);
         });
-        
+
         function initializeClientCharts() {
             // Savings Growth Chart
             const savingsCtx = document.getElementById('savingsChart')?.getContext('2d');
@@ -468,18 +468,18 @@
                     {id: 2, date: '2024-01-10', type: 'deposit', amount: 50000},
                     {id: 3, date: '2024-01-05', type: 'withdrawal', amount: 25000}
                 ],
-                
+
                 init() {
                     // Charts are initialized separately via DOM ready event
                 },
-                
+
                 getHealthIcon() {
                     const score = this.analytics.financial_health?.score || 85;
                     if (score >= 80) return '💚';
                     if (score >= 60) return '💛';
                     return '❤️';
                 },
-                
+
                 formatCurrency(amount) {
                     return new Intl.NumberFormat('en-UG', {
                         style: 'currency',
@@ -487,7 +487,7 @@
                         minimumFractionDigits: 0
                     }).format(amount);
                 },
-                
+
                 async makeDeposit() {
                     const amount = prompt('Enter deposit amount:');
                     if (amount && !isNaN(amount) && amount > 0) {
@@ -502,7 +502,7 @@
                                     description: 'Manual deposit'
                                 })
                             });
-                            
+
                             if (response.ok) {
                                 this.loadClientData();
                                 alert('Deposit successful!');

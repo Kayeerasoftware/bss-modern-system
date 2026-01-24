@@ -12,8 +12,8 @@
     <link href="{{ asset('css/nav.css') }}" rel="stylesheet">
 </head>
 <body class="bg-gray-50" x-data="ceoDashboard()">
-    @include('navs.topnav')
-    @include('navs.sidenav')
+    @include('navs.ceo-topnav')
+    @include('navs.ceo-sidenav')
 
     <!-- Main Content -->
     <div class="main-content ml-0 lg:ml-36 mt-12 transition-all duration-300" :class="sidebarCollapsed ? 'lg:ml-16' : 'lg:ml-36'">
@@ -157,9 +157,9 @@
                                     <p class="text-sm text-gray-600" x-text="initiative.description">Modernizing core systems</p>
                                 </div>
                                 <div class="text-right">
-                                    <span class="px-2 py-1 text-xs rounded-full" 
-                                          :class="initiative.status === 'on-track' ? 'bg-green-100 text-green-800' : 
-                                                 initiative.status === 'at-risk' ? 'bg-yellow-100 text-yellow-800' : 
+                                    <span class="px-2 py-1 text-xs rounded-full"
+                                          :class="initiative.status === 'on-track' ? 'bg-green-100 text-green-800' :
+                                                 initiative.status === 'at-risk' ? 'bg-yellow-100 text-yellow-800' :
                                                  'bg-red-100 text-red-800'"
                                           x-text="initiative.status">On Track</span>
                                 </div>
@@ -250,8 +250,8 @@
                 </div>
                 <div class="space-y-3">
                     <template x-for="alert in executiveAlerts" :key="alert.id">
-                        <div class="p-3 rounded-lg border-l-4" :class="alert.priority === 'high' ? 'bg-red-50 border-red-500' : 
-                                                                        alert.priority === 'medium' ? 'bg-yellow-50 border-yellow-500' : 
+                        <div class="p-3 rounded-lg border-l-4" :class="alert.priority === 'high' ? 'bg-red-50 border-red-500' :
+                                                                        alert.priority === 'medium' ? 'bg-yellow-50 border-yellow-500' :
                                                                         'bg-blue-50 border-blue-500'">
                             <div class="flex items-start justify-between">
                                 <div>
@@ -460,7 +460,7 @@
                                 <td class="px-4 py-3 text-sm" x-text="loan.repayment_months + ' months'"></td>
                                 <td class="px-4 py-3 text-sm font-medium text-blue-600" x-text="formatCurrencyUGX(loan.monthly_payment || 0)"></td>
                                 <td class="px-4 py-3">
-                                    <span class="px-3 py-1 text-xs font-medium rounded-full" 
+                                    <span class="px-3 py-1 text-xs font-medium rounded-full"
                                           :class="{
                                               'bg-yellow-100 text-yellow-800': loan.status === 'pending',
                                               'bg-green-100 text-green-800': loan.status === 'approved',
@@ -666,7 +666,7 @@
         document.addEventListener('DOMContentLoaded', function() {
             setTimeout(initializeCEOCharts, 500);
         });
-        
+
         function initializeCEOCharts() {
             const revenueCtx = document.getElementById('revenueChart')?.getContext('2d');
             if (revenueCtx) {
@@ -780,12 +780,12 @@
                     {id: 2, title: 'New Competitor Entry', description: 'Major bank entering our market', priority: 'medium', time: '4h ago'},
                     {id: 3, title: 'Regulatory Update', description: 'New compliance requirements', priority: 'medium', time: '1d ago'}
                 ],
-                
+
                 init() {
                     this.loadCeoData();
                     this.loadAllData();
                 },
-                
+
                 async loadAllData() {
                     try {
                         const response = await fetch('/api/dashboard-data');
@@ -799,25 +799,25 @@
                         console.error('Error loading data:', error);
                     }
                 },
-                
+
                 filterMembers() {
                     const search = this.memberSearch.toLowerCase();
-                    this.filteredMembers = this.allMembers.filter(m => 
+                    this.filteredMembers = this.allMembers.filter(m =>
                         m.member_id?.toLowerCase().includes(search) ||
                         m.full_name?.toLowerCase().includes(search) ||
                         m.email?.toLowerCase().includes(search)
                     );
                 },
-                
+
                 filterFinancials() {
                     const search = this.financialSearch.toLowerCase();
-                    this.filteredFinancials = this.allMembers.filter(m => 
+                    this.filteredFinancials = this.allMembers.filter(m =>
                         m.member_id?.toLowerCase().includes(search) ||
                         m.full_name?.toLowerCase().includes(search) ||
                         m.email?.toLowerCase().includes(search)
                     );
                 },
-                
+
                 filterLoans() {
                     let loans = this.allLoans;
                     if (this.loanStatusFilter !== 'all') {
@@ -825,7 +825,7 @@
                     }
                     if (this.loanSearch) {
                         const search = this.loanSearch.toLowerCase();
-                        loans = loans.filter(l => 
+                        loans = loans.filter(l =>
                             l.loan_id?.toLowerCase().includes(search) ||
                             l.member_id?.toLowerCase().includes(search) ||
                             l.purpose?.toLowerCase().includes(search)
@@ -833,12 +833,12 @@
                     }
                     this.filteredLoans = loans;
                 },
-                
+
                 getMemberName(memberId) {
                     const member = this.allMembers.find(m => m.member_id === memberId);
                     return member ? member.full_name : 'Unknown';
                 },
-                
+
                 async approveLoan(loanId) {
                     try {
                         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
@@ -861,7 +861,7 @@
                         alert('Error approving loan');
                     }
                 },
-                
+
                 async rejectLoan(loanId) {
                     try {
                         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
@@ -884,12 +884,12 @@
                         alert('Error rejecting loan');
                     }
                 },
-                
+
                 viewLoanDetails(loan) {
                     const memberName = this.getMemberName(loan.member_id);
                     alert(`Loan Details:\n\nLoan ID: ${loan.loan_id}\nMember: ${memberName} (${loan.member_id})\nAmount: ${this.formatCurrencyUGX(loan.amount)}\nPurpose: ${loan.purpose}\nRepayment: ${loan.repayment_months} months\nMonthly Payment: ${this.formatCurrencyUGX(loan.monthly_payment || 0)}\nStatus: ${loan.status}\nDate Applied: ${new Date(loan.created_at).toLocaleDateString()}`);
                 },
-                
+
                 async deleteLoan(loanId) {
                     if (confirm('Delete this loan application? This action cannot be undone.')) {
                         try {
@@ -910,12 +910,12 @@
                         }
                     }
                 },
-                
+
                 editLoan(loan) {
                     this.editingLoan = {...loan};
                     this.showEditLoanModal = true;
                 },
-                
+
                 async updateLoan() {
                     try {
                         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
@@ -948,11 +948,11 @@
                         alert('Error: ' + error.message);
                     }
                 },
-                
+
                 viewMemberDetails(member) {
                     alert(`Member: ${member.full_name}\nEmail: ${member.email}\nContact: ${member.contact}\nLocation: ${member.location}\nOccupation: ${member.occupation}\nRole: ${member.role}`);
                 },
-                
+
                 addMember() {
                     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
                     fetch('/api/members', {
@@ -975,12 +975,12 @@
                     })
                     .catch(error => alert('Error adding member'));
                 },
-                
+
                 editMember(member) {
                     this.editingMember = {...member};
                     this.showEditMemberModal = true;
                 },
-                
+
                 async updateMember() {
                     try {
                         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
@@ -1015,7 +1015,7 @@
                         alert('Error: ' + error.message);
                     }
                 },
-                
+
                 async deleteMember(id) {
                     if (confirm('Delete this member? This will remove all associated data.')) {
                         try {
@@ -1036,12 +1036,12 @@
                         }
                     }
                 },
-                
+
                 updateFinancials(member) {
                     this.financialMember = {...member};
                     this.showFinancialModal = true;
                 },
-                
+
                 async saveFinancials() {
                     try {
                         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
@@ -1072,12 +1072,12 @@
                         alert('Error: ' + error.message);
                     }
                 },
-                
+
                 async loadCeoData() {
                     try {
                         const response = await fetch('/api/ceo-data');
                         const data = await response.json();
-                        
+
                         this.executiveData = data.executive_data;
                         this.strategicInitiatives = data.strategic_initiatives;
                         this.keyMetrics = data.key_metrics;
@@ -1085,18 +1085,18 @@
                             {id: 1, title: 'Loan Default Rate Increase', description: 'Default rate increased to 2.1%', priority: 'high', time: '2h ago'},
                             {id: 2, title: 'New Competitor Entry', description: 'Major bank entering our market', priority: 'medium', time: '4h ago'}
                         ];
-                        
+
                         this.initCharts(data);
                     } catch (error) {
                         console.error('Error loading CEO data:', error);
                         this.initCharts();
                     }
                 },
-                
+
                 formatCurrency(amount) {
                     return 'UGX ' + (amount/1000000).toFixed(1) + 'M';
                 },
-                
+
                 formatCurrencyUGX(amount) {
                     return new Intl.NumberFormat('en-UG', {
                         style: 'currency',
@@ -1104,7 +1104,7 @@
                         minimumFractionDigits: 0
                     }).format(amount);
                 },
-                
+
                 addInitiative() {
                     this.strategicInitiatives.push({
                         id: Date.now(),
@@ -1116,23 +1116,23 @@
                     this.newInitiative = {};
                     alert('Strategic initiative created successfully!');
                 },
-                
+
                 initCharts(data = null) {
                     // Clear existing charts
                     if (window.revenueChart) window.revenueChart.destroy();
                     if (window.segmentsChart) window.segmentsChart.destroy();
-                    
+
                     // Revenue & Profit Chart
                     const revenueCtx = document.getElementById('revenueChart').getContext('2d');
-                    
+
                     let revenueData = [3200000, 3400000, 3600000, 3800000, 3900000, 4100000, 4200000, 4300000, 4400000, 4500000, 4600000, 4700000];
                     let profitData = [900000, 950000, 1000000, 1050000, 1100000, 1150000, 1200000, 1250000, 1300000, 1350000, 1400000, 1450000];
-                    
+
                     if (data && data.revenue_history) {
                         revenueData = data.revenue_history;
                         profitData = data.revenue_history.map(rev => rev * 0.28); // 28% margin
                     }
-                    
+
                     window.revenueChart = new Chart(revenueCtx, {
                         type: 'line',
                         data: {
@@ -1171,7 +1171,7 @@
 
                     // Business Segments Chart
                     const segmentsCtx = document.getElementById('segmentsChart').getContext('2d');
-                    
+
                     let segmentData = [35, 30, 20, 10, 5];
                     if (data && data.business_segments) {
                         segmentData = [
@@ -1182,7 +1182,7 @@
                             data.business_segments.other_services || 0
                         ];
                     }
-                    
+
                     window.segmentsChart = new Chart(segmentsCtx, {
                         type: 'doughnut',
                         data: {

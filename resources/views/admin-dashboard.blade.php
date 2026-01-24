@@ -10,6 +10,7 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="{{ asset('css/nav.css') }}" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="{{ asset('js/admin-charts-optimizer.js') }}"></script>
 </head>
 <body class="bg-gray-50" x-data="adminPanel()">
     @include('navs.admin-topnav')
@@ -106,9 +107,9 @@
                     </div>
                 </div>
 
-                <!-- Monthly Revenue -->
+                <!-- Monthly Savings -->
                 <div class="bg-white rounded-xl shadow-lg p-6">
-                    <h3 class="text-lg font-semibold mb-4">Monthly Revenue</h3>
+                    <h3 class="text-lg font-semibold mb-4">Monthly Savings</h3>
                     <div style="height: 250px;">
                         <canvas id="revenueChart"></canvas>
                     </div>
@@ -2865,7 +2866,6 @@
                     if (savedPicture) this.profilePicture = savedPicture;
                     const savedProfile = localStorage.getItem('adminProfile');
                     if (savedProfile) this.adminProfile = JSON.parse(savedProfile);
-                    setTimeout(() => this.initCharts(), 500);
                     setInterval(() => {
                         this.loadDashboard();
                         this.loadMembers();
@@ -2875,7 +2875,7 @@
                         this.loadFinancialSummary();
                         this.loadNotificationStats();
                         this.loadSystemHealth();
-                    }, 10000);
+                    }, 30000);
                 },
                 
                 sendMessage() {
@@ -2950,14 +2950,12 @@
                         const response = await fetch('/api/admin/dashboard');
                         const data = await response.json();
                         this.stats = data;
-                        this.chartData = {
-                            membersGrowth: data.membersGrowth || [],
-                            loanStats: data.loanStats || {},
-                            transactionStats: data.transactionStats || {},
-                            monthlyRevenue: data.monthlyRevenue || [],
-                            projects: data.projects || [],
-                            financialOverview: data.financialOverview || {}
-                        };
+                        this.chartData = data;
+                        this.$nextTick(() => {
+                            if (window.adminChartsOptimizer) {
+                                window.adminChartsOptimizer.init(data);
+                            }
+                        });
                     } catch (error) {
                         console.error('Error loading dashboard:', error);
                     }

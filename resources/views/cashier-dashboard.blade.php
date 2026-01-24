@@ -12,8 +12,8 @@
     <link href="{{ asset('css/nav.css') }}" rel="stylesheet">
 </head>
 <body class="bg-gray-50" x-data="cashierDashboard()">
-    @include('navs.topnav')
-    @include('navs.sidenav')
+    @include('navs.cashier-topnav')
+    @include('navs.cashier-sidenav')
 
     <!-- Main Content -->
     <div class="main-content ml-0 lg:ml-36 mt-12 transition-all duration-300" :class="sidebarCollapsed ? 'lg:ml-16' : 'lg:ml-36'">
@@ -176,13 +176,13 @@
                                     <td class="py-2 text-sm" x-text="transaction.time">14:30</td>
                                     <td class="py-2 text-sm" x-text="transaction.member">BSS001</td>
                                     <td class="py-2">
-                                        <span class="px-2 py-1 text-xs rounded-full" 
-                                              :class="transaction.type === 'deposit' ? 'bg-green-100 text-green-800' : 
-                                                     transaction.type === 'withdrawal' ? 'bg-red-100 text-red-800' : 
+                                        <span class="px-2 py-1 text-xs rounded-full"
+                                              :class="transaction.type === 'deposit' ? 'bg-green-100 text-green-800' :
+                                                     transaction.type === 'withdrawal' ? 'bg-red-100 text-red-800' :
                                                      'bg-blue-100 text-blue-800'"
                                               x-text="transaction.type">Deposit</span>
                                     </td>
-                                    <td class="py-2 text-sm font-medium" 
+                                    <td class="py-2 text-sm font-medium"
                                         :class="transaction.type === 'deposit' ? 'text-green-600' : 'text-red-600'"
                                         x-text="formatCurrency(transaction.amount)">UGX 100,000</td>
                                 </tr>
@@ -292,7 +292,7 @@
                                 <td class="px-4 py-3 text-sm" x-text="transaction.transaction_id"></td>
                                 <td class="px-4 py-3 text-sm" x-text="transaction.member_id"></td>
                                 <td class="px-4 py-3">
-                                    <span class="px-2 py-1 text-xs rounded-full" 
+                                    <span class="px-2 py-1 text-xs rounded-full"
                                           :class="{
                                               'bg-green-100 text-green-800': transaction.type === 'deposit',
                                               'bg-red-100 text-red-800': transaction.type === 'withdrawal',
@@ -356,7 +356,7 @@
                                 <td class="px-4 py-3 text-sm" x-text="loan.purpose"></td>
                                 <td class="px-4 py-3 text-sm" x-text="loan.repayment_months"></td>
                                 <td class="px-4 py-3">
-                                    <span class="px-2 py-1 text-xs rounded-full" 
+                                    <span class="px-2 py-1 text-xs rounded-full"
                                           :class="{
                                               'bg-yellow-100 text-yellow-800': loan.status === 'pending',
                                               'bg-green-100 text-green-800': loan.status === 'approved',
@@ -469,17 +469,17 @@
                     </select>
                     <div class="relative">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Member</label>
-                        <input type="text" 
-                               x-model="memberSearchModal" 
-                               @input="filterMembersModal()" 
+                        <input type="text"
+                               x-model="memberSearchModal"
+                               @input="filterMembersModal()"
                                @focus="showMemberDropdown = true"
-                               placeholder="Search member..." 
-                               class="w-full p-3 border rounded" 
+                               placeholder="Search member..."
+                               class="w-full p-3 border rounded"
                                required>
-                        <div x-show="showMemberDropdown && filteredMembersModal.length > 0" 
+                        <div x-show="showMemberDropdown && filteredMembersModal.length > 0"
                              class="absolute z-10 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-60 overflow-y-auto">
                             <template x-for="member in filteredMembersModal" :key="member.member_id">
-                                <div @click="selectMember(member)" 
+                                <div @click="selectMember(member)"
                                      class="p-3 hover:bg-gray-100 cursor-pointer border-b">
                                     <div class="font-medium" x-text="member.member_id"></div>
                                     <div class="text-sm text-gray-600" x-text="member.full_name"></div>
@@ -622,34 +622,34 @@
                 showMemberModal: false,
                 editingMember: {},
                 showEditMemberModal: false,
-                
+
                 get pendingLoansValue() {
                     return this.pendingLoans.reduce((sum, loan) => sum + loan.amount, 0);
                 },
-                
+
                 init() {
                     this.loadCashierData();
                     this.loadAllData();
                     this.filteredMembersModal = this.allMembers;
                 },
-                
+
                 async loadAllData() {
                     try {
                         const response = await fetch('/api/dashboard-data');
                         const data = await response.json();
-                        
+
                         console.log('Dashboard data:', data);
-                        
+
                         this.allTransactions = data.recent_transactions || [];
                         this.filteredTransactions = this.allTransactions;
-                        
+
                         this.allLoans = data.pending_loans || [];
                         this.filteredLoans = this.allLoans;
-                        
+
                         this.allMembers = data.members || [];
                         this.filteredMembers = this.allMembers;
                         this.filteredMembersModal = this.allMembers;
-                        
+
                         console.log('Transactions:', this.allTransactions.length);
                         console.log('Loans:', this.allLoans.length);
                         console.log('Members:', this.allMembers.length);
@@ -657,16 +657,16 @@
                         console.error('Error loading data:', error);
                     }
                 },
-                
+
                 filterTransactions() {
                     const search = this.transactionSearch.toLowerCase();
-                    this.filteredTransactions = this.allTransactions.filter(t => 
+                    this.filteredTransactions = this.allTransactions.filter(t =>
                         t.transaction_id?.toLowerCase().includes(search) ||
                         t.member_id?.toLowerCase().includes(search) ||
                         t.type?.toLowerCase().includes(search)
                     );
                 },
-                
+
                 filterLoans() {
                     const search = this.loanSearch.toLowerCase();
                     this.filteredLoans = this.allLoans.filter(loan => {
@@ -677,42 +677,42 @@
                         return matchesSearch && matchesStatus;
                     });
                 },
-                
+
                 filterMembers() {
                     const search = this.memberSearch.toLowerCase();
-                    this.filteredMembers = this.allMembers.filter(m => 
+                    this.filteredMembers = this.allMembers.filter(m =>
                         m.member_id?.toLowerCase().includes(search) ||
                         m.full_name?.toLowerCase().includes(search) ||
                         m.email?.toLowerCase().includes(search)
                     );
                 },
-                
+
                 filterMembersModal() {
                     const search = this.memberSearchModal.toLowerCase();
-                    this.filteredMembersModal = this.allMembers.filter(m => 
+                    this.filteredMembersModal = this.allMembers.filter(m =>
                         m.member_id?.toLowerCase().includes(search) ||
                         m.full_name?.toLowerCase().includes(search) ||
                         m.email?.toLowerCase().includes(search)
                     );
                     this.showMemberDropdown = search.length > 0;
                 },
-                
+
                 selectMember(member) {
                     this.newTransaction.memberId = member.member_id;
                     this.memberSearchModal = member.member_id + ' - ' + member.full_name;
                     this.showMemberDropdown = false;
                 },
-                
+
                 viewTransaction(transaction) {
                     this.selectedTransaction = transaction;
                     this.showTransactionModal = true;
                 },
-                
+
                 editTransaction(transaction) {
                     this.editingTransaction = {...transaction};
                     this.showEditTransactionModal = true;
                 },
-                
+
                 async updateTransaction() {
                     try {
                         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
@@ -746,7 +746,7 @@
                         alert('Error updating transaction');
                     }
                 },
-                
+
                 async deleteTransaction(id) {
                     if (confirm('Delete this transaction?')) {
                         try {
@@ -768,17 +768,17 @@
                         }
                     }
                 },
-                
+
                 viewLoan(loan) {
                     this.selectedLoan = loan;
                     this.showLoanModal = true;
                 },
-                
+
                 editLoan(loan) {
                     this.editingLoan = {...loan};
                     this.showEditLoanModal = true;
                 },
-                
+
                 async updateLoan() {
                     try {
                         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
@@ -813,7 +813,7 @@
                         alert('Error updating loan');
                     }
                 },
-                
+
                 async deleteLoan(id) {
                     if (confirm('Delete this loan?')) {
                         try {
@@ -835,7 +835,7 @@
                         }
                     }
                 },
-                
+
                 rejectLoan(loanId) {
                     if (confirm('Reject this loan application?')) {
                         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
@@ -858,26 +858,26 @@
                         .catch(error => alert('Error rejecting loan'));
                     }
                 },
-                
+
                 viewMemberDetails(member) {
                     this.selectedMember = member;
                     this.showMemberModal = true;
                 },
-                
+
                 editMember(member) {
                     this.editingMember = {...member};
                     this.showEditMemberModal = true;
                 },
-                
+
                 async updateMember() {
                     try {
                         if (!this.editingMember.id) {
                             alert('Error: No member ID');
                             return;
                         }
-                        
+
                         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
-                        
+
                         const response = await fetch(`/api/members/${this.editingMember.id}`, {
                             method: 'PUT',
                             headers: {
@@ -893,14 +893,14 @@
                                 occupation: this.editingMember.occupation
                             })
                         });
-                        
+
                         if (!response.ok) {
                             const text = await response.text();
                             console.error('Server response:', text);
                             alert('Server error: ' + response.status);
                             return;
                         }
-                        
+
                         const data = await response.json();
                         if (data.success) {
                             this.showEditMemberModal = false;
@@ -915,7 +915,7 @@
                         alert('Error: ' + error.message);
                     }
                 },
-                
+
                 async deleteMember(id) {
                     if (confirm('Delete this member? This will remove all associated data.')) {
                         try {
@@ -928,18 +928,18 @@
                         }
                     }
                 },
-                
+
                 async loadCashierData() {
                     try {
                         const response = await fetch('/api/cashier-data');
                         const data = await response.json();
-                        
+
                         this.dailyStats = {
                             collections: data.daily_collections,
                             cashBalance: data.cash_balance,
                             transactions: data.daily_transactions
                         };
-                        
+
                         this.pendingLoans = data.pending_loans.map(loan => ({
                             id: loan.id,
                             memberName: loan.member ? loan.member.full_name : loan.member_id,
@@ -947,7 +947,7 @@
                             amount: loan.amount,
                             appliedDate: new Date(loan.created_at).toLocaleDateString()
                         }));
-                        
+
                         this.financialSummary = data.financial_summary;
                         this.initCharts(data);
                     } catch (error) {
@@ -955,7 +955,7 @@
                         this.initCharts();
                     }
                 },
-                
+
                 formatCurrency(amount) {
                     return new Intl.NumberFormat('en-UG', {
                         style: 'currency',
@@ -963,7 +963,7 @@
                         minimumFractionDigits: 0
                     }).format(amount);
                 },
-                
+
                 approveLoan(loanId) {
                     if (confirm('Approve this loan application?')) {
                         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
@@ -991,7 +991,7 @@
                         });
                     }
                 },
-                
+
                 processTransaction() {
                     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
                     console.log('Processing transaction:', this.newTransaction);
@@ -1032,20 +1032,20 @@
                         alert('Error processing transaction');
                     });
                 },
-                
+
                 initCharts(data = null) {
                     // Clear existing charts
                     if (window.flowChart) window.flowChart.destroy();
                     if (window.typesChart) window.typesChart.destroy();
-                    
+
                     // Transaction Flow Chart - Use real hourly data
                     const flowCtx = document.getElementById('transactionFlowChart').getContext('2d');
-                    
+
                     let hourlyData = {
                         deposits: [0, 0, 0, 0, 0, 0, 0, 0],
                         withdrawals: [0, 0, 0, 0, 0, 0, 0, 0]
                     };
-                    
+
                     // If we have real data, use it
                     if (data && data.hourly_transactions) {
                         hourlyData = data.hourly_transactions;
@@ -1053,12 +1053,12 @@
                         // Generate realistic hourly data based on transaction patterns
                         const totalDeposits = this.recentTransactions.filter(t => t.type === 'deposit').length;
                         const totalWithdrawals = this.recentTransactions.filter(t => t.type === 'withdrawal').length;
-                        
+
                         // Distribute transactions across business hours (9AM-4PM)
                         const businessHours = 8;
                         const avgDepositsPerHour = Math.max(1, Math.ceil(totalDeposits / businessHours));
                         const avgWithdrawalsPerHour = Math.max(1, Math.ceil(totalWithdrawals / businessHours));
-                        
+
                         // Create realistic hourly distribution
                         hourlyData.deposits = [
                             Math.max(0, avgDepositsPerHour - 2), // 9AM - slow start
@@ -1070,7 +1070,7 @@
                             avgDepositsPerHour - 1, // 3PM
                             Math.max(0, avgDepositsPerHour - 2) // 4PM - slow end
                         ];
-                        
+
                         hourlyData.withdrawals = [
                             Math.max(0, avgWithdrawalsPerHour - 1),
                             avgWithdrawalsPerHour,
@@ -1082,7 +1082,7 @@
                             Math.max(0, avgWithdrawalsPerHour - 1)
                         ];
                     }
-                    
+
                     window.flowChart = new Chart(flowCtx, {
                         type: 'line',
                         data: {
@@ -1131,10 +1131,10 @@
 
                     // Transaction Types Chart
                     const typesCtx = document.getElementById('transactionTypesChart').getContext('2d');
-                    
+
                     let typeData = [0, 0, 0, 0];
                     let typeLabels = ['Deposits', 'Withdrawals', 'Transfers', 'Loan Payments'];
-                    
+
                     if (data && data.transaction_types) {
                         typeData = [
                             data.transaction_types.deposits || 0,
@@ -1148,10 +1148,10 @@
                         const withdrawals = this.recentTransactions.filter(t => t.type === 'withdrawal').length;
                         const transfers = this.recentTransactions.filter(t => t.type === 'transfer').length;
                         const loanPayments = this.recentTransactions.filter(t => t.type === 'loan_payment').length;
-                        
+
                         typeData = [deposits, withdrawals, transfers, loanPayments];
                     }
-                    
+
                     window.typesChart = new Chart(typesCtx, {
                         type: 'doughnut',
                         data: {
