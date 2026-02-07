@@ -33,7 +33,7 @@
     <div class="max-w-7xl mx-auto px-4 py-12">
         <!-- Welcome Section -->
         <div class="text-center mb-12">
-            <h2 class="text-4xl font-bold text-gray-800 mb-4">Welcome to BSS Investment Group</h2>
+            <h2 class="text-4xl font-bold text-gray-800 mb-4">Welcome to BSS Investment Group 1</h2>
             <p class="text-xl text-gray-600 mb-8">Choose your dashboard to access role-specific features and analytics</p>
             <div class="flex justify-center space-x-4">
                 <span class="px-4 py-2 bg-blue-100 text-blue-800 rounded-full text-sm">

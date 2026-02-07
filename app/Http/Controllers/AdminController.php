@@ -22,7 +22,14 @@ class AdminController extends Controller
             'pendingLoans' => Loan::where('status', 'pending')->count(),
             'totalTransactions' => Transaction::count(),
             'monthlyDeposits' => Transaction::where('type', 'deposit')->whereMonth('created_at', now()->month)->sum('amount'),
-            'monthlyWithdrawals' => Transaction::where('type', 'withdrawal')->whereMonth('created_at', now()->month)->sum('amount')
+            'monthlyWithdrawals' => Transaction::where('type', 'withdrawal')->whereMonth('created_at', now()->month)->sum('amount'),
+            'roleDistribution' => [
+                'client' => Member::where('role', 'client')->count(),
+                'shareholder' => Member::where('role', 'shareholder')->count(),
+                'cashier' => Member::where('role', 'cashier')->count(),
+                'td' => Member::where('role', 'td')->count(),
+                'ceo' => Member::where('role', 'ceo')->count()
+            ]
         ];
 
         return response()->json($stats);

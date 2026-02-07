@@ -17,6 +17,9 @@ use App\Http\Controllers\ShareController;
 use App\Http\Controllers\DepositController;
 use App\Http\Controllers\CrudController;
 use App\Http\Controllers\DashboardApiController;
+use App\Http\Controllers\FundraisingController;
+use App\Http\Controllers\FundraisingContributionController;
+use App\Http\Controllers\FundraisingExpenseController;
 use App\Http\Controllers\DashboardRouterController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\CompleteDashboardController;
@@ -32,6 +35,8 @@ use App\Http\Controllers\Api\PermissionController;
 
 // Admin API Routes (no auth required for demo)
 Route::get('/api/admin/dashboard', [AdminController::class, 'dashboard']);
+Route::get('/api/dashboard-data', [CompleteDashboardController::class, 'getDashboardData']);
+Route::get('/api/loans', [App\Http\Controllers\Api\LoanController::class, 'index']);
 Route::get('/api/settings', [AdminController::class, 'getSettings']);
 Route::post('/api/settings', [AdminController::class, 'updateSettings']);
 Route::get('/api/audit-logs', [AdminController::class, 'getAuditLogs']);
@@ -49,7 +54,9 @@ Route::get('/api/system/health-report', [SystemHealthController::class, 'exportH
 Route::get('/api/roles', [AdminController::class, 'getRoles']);
 Route::get('/api/users', [AdminController::class, 'getUsers']);
 Route::post('/api/users', [AdminController::class, 'createUser']);
+Route::put('/api/users/{id}', [AdminController::class, 'updateUser']);
 Route::post('/api/users/{id}/toggle-status', [AdminController::class, 'toggleUserStatus']);
+Route::post('/api/users/{id}/change-role', [AdminController::class, 'changeUserRole']);
 Route::delete('/api/users/{id}', [AdminController::class, 'deleteUser']);
 Route::get('/api/members/export', [BulkController::class, 'exportMembers']);
 Route::post('/api/members/import', [BulkController::class, 'importMembers']);
@@ -72,7 +79,7 @@ Route::get('/', function () {
     $totalMembers = \App\Models\Member::count();
     $totalAssets = \App\Models\Member::sum('savings') + \App\Models\Loan::where('status', 'approved')->sum('amount');
     $activeProjects = \App\Models\Project::where('progress', '<', 100)->count();
-    
+
     return view('dashboard-index', compact('totalMembers', 'totalAssets', 'activeProjects'));
 })->name('welcome');
 
@@ -92,6 +99,13 @@ Route::get('/complete', function () {
 Route::get('/client-dashboard', function () {
     return view('client-dashboard');
 })->name('client-dashboard');
+
+// Client Dashboard API Routes
+Route::get('/api/client-dashboard', [App\Http\Controllers\API\ClientDashboardController::class, 'getClientData']);
+Route::post('/api/client-dashboard/deposit', [App\Http\Controllers\API\ClientDashboardController::class, 'makeDeposit']);
+Route::get('/api/client-dashboard/savings-history', [App\Http\Controllers\API\ClientDashboardController::class, 'getSavingsHistory']);
+Route::get('/api/client-dashboard/transaction-distribution', [App\Http\Controllers\API\ClientDashboardController::class, 'getTransactionDistribution']);
+Route::get('/api/client-dashboard/spending-categories', [App\Http\Controllers\API\ClientDashboardController::class, 'getSpendingCategories']);
 
 Route::get('/shareholder-dashboard', function () {
     return view('shareholder-dashboard');
@@ -138,16 +152,11 @@ Route::post('/api/register', [AuthController::class, 'register']);
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 Route::get('/api/user', [AuthController::class, 'user'])->middleware('auth');
 
-// Test API Routes (no auth required)
-Route::get('/api/dashboard-data', [CompleteDashboardController::class, 'getDashboardData']);
-Route::get('/api/debug-data', [App\Http\Controllers\DebugController::class, 'testData']);
-
 // Dynamic Dashboard API Routes
 Route::get('/api/client-data/{memberId?}', [DashboardApiController::class, 'getClientData']);
 Route::get('/api/shareholder-data/{memberId?}', [DashboardApiController::class, 'getShareholderData']);
 Route::get('/api/cashier-data', [DashboardApiController::class, 'getCashierData']);
 Route::get('/api/td-data', [DashboardApiController::class, 'getTdData']);
-Route::get('/api/ceo-data', [DashboardApiController::class, 'getCeoData']);
 Route::get('/api/admin-data', [DashboardApiController::class, 'getAdminData']);
 
 // Shareholder Advanced Features
@@ -178,6 +187,7 @@ Route::put('/api/loans/{id}', [CrudController::class, 'updateLoan']);
 Route::delete('/api/loans/{id}', [CrudController::class, 'deleteLoan']);
 Route::post('/api/loans/{id}/approve', [CrudController::class, 'approveLoan']);
 Route::post('/api/loans/{id}/reject', [CrudController::class, 'rejectLoan']);
+Route::post('/api/loans/{id}/pending', [CrudController::class, 'pendingLoan']);
 
 Route::post('/api/transactions', [CrudController::class, 'createTransaction']);
 Route::put('/api/transactions/{id}', [CrudController::class, 'updateTransaction']);
@@ -189,6 +199,20 @@ Route::delete('/api/projects/{id}', [CrudController::class, 'deleteProject']);
 
 Route::post('/api/shares', [CrudController::class, 'createShare']);
 Route::put('/api/shares/{id}', [CrudController::class, 'updateShare']);
+
+Route::get('/api/fundraisings', [FundraisingController::class, 'index']);
+Route::post('/api/fundraisings', [FundraisingController::class, 'store']);
+Route::put('/api/fundraisings/{id}', [FundraisingController::class, 'update']);
+Route::delete('/api/fundraisings/{id}', [FundraisingController::class, 'destroy']);
+
+Route::get('/api/fundraising-contributions/{fundraisingId?}', [FundraisingContributionController::class, 'index']);
+Route::post('/api/fundraising-contributions', [FundraisingContributionController::class, 'store']);
+Route::delete('/api/fundraising-contributions/{id}', [FundraisingContributionController::class, 'destroy']);
+
+Route::get('/api/fundraising-expenses/{fundraisingId?}', [FundraisingExpenseController::class, 'index']);
+Route::post('/api/fundraising-expenses', [FundraisingExpenseController::class, 'store']);
+Route::put('/api/fundraising-expenses/{id}', [FundraisingExpenseController::class, 'update']);
+Route::delete('/api/fundraising-expenses/{id}', [FundraisingExpenseController::class, 'destroy']);
 
 // Authenticated Routes
 Route::middleware(['auth'])->group(function () {
@@ -261,7 +285,7 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/api/dividends/calculate', [DividendController::class, 'calculateDividends']);
 
     // User Management Routes (for authenticated users with appropriate roles)
-    Route::resource('/api/users', UserController::class);
+    Route::resource('/api/users', UserController::class)->except(['index', 'store']);
     Route::get('/api/user-roles', [UserController::class, 'getRoles']);
 
     // Admin Panel Routes

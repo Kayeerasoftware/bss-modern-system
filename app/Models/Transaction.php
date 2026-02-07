@@ -11,7 +11,7 @@ class Transaction extends Model
     use HasFactory;
 
     protected $fillable = [
-        'transaction_id', 'member_id', 'amount', 'type'
+        'transaction_id', 'member_id', 'amount', 'type', 'description'
     ];
 
     public function member()

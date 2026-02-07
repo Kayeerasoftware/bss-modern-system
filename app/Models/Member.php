@@ -13,13 +13,12 @@ class Member extends Authenticatable
 
     protected $fillable = [
         'member_id', 'full_name', 'email', 'profile_picture', 'location', 'occupation',
-        'contact', 'password', 'role', 'savings', 'loan', 'savings_balance'
+        'contact', 'password', 'role', 'savings', 'loan', 'savings_balance', 'user_id'
     ];
 
     protected $casts = [
         'savings' => 'decimal:2',
         'loan' => 'decimal:2',
-        'balance' => 'decimal:2',
         'savings_balance' => 'decimal:2',
     ];
 
@@ -73,5 +72,10 @@ class Member extends Authenticatable
     public function getBalanceAttribute()
     {
         return $this->savings - $this->loan;
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
     }
 }

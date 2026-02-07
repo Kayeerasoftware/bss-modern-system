@@ -18,12 +18,12 @@
         <div class="nav-center flex-1 flex justify-center">
             <div class="flex items-center gap-2 font-bold text-sm tracking-tight px-8 py-1.5 rounded-xl border transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md cursor-pointer hidden lg:flex" style="background: linear-gradient(135deg, #dbeafe, #bfdbfe); border-color: #3b82f6;" @click="showShareholderModal = !showShareholderModal" :class="showShareholderModal ? 'ring-2 ring-blue-400' : ''">
                 <div class="bg-white/20 p-1 rounded-lg backdrop-blur-sm">
-                    <i class="fas fa-shield-alt text-sm drop-shadow-md" style="color: #2563eb;"></i>
+                    <i class="fas fa-crown text-sm drop-shadow-md" style="color: #2563eb;"></i>
                 </div>
-                <span class="text-sm font-bold whitespace-nowrap" style="background: linear-gradient(135deg, #2563eb, #3b82f6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Admin Dashboard</span>
+                <span class="text-sm font-bold whitespace-nowrap" style="background: linear-gradient(135deg, #2563eb, #3b82f6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">CEO Dashboard</span>
             </div>
-            <button class="nav-btn relative flex items-center justify-center rounded-xl border transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md px-3 py-1.5 lg:hidden cursor-pointer" style="background: linear-gradient(135deg, #dbeafe, #bfdbfe); border-color: #3b82f6;" title="Admin Dashboard" @click="showShareholderModal = !showShareholderModal" :class="showShareholderModal ? 'ring-2 ring-blue-400' : ''">
-                <i class="fas fa-shield-alt drop-shadow-md" style="color: #2563eb;"></i>
+            <button class="nav-btn relative flex items-center justify-center rounded-xl border transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md px-3 py-1.5 lg:hidden cursor-pointer" style="background: linear-gradient(135deg, #dbeafe, #bfdbfe); border-color: #3b82f6;" title="CEO Dashboard" @click="showShareholderModal = !showShareholderModal" :class="showShareholderModal ? 'ring-2 ring-blue-400' : ''">
+                <i class="fas fa-crown drop-shadow-md" style="color: #2563eb;"></i>
             </button>
         </div>
 
@@ -42,7 +42,7 @@
             </button>
             <div class="profile relative">
                 <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl cursor-pointer transition-all duration-300 bg-gradient-to-br from-blue-50 to-purple-50 border border-blue-200 hover:-translate-y-0.5 hover:shadow-md hover:border-blue-300" @click="showProfileDropdown = !showProfileDropdown">
-                    <span class="bg-gradient-to-br from-blue-600 to-purple-600 bg-clip-text text-transparent text-xs font-bold tracking-tight hidden lg:inline" x-text="'Welcome back, ' + adminProfile.name">Welcome back, Admin</span>
+                    <span class="bg-gradient-to-br from-blue-600 to-purple-600 bg-clip-text text-transparent text-xs font-bold tracking-tight hidden lg:inline" x-text="'Welcome back, ' + adminProfile.name">Welcome back, CEO</span>
                     <i class="fas fa-chevron-down dropdown-arrow transition-all duration-300 text-blue-600 text-xs drop-shadow-md hidden lg:inline" :class="showProfileDropdown ? 'rotate-180' : ''"></i>
                     <div class="profile-avatar relative">
                         <img :src="profilePicture || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=40&h=40&fit=crop&crop=face'" alt="Profile" class="w-6 h-6 rounded-full object-cover border-2 border-green-500 shadow-md transition-all duration-300">
@@ -54,8 +54,8 @@
                         <div class="w-12 h-12 rounded-full bg-gray-300 mx-auto mb-2 overflow-hidden">
                             <img :src="profilePicture || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=48&h=48&fit=crop&crop=face'" alt="Profile" class="w-full h-full object-cover">
                         </div>
-                        <p class="text-sm font-semibold text-gray-800" x-text="adminProfile.name">Admin</p>
-                        <p class="text-xs text-gray-500" x-text="adminProfile.role">Administrator</p>
+                        <p class="text-sm font-semibold text-gray-800" x-text="adminProfile.name">CEO</p>
+                        <p class="text-xs text-gray-500" x-text="adminProfile.role">Chief Executive Officer</p>
                     </div>
                     <a href="#profile" @click="showProfileDropdown = false; activeLink = 'profile'; document.getElementById('profile').scrollIntoView({ behavior: 'smooth' })" class="dropdown-item flex items-center gap-2 px-3 py-2 text-gray-800 no-underline transition-all duration-200 bg-transparent border-0 w-full text-left cursor-pointer text-xs font-medium relative hover:bg-gradient-to-br hover:from-blue-50 hover:to-purple-50 hover:text-blue-600">
                         <i class="fas fa-user text-blue-600 text-xs w-3 text-center"></i> Profile
@@ -87,10 +87,10 @@
 <div x-show="showShareholderModal" x-transition @click.away="showShareholderModal = false" class="fixed top-12 left-0 right-0 bg-white border-b border-gray-200 shadow-xl z-[1001] p-6">
     <div class="max-w-md mx-auto text-center">
         <div class="w-16 h-16 mx-auto mb-3 bg-gradient-to-br from-blue-400 to-indigo-500 rounded-full flex items-center justify-center">
-            <i class="fas fa-shield-alt text-white text-2xl"></i>
+            <i class="fas fa-crown text-white text-2xl"></i>
         </div>
-        <h2 class="text-lg font-bold bg-gradient-to-br from-blue-600 to-indigo-600 bg-clip-text text-transparent mb-2">Admin Dashboard</h2>
-        <p class="text-sm text-gray-600 mb-1">System administration & management</p>
-        <p class="text-xs text-gray-400">Full control over the BSS Investment System</p>
+        <h2 class="text-lg font-bold bg-gradient-to-br from-blue-600 to-indigo-600 bg-clip-text text-transparent mb-2">CEO Dashboard</h2>
+        <p class="text-sm text-gray-600 mb-1">Executive management & oversight</p>
+        <p class="text-xs text-gray-400">Complete control over BSS Investment System</p>
     </div>
 </div>

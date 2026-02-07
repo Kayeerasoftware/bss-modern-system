@@ -33,7 +33,7 @@
     justify-content: center;
     transition: left 0.3s, top 0.3s, transform 0.3s;
     font-size: 0.6rem;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    /* box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); */
 }
 
 .sidebar-toggle:hover {

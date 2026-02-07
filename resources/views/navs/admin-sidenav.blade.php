@@ -29,9 +29,18 @@
             <a href="#loans" @click="sidebarOpen = false; activeLink = 'loans'" :class="activeLink === 'loans' ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-blue-50 hover:text-blue-600'" class="nav-item flex items-center space-x-2 px-2 py-2 rounded-lg transition text-xs">
                 <i class="fas fa-money-bill-wave w-3 text-xs"></i><span>Loans</span>
             </a>
+            <a href="#loan-requests" @click="sidebarOpen = false; activeLink = 'loan-requests'" :class="activeLink === 'loan-requests' ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-blue-50 hover:text-blue-600'" class="nav-item flex items-center space-x-2 px-2 py-2 rounded-lg transition text-xs">
+                <i class="fas fa-file-invoice-dollar w-3 text-xs"></i><span>Loan Requests</span>
+            </a>
+            <a href="#fundraising" @click="sidebarOpen = false; activeLink = 'fundraising'" :class="activeLink === 'fundraising' ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-blue-50 hover:text-blue-600'" class="nav-item flex items-center space-x-2 px-2 py-2 rounded-lg transition text-xs">
+                <i class="fas fa-hand-holding-heart w-3 text-xs"></i><span>Fundraising</span>
+            </a>
             <a href="#transactions" @click="sidebarOpen = false; activeLink = 'transactions'" :class="activeLink === 'transactions' ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-blue-50 hover:text-blue-600'" class="nav-item flex items-center space-x-2 px-2 py-2 rounded-lg transition text-xs">
                 <i class="fas fa-exchange-alt w-3 text-xs"></i><span>Transactions</span>
             </a>
+            <a href="#financial" @click="sidebarOpen = false; activeLink = 'financial'" :class="activeLink === 'financial' ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-blue-50 hover:text-blue-600'" class="nav-item flex items-center space-x-2 px-2 py-2 rounded-lg transition text-xs">
+                <i class="fas fa-dollar-sign w-3 text-xs"></i><span>Financial</span>
+            </a>            
             <a href="#projects" @click="sidebarOpen = false; activeLink = 'projects'" :class="activeLink === 'projects' ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-blue-50 hover:text-blue-600'" class="nav-item flex items-center space-x-2 px-2 py-2 rounded-lg transition text-xs">
                 <i class="fas fa-project-diagram w-3 text-xs"></i><span>Projects</span>
             </a>
@@ -41,7 +50,6 @@
             <a href="#settings" @click="sidebarOpen = false; activeLink = 'settings'" :class="activeLink === 'settings' ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-blue-50 hover:text-blue-600'" class="nav-item flex items-center space-x-2 px-2 py-2 rounded-lg transition text-xs">
                 <i class="fas fa-cog w-3 text-xs"></i><span>Settings</span>
             </a>
-
             <a href="#reports" @click="sidebarOpen = false; activeLink = 'reports'" :class="activeLink === 'reports' ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-blue-50 hover:text-blue-600'" class="nav-item flex items-center space-x-2 px-2 py-2 rounded-lg transition text-xs">
                 <i class="fas fa-chart-bar w-3 text-xs"></i><span>Reports</span>
             </a>
@@ -50,9 +58,6 @@
             </a>
             <a href="#backup" @click="sidebarOpen = false; activeLink = 'backup'" :class="activeLink === 'backup' ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-blue-50 hover:text-blue-600'" class="nav-item flex items-center space-x-2 px-2 py-2 rounded-lg transition text-xs">
                 <i class="fas fa-database w-3 text-xs"></i><span>Backup</span>
-            </a>
-            <a href="#financial" @click="sidebarOpen = false; activeLink = 'financial'" :class="activeLink === 'financial' ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-blue-50 hover:text-blue-600'" class="nav-item flex items-center space-x-2 px-2 py-2 rounded-lg transition text-xs">
-                <i class="fas fa-dollar-sign w-3 text-xs"></i><span>Financial</span>
             </a>
             <a href="#bulk" @click="sidebarOpen = false; activeLink = 'bulk'" :class="activeLink === 'bulk' ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-blue-50 hover:text-blue-600'" class="nav-item flex items-center space-x-2 px-2 py-2 rounded-lg transition text-xs">
                 <i class="fas fa-tasks w-3 text-xs"></i><span>Bulk Ops</span>

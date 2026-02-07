@@ -12,7 +12,8 @@ class Project extends Model
 
     protected $fillable = [
         'project_id', 'name', 'budget', 'timeline', 'description',
-        'progress', 'roi', 'risk_score'
+        'progress', 'roi', 'risk_score', 'category', 'status',
+        'start_date', 'manager', 'location'
     ];
 
     protected $casts = [

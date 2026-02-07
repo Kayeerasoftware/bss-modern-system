@@ -29,10 +29,10 @@ class WorkingSeeder extends Seeder
         // 1. Users Table
         $users = [
             ['name' => 'System Admin', 'email' => 'admin@bss.com', 'password' => Hash::make('admin123'), 'role' => 'admin', 'is_active' => true],
-            ['name' => 'Manager User', 'email' => 'manager@bss.com', 'password' => Hash::make('manager123'), 'role' => 'manager', 'is_active' => true],
-            ['name' => 'Treasurer User', 'email' => 'treasurer@bss.com', 'password' => Hash::make('treasurer123'), 'role' => 'treasurer', 'is_active' => true],
-            ['name' => 'Secretary User', 'email' => 'secretary@bss.com', 'password' => Hash::make('secretary123'), 'role' => 'secretary', 'is_active' => true],
-            ['name' => 'Member User', 'email' => 'member@bss.com', 'password' => Hash::make('member123'), 'role' => 'member', 'is_active' => true],
+            ['name' => 'TD User', 'email' => 'td@bss.com', 'password' => Hash::make('td123'), 'role' => 'td', 'is_active' => true],
+            ['name' => 'Cashier User', 'email' => 'cashier@bss.com', 'password' => Hash::make('cashier123'), 'role' => 'cashier', 'is_active' => true],
+            ['name' => 'CEO User', 'email' => 'ceo@bss.com', 'password' => Hash::make('ceo123'), 'role' => 'ceo', 'is_active' => true],
+            ['name' => 'Client User', 'email' => 'client@bss.com', 'password' => Hash::make('client123'), 'role' => 'client', 'is_active' => true],
         ];
 
         foreach ($users as $userData) {
@@ -71,21 +71,21 @@ class WorkingSeeder extends Seeder
 
         // 4. Transactions Table
         $transactions = [
-            ['transaction_id' => 'TXN001', 'member_id' => 'BSS001', 'amount' => 500000, 'type' => 'deposit'],
-            ['transaction_id' => 'TXN002', 'member_id' => 'BSS001', 'amount' => 300000, 'type' => 'deposit'],
-            ['transaction_id' => 'BSS002', 'member_id' => 'BSS002', 'amount' => 400000, 'type' => 'deposit'],
-            ['transaction_id' => 'TXN004', 'member_id' => 'BSS003', 'amount' => 600000, 'type' => 'deposit'],
-            ['transaction_id' => 'TXN005', 'member_id' => 'BSS004', 'amount' => 800000, 'type' => 'deposit'],
-            ['transaction_id' => 'TXN006', 'member_id' => 'BSS005', 'amount' => 1000000, 'type' => 'deposit'],
-            ['transaction_id' => 'TXN007', 'member_id' => 'BSS006', 'amount' => 200000, 'type' => 'deposit'],
-            ['transaction_id' => 'TXN008', 'member_id' => 'BSS007', 'amount' => 250000, 'type' => 'deposit'],
-            ['transaction_id' => 'TXN009', 'member_id' => 'BSS008', 'amount' => 180000, 'type' => 'deposit'],
-            ['transaction_id' => 'TXN010', 'member_id' => 'BSS001', 'amount' => 100000, 'type' => 'withdrawal'],
-            ['transaction_id' => 'TXN011', 'member_id' => 'BSS002', 'amount' => 150000, 'type' => 'withdrawal'],
-            ['transaction_id' => 'TXN012', 'member_id' => 'BSS003', 'amount' => 200000, 'type' => 'withdrawal'],
-            ['transaction_id' => 'TXN013', 'member_id' => 'BSS001', 'amount' => 50000, 'type' => 'condolenceContribution'],
-            ['transaction_id' => 'TXN014', 'member_id' => 'BSS002', 'amount' => 75000, 'type' => 'condolenceContribution'],
-            ['transaction_id' => 'TXN015', 'member_id' => 'BSS003', 'amount' => 100000, 'type' => 'condolenceContribution'],
+            ['transaction_id' => 'TXN001', 'member_id' => 'BSS001', 'amount' => 500000, 'type' => 'deposit', 'description' => 'Monthly savings'],
+            ['transaction_id' => 'TXN002', 'member_id' => 'BSS001', 'amount' => 300000, 'type' => 'deposit', 'description' => 'Salary deposit'],
+            ['transaction_id' => 'BSS002', 'member_id' => 'BSS002', 'amount' => 400000, 'type' => 'deposit', 'description' => 'Business income'],
+            ['transaction_id' => 'TXN004', 'member_id' => 'BSS003', 'amount' => 600000, 'type' => 'deposit', 'description' => 'Investment return'],
+            ['transaction_id' => 'TXN005', 'member_id' => 'BSS004', 'amount' => 800000, 'type' => 'deposit', 'description' => 'Monthly savings'],
+            ['transaction_id' => 'TXN006', 'member_id' => 'BSS005', 'amount' => 1000000, 'type' => 'deposit', 'description' => 'Salary deposit'],
+            ['transaction_id' => 'TXN007', 'member_id' => 'BSS006', 'amount' => 200000, 'type' => 'deposit', 'description' => 'Business income'],
+            ['transaction_id' => 'TXN008', 'member_id' => 'BSS007', 'amount' => 250000, 'type' => 'deposit', 'description' => 'Monthly savings'],
+            ['transaction_id' => 'TXN009', 'member_id' => 'BSS008', 'amount' => 180000, 'type' => 'deposit', 'description' => 'Salary deposit'],
+            ['transaction_id' => 'TXN010', 'member_id' => 'BSS001', 'amount' => 100000, 'type' => 'withdrawal', 'description' => 'Emergency withdrawal'],
+            ['transaction_id' => 'TXN011', 'member_id' => 'BSS002', 'amount' => 150000, 'type' => 'withdrawal', 'description' => 'School fees'],
+            ['transaction_id' => 'TXN012', 'member_id' => 'BSS003', 'amount' => 200000, 'type' => 'withdrawal', 'description' => 'Medical expenses'],
+            ['transaction_id' => 'TXN013', 'member_id' => 'BSS001', 'amount' => 50000, 'type' => 'condolence', 'description' => 'Funeral support'],
+            ['transaction_id' => 'TXN014', 'member_id' => 'BSS002', 'amount' => 75000, 'type' => 'condolence', 'description' => 'Bereavement fund'],
+            ['transaction_id' => 'TXN015', 'member_id' => 'BSS003', 'amount' => 100000, 'type' => 'condolence', 'description' => 'Condolence contribution'],
         ];
 
         foreach ($transactions as $transactionData) {

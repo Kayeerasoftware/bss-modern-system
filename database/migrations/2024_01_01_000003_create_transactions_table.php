@@ -13,7 +13,8 @@ return new class extends Migration
             $table->string('transaction_id')->unique();
             $table->string('member_id');
             $table->decimal('amount', 15, 2);
-            $table->enum('type', ['deposit', 'withdrawal', 'loanDisbursement', 'condolenceContribution']);
+            $table->enum('type', ['deposit', 'withdrawal', 'transfer', 'loan_payment', 'loan_request', 'fundraising', 'condolence']);
+            $table->text('description')->nullable();
             $table->timestamps();
             
             $table->foreign('member_id')->references('member_id')->on('members');

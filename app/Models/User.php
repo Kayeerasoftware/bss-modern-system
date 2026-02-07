@@ -23,6 +23,7 @@ class User extends Authenticatable
         'password',
         'role',
         'is_active',
+        'profile_picture',
     ];
 
     /**
@@ -91,5 +92,10 @@ class User extends Authenticatable
     public function hasAllPermissions(array $permissions): bool
     {
         return empty(array_diff($permissions, $this->permissions()));
+    }
+
+    public function member()
+    {
+        return $this->hasOne(Member::class);
     }
 }

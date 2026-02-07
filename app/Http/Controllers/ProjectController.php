@@ -19,13 +19,18 @@ class ProjectController extends Controller
             'name' => $request->name,
             'description' => $request->description,
             'budget' => $request->budget,
+            'timeline' => $request->timeline,
             'start_date' => $request->start_date,
-            'end_date' => $request->end_date,
-            'status' => 'planning',
-            'progress' => 0
+            'category' => $request->category,
+            'status' => $request->status ?? 'planning',
+            'progress' => $request->progress ?? 0,
+            'roi' => $request->roi,
+            'risk_score' => $request->risk_score,
+            'manager' => $request->manager,
+            'location' => $request->location,
         ]);
 
-        return response()->json($project);
+        return response()->json(['success' => true, 'project' => $project]);
     }
 
     public function update(Request $request, $id)

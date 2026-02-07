@@ -111,6 +111,16 @@ class AdminController extends Controller
             
         $projects = Project::select('name', 'progress')->get();
         
+        $transactionTypeAmounts = [
+            'deposit' => Transaction::where('type', 'deposit')->sum('amount'),
+            'withdrawal' => Transaction::where('type', 'withdrawal')->sum('amount'),
+            'transfer' => Transaction::where('type', 'transfer')->sum('amount'),
+            'loan_payment' => Transaction::where('type', 'loan_payment')->sum('amount'),
+            'loan_request' => Transaction::where('type', 'loan_request')->sum('amount'),
+            'fundraising' => Transaction::where('type', 'fundraising')->sum('amount'),
+            'condolence' => Transaction::where('type', 'condolence')->sum('amount'),
+        ];
+        
         return response()->json([
             'totalMembers' => Member::count(),
             'totalSavings' => Member::sum('savings'),
@@ -131,7 +141,16 @@ class AdminController extends Controller
             'transactionStats' => $transactionStats,
             'monthlyRevenue' => $monthlyRevenue,
             'savingsGrowth' => $savingsGrowth,
-            'projects' => $projects
+            'projects' => $projects,
+            'transactionTypeAmounts' => $transactionTypeAmounts,
+            'roleDistribution' => [
+                'client' => Member::where('role', 'client')->count(),
+                'shareholder' => Member::where('role', 'shareholder')->count(),
+                'cashier' => Member::where('role', 'cashier')->count(),
+                'td' => Member::where('role', 'td')->count(),
+                'ceo' => Member::where('role', 'ceo')->count(),
+                'admin' => Member::where('role', 'admin')->count()
+            ]
         ]);
     }
 
@@ -375,18 +394,52 @@ class AdminController extends Controller
 
     public function getUsers()
     {
-        $users = User::select('id', 'name', 'email', 'role', 'status')->get();
+        $users = User::with('member')->get()->map(function($user) {
+            return [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'role' => $user->role,
+                'status' => $user->is_active ? 'active' : 'inactive',
+                'profile_picture' => $user->profile_picture ? '/storage/' . $user->profile_picture : null,
+                'member_id' => $user->member ? $user->member->member_id : null,
+                'savings' => $user->member ? $user->member->savings : null,
+                'loan' => $user->member ? $user->member->loan : null
+            ];
+        });
         return response()->json($users);
     }
 
     public function createUser(Request $request)
     {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|unique:users,email',
+            'password' => 'required|string|min:6',
+            'role' => 'required|string|in:client,shareholder,cashier,td,ceo,admin',
+        ]);
+
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
             'password' => bcrypt($request->password),
             'role' => $request->role,
-            'status' => 'active'
+            'is_active' => true
+        ]);
+        
+        $member = Member::create([
+            'member_id' => 'BSS' . str_pad(Member::count() + 1, 3, '0', STR_PAD_LEFT),
+            'full_name' => $request->name,
+            'email' => $request->email,
+            'location' => $request->location ?? 'N/A',
+            'occupation' => $request->occupation ?? 'N/A',
+            'contact' => $request->contact ?? 'N/A',
+            'role' => $request->role,
+            'savings' => 0,
+            'loan' => 0,
+            'savings_balance' => 0,
+            'password' => bcrypt($request->password),
+            'user_id' => $user->id
         ]);
         
         DB::table('audit_logs')->insert([
@@ -404,13 +457,13 @@ class AdminController extends Controller
     public function toggleUserStatus($id)
     {
         $user = User::findOrFail($id);
-        $user->status = $user->status === 'active' ? 'inactive' : 'active';
+        $user->is_active = !$user->is_active;
         $user->save();
         
         DB::table('audit_logs')->insert([
             'user' => 'Admin',
             'action' => 'User Status Changed',
-            'details' => 'Changed status for: ' . $user->name,
+            'details' => 'Changed status for: ' . $user->name . ' to ' . ($user->is_active ? 'active' : 'inactive'),
             'timestamp' => now(),
             'created_at' => now(),
             'updated_at' => now()
@@ -419,10 +472,85 @@ class AdminController extends Controller
         return response()->json(['success' => true]);
     }
 
+    public function changeUserRole(Request $request, $id)
+    {
+        $user = User::findOrFail($id);
+        $oldRole = $user->role;
+        $user->role = $request->role;
+        $user->save();
+        
+        if ($user->member) {
+            $user->member->update(['role' => $request->role]);
+        }
+        
+        DB::table('audit_logs')->insert([
+            'user' => 'Admin',
+            'action' => 'User Role Changed',
+            'details' => 'Changed role for: ' . $user->name . ' from ' . $oldRole . ' to ' . $request->role,
+            'timestamp' => now(),
+            'created_at' => now(),
+            'updated_at' => now()
+        ]);
+        
+        return response()->json(['success' => true]);
+    }
+
+    public function updateUser(Request $request, $id)
+    {
+        $user = User::findOrFail($id);
+        $user->name = $request->name;
+        $user->email = $request->email;
+        $user->role = $request->role;
+        $user->is_active = $request->status === 'active';
+        if ($request->password) {
+            $user->password = bcrypt($request->password);
+        }
+        if ($request->hasFile('profile_picture')) {
+            $path = $request->file('profile_picture')->store('profile_pictures', 'public');
+            $user->profile_picture = $path;
+        }
+        $user->save();
+        
+        if ($user->member) {
+            $user->member->update([
+                'full_name' => $request->name,
+                'email' => $request->email,
+                'role' => $request->role,
+                'profile_picture' => $user->profile_picture
+            ]);
+        }
+        
+        DB::table('audit_logs')->insert([
+            'user' => 'Admin',
+            'action' => 'User Updated',
+            'details' => 'Updated user: ' . $user->name,
+            'timestamp' => now(),
+            'created_at' => now(),
+            'updated_at' => now()
+        ]);
+        
+        return response()->json([
+            'success' => true,
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'role' => $user->role,
+                'status' => $user->is_active ? 'active' : 'inactive',
+                'profile_picture' => $user->profile_picture ? '/storage/' . $user->profile_picture : null
+            ]
+        ]);
+    }
+
     public function deleteUser($id)
     {
         $user = User::findOrFail($id);
         $userName = $user->name;
+        
+        if ($user->member) {
+            $user->member->delete();
+        }
+        
         $user->delete();
         
         DB::table('audit_logs')->insert([

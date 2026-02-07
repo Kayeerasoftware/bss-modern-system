@@ -28,10 +28,54 @@
         </div>
 
         <div class="nav-right flex items-center gap-2">
-            <button @click="showCalendarModal = true" class="nav-btn relative flex items-center justify-center bg-gradient-to-br from-blue-50 to-purple-50 border border-blue-200 px-3 py-1.5 rounded-xl cursor-pointer transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md hover:border-blue-300" title="Calendar" x-data="{ currentTime: new Date() }" x-init="setInterval(() => { currentTime = new Date() }, 1000)">
-                <i class="fas fa-calendar-alt text-blue-600 drop-shadow-md"></i>
-                <span class="bg-gradient-to-br from-blue-600 to-purple-600 bg-clip-text text-transparent text-xs font-bold font-mono ml-2 hidden md:inline" x-text="currentTime.toLocaleDateString() + ' ' + currentTime.toLocaleTimeString()"></span>
-            </button>
+            <div class="relative" x-data="{ 
+                showCalendar: false, 
+                currentTime: new Date(),
+                currentMonth: new Date().getMonth(),
+                currentYear: new Date().getFullYear(),
+                getDaysInMonth(month, year) {
+                    return new Date(year, month + 1, 0).getDate();
+                },
+                getFirstDayOfMonth(month, year) {
+                    return new Date(year, month, 1).getDay();
+                },
+                monthNames: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
+                isToday(day) {
+                    const today = new Date();
+                    return day === today.getDate() && this.currentMonth === today.getMonth() && this.currentYear === today.getFullYear();
+                }
+            }" x-init="setInterval(() => { currentTime = new Date() }, 1000)">
+                <button @click="showCalendar = !showCalendar" class="nav-btn relative flex items-center justify-center bg-gradient-to-br from-blue-50 to-purple-50 border border-blue-200 px-3 py-1.5 rounded-xl cursor-pointer transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md hover:border-blue-300" title="Calendar" :class="showCalendar ? 'ring-2 ring-blue-400' : ''">
+                    <i class="fas fa-calendar-alt text-blue-600 drop-shadow-md"></i>
+                    <span class="bg-gradient-to-br from-blue-600 to-purple-600 bg-clip-text text-transparent text-xs font-bold font-mono ml-2 hidden md:inline" x-text="currentTime.toLocaleDateString() + ' ' + currentTime.toLocaleTimeString()"></span>
+                </button>
+                <div x-show="showCalendar" @click.away="showCalendar = false" x-transition class="fixed sm:absolute top-16 sm:top-full left-1/2 -translate-x-1/2 sm:left-auto sm:right-0 sm:translate-x-0 mt-0 sm:mt-3 w-[320px] bg-white rounded-xl shadow-2xl z-[1000] overflow-hidden border-2 border-blue-100">
+                    <div class="px-4 py-2.5 bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-between">
+                        <button @click="currentMonth = currentMonth === 0 ? (currentYear--, 11) : currentMonth - 1" class="text-white hover:bg-white/20 rounded-lg px-2 py-1 transition"><i class="fas fa-chevron-left text-xs"></i></button>
+                        <h3 class="text-sm font-bold text-white" x-text="monthNames[currentMonth] + ' ' + currentYear"></h3>
+                        <button @click="currentMonth = currentMonth === 11 ? (currentYear++, 0) : currentMonth + 1" class="text-white hover:bg-white/20 rounded-lg px-2 py-1 transition"><i class="fas fa-chevron-right text-xs"></i></button>
+                    </div>
+                    <div class="p-3">
+                        <div class="grid grid-cols-7 gap-1 mb-2">
+                            <div class="text-center text-xs font-bold text-gray-600">Su</div>
+                            <div class="text-center text-xs font-bold text-gray-600">Mo</div>
+                            <div class="text-center text-xs font-bold text-gray-600">Tu</div>
+                            <div class="text-center text-xs font-bold text-gray-600">We</div>
+                            <div class="text-center text-xs font-bold text-gray-600">Th</div>
+                            <div class="text-center text-xs font-bold text-gray-600">Fr</div>
+                            <div class="text-center text-xs font-bold text-gray-600">Sa</div>
+                        </div>
+                        <div class="grid grid-cols-7 gap-1">
+                            <template x-for="blank in getFirstDayOfMonth(currentMonth, currentYear)" :key="'blank-' + blank">
+                                <div class="h-9"></div>
+                            </template>
+                            <template x-for="day in getDaysInMonth(currentMonth, currentYear)" :key="day">
+                                <div class="h-9 flex items-center justify-center text-xs rounded-lg cursor-pointer transition" :class="isToday(day) ? 'bg-gradient-to-br from-blue-500 to-purple-500 text-white font-bold shadow-md' : 'hover:bg-blue-50 text-gray-700'" x-text="day"></div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </div>
             <button @click="activeLink = 'notifications'; document.getElementById('notifications').scrollIntoView({ behavior: 'smooth' })" class="nav-btn relative flex items-center justify-center bg-gradient-to-br from-blue-50 to-purple-50 border border-blue-200 px-3 py-1.5 rounded-xl cursor-pointer transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md hover:border-blue-300" title="Notifications">
                 <i class="fas fa-bell text-blue-600 drop-shadow-md"></i>
                 <span x-show="notificationStats.unread > 0" class="badge absolute -top-2 right-0 bg-gradient-to-br from-red-500 to-red-600 text-white text-[0.625rem] font-bold px-1.5 py-0.5 rounded-xl min-w-[1.125rem] text-center shadow-md border-2 border-white animate-pulse" x-text="notificationStats.unread"></span>

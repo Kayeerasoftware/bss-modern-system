@@ -226,6 +226,27 @@ class CrudController extends Controller
         return response()->json(['success' => true, 'loan' => $loan]);
     }
 
+    public function pendingLoan($id)
+    {
+        $loan = Loan::findOrFail($id);
+        
+        $updater = 'Admin';
+        if (auth()->check()) {
+            $updater = ucfirst(auth()->user()->role);
+        } elseif (session('member_id')) {
+            $member = Member::where('member_id', session('member_id'))->first();
+            if ($member) {
+                $updater = ucfirst($member->role);
+            }
+        }
+        
+        $loan->update([
+            'status' => 'pending',
+            'updated_by' => $updater
+        ]);
+        return response()->json(['success' => true, 'loan' => $loan]);
+    }
+
     public function updateLoan(Request $request, $id)
     {
         $loan = Loan::findOrFail($id);

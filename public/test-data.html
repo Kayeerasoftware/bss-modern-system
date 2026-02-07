@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Data Loading</title>
+</head>
+<body>
+    <h1>Testing API Data</h1>
+    <div id="result"></div>
+    <script>
+        fetch('/api/dashboard-data')
+            .then(r => r.json())
+            .then(data => {
+                document.getElementById('result').innerHTML = 
+                    '<pre>' + JSON.stringify(data.members[0], null, 2) + '</pre>' +
+                    '<p>Total members: ' + data.members.length + '</p>';
+            })
+            .catch(e => {
+                document.getElementById('result').innerHTML = 'Error: ' + e.message;
+            });
+    </script>
+</body>
+</html>
