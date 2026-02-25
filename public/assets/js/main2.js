@@ -1,5 +1,5 @@
 // Admin Panel Alpine.js Application
-function adminPanel() {
+window.adminPanel = function() {
     return {
         sidebarOpen: false,
         sidebarCollapsed: false,

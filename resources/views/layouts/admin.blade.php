@@ -18,7 +18,7 @@
     </script>
     <script src="{{ asset('assets/js/main2.js') }}"></script>
     <script src="{{ asset('js/chat.js') }}"></script>
-    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <style>
         @keyframes slide-right {
             0% { width: 0%; }
@@ -61,8 +61,8 @@
         });
 @endphp
 <body class="bg-gray-50 dark:bg-gray-900 transition-colors duration-300" x-data="{ 
-    ...adminPanel(),
-    ...chatModule(),
+    ...window.adminPanel(),
+    ...window.chatModule(),
     currentUserId: {{ auth()->id() }},
     members: {{ Js::from($usersData) }},
     originalMembers: {{ Js::from($usersData) }}
