@@ -18,6 +18,14 @@
     </script>
     <script src="{{ asset('assets/js/main2.js') }}"></script>
     <script src="{{ asset('js/chat.js') }}"></script>
+    <script>
+        // Ensure functions are available before Alpine initializes
+        document.addEventListener('alpine:init', () => {
+            console.log('Alpine.js initialized');
+            console.log('adminPanel available:', typeof window.adminPanel);
+            console.log('chatModule available:', typeof window.chatModule);
+        });
+    </script>
     <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <style>
         @keyframes slide-right {
@@ -60,13 +68,21 @@
             ];
         });
 @endphp
-<body class="bg-gray-50 dark:bg-gray-900 transition-colors duration-300" x-data="{ 
-    ...window.adminPanel(),
-    ...window.chatModule(),
-    currentUserId: {{ auth()->id() }},
-    members: {{ Js::from($usersData) }},
-    originalMembers: {{ Js::from($usersData) }}
-}" x-init="initChat(); filteredMembersChat = originalMembers;">
+<body class="bg-gray-50 dark:bg-gray-900 transition-colors duration-300" 
+      x-data="(() => {
+          if (typeof window.adminPanel !== 'function' || typeof window.chatModule !== 'function') {
+              console.error('Alpine functions not loaded!');
+              return { sidebarOpen: false, sidebarCollapsed: false, showProfileModal: false };
+          }
+          return {
+              ...window.adminPanel(),
+              ...window.chatModule(),
+              currentUserId: {{ auth()->id() }},
+              members: {{ Js::from($usersData) }},
+              originalMembers: {{ Js::from($usersData) }}
+          };
+      })()" 
+      x-init="if (typeof initChat === 'function') { initChat(); filteredMembersChat = originalMembers; }">
     @include('components.loading-screen')
     @include('partials.navs.admin-topnav')
     @include('partials.navs.admin-sidenav')
