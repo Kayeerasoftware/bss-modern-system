@@ -16,6 +16,8 @@
             darkMode: 'class'
         }
     </script>
+    <script src="{{ asset('assets/js/main2.js') }}"></script>
+    <script src="{{ asset('js/chat.js') }}"></script>
     <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
     <style>
         @keyframes slide-right {
@@ -84,9 +86,7 @@
     @stack('modals')
     @include('partials.admin.modals.member-chat')
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="{{ asset('js/chat.js') }}"></script>
     <script src="{{ asset('assets/js/admin/charts.js') }}"></script>
-    <script src="{{ asset('assets/js/main2.js') }}"></script>
     @stack('scripts')
 </body>
 </html>
