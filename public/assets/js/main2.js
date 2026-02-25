@@ -257,14 +257,14 @@ window.adminPanel = function() {
             const search = this.memberChatSearch.toLowerCase();
             this.filteredMembersChat = this.members.filter(m => {
                 const matchesSearch = !search || m.full_name?.toLowerCase().includes(search) || m.member_id?.toLowerCase().includes(search) || m.email?.toLowerCase().includes(search);
-                
+
                 if (this.chatFilter === 'all') return matchesSearch;
-                
+
                 const memberRole = (m.role || '')?.toString().toLowerCase().trim();
                 const filterRole = this.chatFilter.toLowerCase().trim();
                 console.log('Member:', m.full_name, 'Role:', memberRole, 'Filter:', filterRole);
                 const matchesFilter = memberRole === filterRole;
-                
+
                 return matchesSearch && matchesFilter;
             });
             console.log('Filtered result:', this.filteredMembersChat.length);
@@ -382,7 +382,7 @@ window.adminPanel = function() {
             let filtered = this.loanRequests;
             if (this.loanRequestSearch) {
                 const query = this.loanRequestSearch.toLowerCase();
-                filtered = filtered.filter(r => 
+                filtered = filtered.filter(r =>
                     r.loan_id?.toLowerCase().includes(query) ||
                     r.member_id?.toLowerCase().includes(query) ||
                     r.purpose?.toLowerCase().includes(query) ||
@@ -596,7 +596,7 @@ window.adminPanel = function() {
                     alert('Campaign not found');
                     return;
                 }
-                
+
                 const newRaisedAmount = parseFloat(fundraising.raised_amount) + parseFloat(this.contributionForm.amount);
                 const response = await fetch(`/api/fundraisings/${fundraising.id}`, {
                     method: 'PUT',
@@ -636,7 +636,7 @@ window.adminPanel = function() {
                     f.end_date
                 ])
             ].map(row => row.join(',')).join('\n');
-            
+
             const blob = new Blob([csvContent], { type: 'text/csv' });
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -673,7 +673,7 @@ window.adminPanel = function() {
             if (!confirm('Are you sure you want to delete this campaign?')) return;
             try {
                 const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
-                const response = await fetch(`/api/fundraisings/${id}`, { 
+                const response = await fetch(`/api/fundraisings/${id}`, {
                     method: 'DELETE',
                     headers: { 'X-CSRF-TOKEN': csrfToken }
                 });
@@ -1062,16 +1062,16 @@ window.adminPanel = function() {
 
         filterProjects() {
             let filtered = this.projects;
-            
+
             if (this.projectSearchQuery) {
                 const query = this.projectSearchQuery.toLowerCase();
-                filtered = filtered.filter(p => 
+                filtered = filtered.filter(p =>
                     p.name?.toLowerCase().includes(query) ||
                     p.description?.toLowerCase().includes(query) ||
                     p.project_id?.toLowerCase().includes(query)
                 );
             }
-            
+
             if (this.projectFilterStatus !== 'all') {
                 if (this.projectFilterStatus === 'planning') {
                     filtered = filtered.filter(p => (p.progress || 0) === 0);
@@ -1081,7 +1081,7 @@ window.adminPanel = function() {
                     filtered = filtered.filter(p => (p.progress || 0) >= 100);
                 }
             }
-            
+
             this.filteredProjects = filtered;
             this.sortProjects();
         },
@@ -1155,24 +1155,24 @@ window.adminPanel = function() {
 
         filterUsers() {
             let filtered = this.users;
-            
+
             if (this.userSearchQuery) {
                 const query = this.userSearchQuery.toLowerCase();
-                filtered = filtered.filter(u => 
+                filtered = filtered.filter(u =>
                     u.name?.toLowerCase().includes(query) ||
                     u.email?.toLowerCase().includes(query) ||
                     u.role?.toLowerCase().includes(query)
                 );
             }
-            
+
             if (this.userFilterRole !== 'all') {
                 filtered = filtered.filter(u => u.role?.toLowerCase() === this.userFilterRole.toLowerCase());
             }
-            
+
             if (this.userFilterStatus !== 'all') {
                 filtered = filtered.filter(u => u.status?.toLowerCase() === this.userFilterStatus.toLowerCase());
             }
-            
+
             this.filteredUsers = filtered;
         },
 
@@ -2383,7 +2383,7 @@ window.adminPanel = function() {
             let filtered = this.loans;
             if (this.loanSearchQuery) {
                 const query = this.loanSearchQuery.toLowerCase();
-                filtered = filtered.filter(l => 
+                filtered = filtered.filter(l =>
                     l.loan_id?.toLowerCase().includes(query) ||
                     l.member_id?.toLowerCase().includes(query) ||
                     l.purpose?.toLowerCase().includes(query) ||
@@ -2716,7 +2716,7 @@ document.addEventListener('DOMContentLoaded', function() {
 // Main application logic
 document.addEventListener('DOMContentLoaded', function() {
     console.log('BSS System loaded successfully');
-    
+
     // Initialize any global functionality here
     initializeGlobalComponents();
 });
@@ -2736,20 +2736,20 @@ function initializeGlobalComponents() {
 // Member filtering and sorting functions
 function filterMembers() {
     let filtered = this.members;
-    
+
     if (this.memberSearchQuery) {
         const query = this.memberSearchQuery.toLowerCase();
-        filtered = filtered.filter(m => 
+        filtered = filtered.filter(m =>
             m.full_name?.toLowerCase().includes(query) ||
             m.email?.toLowerCase().includes(query) ||
             m.member_id?.toLowerCase().includes(query)
         );
     }
-    
+
     if (this.memberFilterRole !== 'all') {
         filtered = filtered.filter(m => m.role?.toLowerCase() === this.memberFilterRole.toLowerCase());
     }
-    
+
     this.filteredMembers = filtered;
     this.sortMembers();
 }
@@ -2785,17 +2785,17 @@ function uploadMemberPicture(memberId) {
 function handlePictureUpload(event) {
     const file = event.target.files[0];
     if (!file) return;
-    
+
     if (!file.type.startsWith('image/')) {
         alert('Please select an image file');
         return;
     }
-    
+
     if (file.size > 2048000) {
         alert('Image size must be less than 2MB');
         return;
     }
-    
+
     this.uploadedPictureFile = file;
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -2810,32 +2810,32 @@ async function submitPictureUpload() {
     console.log('submitPictureUpload called');
     console.log('uploadedPictureFile:', this.uploadedPictureFile);
     console.log('uploadingMemberId:', this.uploadingMemberId);
-    
+
     if (!this.uploadedPictureFile) {
         alert('Please select a picture first');
         return;
     }
-    
+
     if (!this.uploadingMemberId) {
         alert('Member ID is missing');
         return;
     }
-    
+
     const formData = new FormData();
     formData.append('profile_picture', this.uploadedPictureFile);
-    
+
     try {
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
         if (!csrfToken) {
             throw new Error('CSRF token not found');
         }
-        
+
         const response = await fetch(`/api/members/${this.uploadingMemberId}/picture`, {
             method: 'POST',
             headers: {'X-CSRF-TOKEN': csrfToken},
             body: formData
         });
-        
+
         if (!response.ok) {
             const errorText = await response.text();
             let errorMessage = `Upload failed (${response.status})`;
@@ -2847,9 +2847,9 @@ async function submitPictureUpload() {
             }
             throw new Error(errorMessage);
         }
-        
+
         const data = await response.json();
-        
+
         if (data.success) {
             this.showUploadPictureModal = false;
             this.uploadedPictureFile = null;
