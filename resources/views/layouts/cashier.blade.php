@@ -12,7 +12,7 @@
     <link href="{{ asset('assets/css/roles/admin/admin.css') }}" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>tailwind.config = { darkMode: 'class' }</script>
-    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    @include('partials.alpine-init')
 </head>
 @php
     $usersData = \App\Models\User::with('member')
@@ -29,30 +29,36 @@
             ];
         });
 @endphp
-<body class="bg-gray-50" x-data="{ 
-    ...chatModule(),
-    sidebarOpen: false,
-    sidebarCollapsed: false,
-    showProfileDropdown: false,
-    showLogoModal: false,
-    showShareholderModal: false,
-    showChatModal: false,
-    showMemberChatModal: false,
-    notificationStats: { unread: 0 },
-    adminProfile: { name: '{{ auth()->user()->name ?? "Cashier" }}', role: 'Cashier' },
-    members: {{ Js::from($usersData) }},
-    originalMembers: {{ Js::from($usersData) }},
-    profilePicture: '{{ auth()->user()->profile_picture ? asset("storage/" . auth()->user()->profile_picture) : "" }}',
-    async fetchNotificationCount() {
-        try {
-            const response = await fetch('{{ route("cashier.notifications.unread-count") }}');
-            const data = await response.json();
-            this.notificationStats.unread = data.count;
-        } catch (error) {
-            console.error('Failed to fetch notifications:', error);
-        }
+<body class="bg-gray-50" x-data="(() => {
+    if (typeof window.chatModule !== 'function') {
+        console.error('chatModule not loaded!');
+        return { sidebarOpen: false, sidebarCollapsed: false };
     }
-}" x-init="initChat(); filteredMembersChat = originalMembers; fetchNotificationCount(); setInterval(() => fetchNotificationCount(), 30000);">
+    return {
+        ...window.chatModule(),
+        sidebarOpen: false,
+        sidebarCollapsed: false,
+        showProfileDropdown: false,
+        showLogoModal: false,
+        showShareholderModal: false,
+        showChatModal: false,
+        showMemberChatModal: false,
+        notificationStats: { unread: 0 },
+        adminProfile: { name: '{{ auth()->user()->name ?? "Cashier" }}', role: 'Cashier' },
+        members: {{ Js::from($usersData) }},
+        originalMembers: {{ Js::from($usersData) }},
+        profilePicture: '{{ auth()->user()->profile_picture ? asset("storage/" . auth()->user()->profile_picture) : "" }}',
+        async fetchNotificationCount() {
+            try {
+                const response = await fetch('{{ route("cashier.notifications.unread-count") }}');
+                const data = await response.json();
+                this.notificationStats.unread = data.count;
+            } catch (error) {
+                console.error('Failed to fetch notifications:', error);
+            }
+        }
+    };
+})()" x-init="if (typeof initChat === 'function') { initChat(); filteredMembersChat = originalMembers; fetchNotificationCount(); setInterval(() => fetchNotificationCount(), 30000); }">
     @include('partials.navs.cashier-topnav')
     @include('partials.navs.cashier-sidenav')
 
@@ -64,7 +70,6 @@
     
     @include('partials.admin.modals.member-chat')
     
-    <script src="{{ asset('js/chat.js') }}"></script>
     @stack('scripts')
 </body>
 </html>

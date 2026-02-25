@@ -13,7 +13,7 @@
     <script>
         tailwind.config = { darkMode: 'class' }
     </script>
-    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    @include('partials.alpine-init')
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     @stack('styles')
 </head>
@@ -33,27 +33,31 @@
             ];
         });
 @endphp
-<body class="bg-gray-50" x-data="{ 
-    ...chatModule(),
-    sidebarOpen: false,
-    sidebarCollapsed: false,
-    showProfileDropdown: false,
-    showLogoModal: false,
-    showClientModal: false,
-    showChatModal: false,
-    showMemberChatModal: false,
-    clientProfile: {
-        name: '{{ auth()->user()->name }}',
-        role: 'Client',
-        email: '{{ auth()->user()->email }}'
-    },
-    notificationStats: {
-        unread: 0
-    },
-    members: {{ Js::from($usersData) }},
-    originalMembers: {{ Js::from($usersData) }},
-    profilePicture: '{{ auth()->user()->profile_picture ? asset("storage/" . auth()->user()->profile_picture) : "" }}'
-}" x-init="initChat(); filteredMembersChat = originalMembers;">
+<body class="bg-gray-50" x-data="(() => {
+    if (typeof window.chatModule !== 'function') {
+        console.error('chatModule not loaded!');
+        return { sidebarOpen: false, sidebarCollapsed: false };
+    }
+    return {
+        ...window.chatModule(),
+        sidebarOpen: false,
+        sidebarCollapsed: false,
+        showProfileDropdown: false,
+        showLogoModal: false,
+        showClientModal: false,
+        showChatModal: false,
+        showMemberChatModal: false,
+        clientProfile: {
+            name: '{{ auth()->user()->name }}',
+            role: 'Client',
+            email: '{{ auth()->user()->email }}'
+        },
+        notificationStats: { unread: 0 },
+        members: {{ Js::from($usersData) }},
+        originalMembers: {{ Js::from($usersData) }},
+        profilePicture: '{{ auth()->user()->profile_picture ? asset("storage/" . auth()->user()->profile_picture) : "" }}'
+    };
+})()" x-init="if (typeof initChat === 'function') { initChat(); filteredMembersChat = originalMembers; }">
     @include('partials.navs.client-topnav')
     @include('partials.navs.client-sidenav')
 
@@ -65,7 +69,6 @@
     
     @include('partials.admin.modals.member-chat')
     
-    <script src="{{ asset('js/chat.js') }}"></script>
     @stack('scripts')
 </body>
 </html>
