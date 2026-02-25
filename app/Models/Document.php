@@ -10,16 +10,28 @@ class Document extends Model
     use HasFactory;
 
     protected $fillable = [
-        'title', 'filename', 'file_path', 'file_type', 'file_size',
-        'category', 'description', 'uploaded_by', 'access_roles'
+        'member_id', 'name', 'category', 'file_path', 'file_type', 
+        'file_size', 'status', 'type'
     ];
 
-    protected $casts = [
-        'access_roles' => 'array'
-    ];
-
-    public function uploader()
+    public function member()
     {
-        return $this->belongsTo(Member::class, 'uploaded_by', 'member_id');
+        return $this->belongsTo(Member::class, 'member_id', 'member_id');
+    }
+
+    public function getUrlAttribute()
+    {
+        return asset('storage/' . $this->file_path);
+    }
+
+    public function getSizeAttribute($value)
+    {
+        if ($this->file_size < 1024) {
+            return $this->file_size . ' B';
+        } elseif ($this->file_size < 1048576) {
+            return round($this->file_size / 1024, 2) . ' KB';
+        } else {
+            return round($this->file_size / 1048576, 2) . ' MB';
+        }
     }
 }

@@ -2,318 +2,307 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
-use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\BioDataController;
-use App\Http\Controllers\LoanController;
-use App\Http\Controllers\TransactionController;
-use App\Http\Controllers\ProjectController;
-use App\Http\Controllers\SettingsController;
-use App\Http\Controllers\MemberController;
-use App\Http\Controllers\NotificationController;
-use App\Http\Controllers\ReportController;
-use App\Http\Controllers\AnalyticsController;
-use App\Http\Controllers\DividendController;
-use App\Http\Controllers\ShareController;
-use App\Http\Controllers\DepositController;
-use App\Http\Controllers\CrudController;
-use App\Http\Controllers\DashboardApiController;
-use App\Http\Controllers\FundraisingController;
-use App\Http\Controllers\FundraisingContributionController;
-use App\Http\Controllers\FundraisingExpenseController;
-use App\Http\Controllers\DashboardRouterController;
-use App\Http\Controllers\UserController;
-use App\Http\Controllers\CompleteDashboardController;
-use App\Http\Controllers\ShareholderController;
-use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\ChatController;
-use App\Http\Controllers\Api\AdminController;
-use App\Http\Controllers\Api\NotificationController as ApiNotificationController;
-use App\Http\Controllers\Api\BackupController as ApiBackupController;
-use App\Http\Controllers\Api\BulkController;
-use App\Http\Controllers\Api\SystemHealthController;
-use App\Http\Controllers\Api\PermissionController;
-
-// Admin API Routes (no auth required for demo)
-Route::get('/api/admin/dashboard', [AdminController::class, 'dashboard']);
-Route::get('/api/dashboard-data', [CompleteDashboardController::class, 'getDashboardData']);
-Route::get('/api/loans', [App\Http\Controllers\Api\LoanController::class, 'index']);
-Route::get('/api/settings', [AdminController::class, 'getSettings']);
-Route::post('/api/settings', [AdminController::class, 'updateSettings']);
-Route::get('/api/audit-logs', [AdminController::class, 'getAuditLogs']);
-Route::get('/api/backups', [ApiBackupController::class, 'index']);
-Route::post('/api/backups/create', [ApiBackupController::class, 'create']);
-Route::post('/api/backups/restore', [ApiBackupController::class, 'restore']);
-Route::get('/api/backups/{id}/download', [ApiBackupController::class, 'download']);
-Route::delete('/api/backups/{id}', [ApiBackupController::class, 'destroy']);
-Route::get('/api/financial-summary', [AdminController::class, 'getFinancialSummary']);
-Route::get('/api/system/health', [SystemHealthController::class, 'getHealth']);
-Route::post('/api/system/clear-cache', [SystemHealthController::class, 'clearCache']);
-Route::post('/api/system/optimize-db', [SystemHealthController::class, 'optimizeDatabase']);
-Route::post('/api/system/diagnostics', [SystemHealthController::class, 'runDiagnostics']);
-Route::get('/api/system/health-report', [SystemHealthController::class, 'exportHealthReport']);
-Route::get('/api/roles', [AdminController::class, 'getRoles']);
-Route::get('/api/users', [AdminController::class, 'getUsers']);
-Route::post('/api/users', [AdminController::class, 'createUser']);
-Route::put('/api/users/{id}', [AdminController::class, 'updateUser']);
-Route::post('/api/users/{id}/toggle-status', [AdminController::class, 'toggleUserStatus']);
-Route::post('/api/users/{id}/change-role', [AdminController::class, 'changeUserRole']);
-Route::delete('/api/users/{id}', [AdminController::class, 'deleteUser']);
-Route::get('/api/members/export', [BulkController::class, 'exportMembers']);
-Route::post('/api/members/import', [BulkController::class, 'importMembers']);
-Route::post('/api/emails/bulk', [AdminController::class, 'sendBulkEmail']);
-Route::get('/api/reports/generate', [AdminController::class, 'generateReport']);
-Route::get('/api/reports/view/{id}', [AdminController::class, 'viewReport']);
-Route::get('/api/reports/recent', [AdminController::class, 'getRecentReports']);
-Route::delete('/api/reports/{id}', [AdminController::class, 'deleteReport']);
-Route::post('/api/notifications/send', [ApiNotificationController::class, 'send']);
-Route::get('/api/notifications/history', [ApiNotificationController::class, 'history']);
-Route::get('/api/notifications/stats', [ApiNotificationController::class, 'stats']);
-Route::post('/api/notifications/{id}/resend', [ApiNotificationController::class, 'resend']);
-Route::delete('/api/notifications/{id}', [ApiNotificationController::class, 'destroy']);
-Route::get('/api/permissions', [PermissionController::class, 'getAllPermissions']);
-Route::get('/api/permissions/role/{role}', [PermissionController::class, 'getRolePermissions']);
-Route::post('/api/permissions/role/{role}', [PermissionController::class, 'updateRolePermissions']);
 
 // Public Routes
 Route::get('/', function () {
-    $totalMembers = \App\Models\Member::count();
-    $totalAssets = \App\Models\Member::sum('savings') + \App\Models\Loan::where('status', 'approved')->sum('amount');
-    $activeProjects = \App\Models\Project::where('progress', '<', 100)->count();
-
-    return view('dashboard-index', compact('totalMembers', 'totalAssets', 'activeProjects'));
+    return view('welcome');
 })->name('welcome');
 
-Route::get('/bss', function () {
-    return view('dashboard-index');
-})->name('bss');
-
-Route::get('/dashboard', function () {
-    return view('complete-dashboard');
-})->name('dashboard');
-
-Route::get('/complete', function () {
-    return view('complete-dashboard');
-})->name('complete-dashboard');
-
-// Role-specific Dashboards
-Route::get('/client-dashboard', function () {
-    return view('client-dashboard');
-})->name('client-dashboard');
-
-// Client Dashboard API Routes
-Route::get('/api/client-dashboard', [App\Http\Controllers\API\ClientDashboardController::class, 'getClientData']);
-Route::post('/api/client-dashboard/deposit', [App\Http\Controllers\API\ClientDashboardController::class, 'makeDeposit']);
-Route::get('/api/client-dashboard/savings-history', [App\Http\Controllers\API\ClientDashboardController::class, 'getSavingsHistory']);
-Route::get('/api/client-dashboard/transaction-distribution', [App\Http\Controllers\API\ClientDashboardController::class, 'getTransactionDistribution']);
-Route::get('/api/client-dashboard/spending-categories', [App\Http\Controllers\API\ClientDashboardController::class, 'getSpendingCategories']);
-
-Route::get('/shareholder-dashboard', function () {
-    return view('shareholder-dashboard');
-})->name('shareholder-dashboard');
-
-Route::get('/cashier-dashboard', function () {
-    return view('cashier-dashboard');
-})->name('cashier-dashboard');
-
-Route::get('/td-dashboard', function () {
-    return view('td-dashboard');
-})->name('td-dashboard');
-
-Route::get('/ceo-dashboard', function () {
-    return view('ceo-dashboard');
-})->name('ceo-dashboard');
-
-Route::get('/admin-dashboard', function () {
-    return view('admin-dashboard');
-})->name('admin-dashboard');
-
-// Chart Test Route
-Route::get('/chart-test', function () {
-    return view('chart-test');
-})->name('chart-test');
-
-// Charts Dashboard Route
-Route::get('/charts', function () {
-    return view('charts-dashboard');
-})->name('charts-dashboard');
-
-// Dynamic Dashboard Router
-Route::get('/dashboard/{role}', [DashboardRouterController::class, 'getRoleDashboard'])->name('role-dashboard');
-
-Route::post('/contact', function () {
-    // Handle contact form submission (e.g., send email)
-    return back()->with('success', 'Your message has been sent!');
-})->name('contact.submit');
+Route::get('/learn-more', function () {
+    return view('learn-more');
+})->name('learn-more');
 
 // Authentication Routes
-Route::get('/login', function () { return view('login'); })->name('login');
-Route::post('/api/login', [AuthController::class, 'login']);
-Route::post('/api/register', [AuthController::class, 'register']);
+Route::get('/login', function () { 
+    $roleStatuses = [
+        'client' => \App\Models\Setting::get('role_status_client', 1),
+        'shareholder' => \App\Models\Setting::get('role_status_shareholder', 1),
+        'cashier' => \App\Models\Setting::get('role_status_cashier', 1),
+        'td' => \App\Models\Setting::get('role_status_td', 1),
+        'ceo' => \App\Models\Setting::get('role_status_ceo', 1),
+        'admin' => \App\Models\Setting::get('role_status_admin', 1),
+    ];
+    
+    $adminPhone = \App\Models\User::where('role', 'admin')->whereNotNull('phone')->first()->phone ?? null;
+    
+    return view('auth.login', compact('roleStatuses', 'adminPhone')); 
+})->name('login');
+
+Route::post('/login', [AuthController::class, 'login'])->name('login.post');
+
+Route::get('/register', function () { 
+    $roleStatuses = [
+        'client' => \App\Models\Setting::get('role_status_client', 1),
+        'shareholder' => \App\Models\Setting::get('role_status_shareholder', 1),
+        'cashier' => \App\Models\Setting::get('role_status_cashier', 1),
+        'td' => \App\Models\Setting::get('role_status_td', 1),
+        'ceo' => \App\Models\Setting::get('role_status_ceo', 1),
+        'admin' => \App\Models\Setting::get('role_status_admin', 1),
+    ];
+    
+    $registrationAllowed = [
+        'client' => \App\Models\Setting::get('allow_registration_client', 1),
+        'shareholder' => \App\Models\Setting::get('allow_registration_shareholder', 1),
+        'cashier' => \App\Models\Setting::get('allow_registration_cashier', 1),
+        'td' => \App\Models\Setting::get('allow_registration_td', 1),
+        'ceo' => \App\Models\Setting::get('allow_registration_ceo', 1),
+        'admin' => \App\Models\Setting::get('allow_registration_admin', 1),
+    ];
+    
+    $adminPhone = \App\Models\User::where('role', 'admin')->whereNotNull('phone')->first()->phone ?? null;
+    
+    return view('auth.register', compact('roleStatuses', 'registrationAllowed', 'adminPhone')); 
+})->name('register');
+
+Route::post('/register', [AuthController::class, 'register'])->name('register.post');
+
+Route::get('/forgot-password', function () { 
+    return view('auth.forgot-password'); 
+})->name('password.request');
+
+Route::post('/forgot-password', [AuthController::class, 'sendResetLink'])->name('password.email');
+
+Route::get('/reset-password/{token}', function ($token) { 
+    return view('auth.reset-password', ['token' => $token]); 
+})->name('password.reset');
+
+Route::post('/reset-password', [AuthController::class, 'resetPassword'])->name('password.update');
+
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
-Route::get('/api/user', [AuthController::class, 'user'])->middleware('auth');
 
-// Dynamic Dashboard API Routes
-Route::get('/api/client-data/{memberId?}', [DashboardApiController::class, 'getClientData']);
-Route::get('/api/shareholder-data/{memberId?}', [DashboardApiController::class, 'getShareholderData']);
-Route::get('/api/cashier-data', [DashboardApiController::class, 'getCashierData']);
-Route::get('/api/td-data', [DashboardApiController::class, 'getTdData']);
-Route::get('/api/admin-data', [DashboardApiController::class, 'getAdminData']);
+// Switch active role
+Route::post('/switch-role', function(\Illuminate\Http\Request $request) {
+    $role = $request->input('role');
+    $user = auth()->user();
+    
+    if ($user && $user->hasRole($role)) {
+        $request->session()->put('active_role', $role);
+        $user->role = $role;
+        $user->save();
+        return response()->json(['success' => true, 'role' => $role]);
+    }
+    
+    return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
+})->middleware('auth')->name('switch.role');
 
-// Shareholder Advanced Features
-Route::get('/api/shareholder/performance/{memberId}', [ShareholderController::class, 'getPerformanceMetrics']);
-Route::get('/api/shareholder/dividend-announcements', [ShareholderController::class, 'getDividendAnnouncements']);
-Route::get('/api/shareholder/investment-opportunities', [ShareholderController::class, 'getInvestmentOpportunities']);
-Route::get('/api/shareholder/portfolio-analytics/{memberId}', [ShareholderController::class, 'getPortfolioAnalytics']);
+// Unified Dashboard
+Route::get('/dashboard', function () {
+    try {
+        // Calculate growth percentage
+        $currentYearTransactions = \App\Models\Transaction::whereYear('created_at', date('Y'))->sum('amount');
+        $lastYearTransactions = \App\Models\Transaction::whereYear('created_at', date('Y') - 1)->sum('amount');
+        $growthPercentage = $lastYearTransactions > 0 
+            ? (($currentYearTransactions - $lastYearTransactions) / $lastYearTransactions) * 100 
+            : 0;
+        
+        // Calculate member growth
+        $currentMonthMembers = \App\Models\Member::whereMonth('created_at', date('m'))->whereYear('created_at', date('Y'))->count();
+        $lastMonthMembers = \App\Models\Member::whereMonth('created_at', date('m') - 1)->whereYear('created_at', date('Y'))->count();
+        $memberGrowth = $lastMonthMembers > 0 
+            ? (($currentMonthMembers - $lastMonthMembers) / $lastMonthMembers) * 100 
+            : 0;
+        
+        // Calculate asset growth
+        $totalAssets = \App\Models\Member::sum('savings_balance') + \App\Models\Member::sum('balance');
+        $assetGrowth = 12.8; // Can be calculated from historical data if available
+        
+        // Count nearing completion projects
+        $nearingCompletion = \App\Models\Project::where('status', 'active')
+            ->where('progress', '>=', 80)
+            ->count();
+        
+        $stats = [
+            'totalMembers' => \App\Models\Member::count(),
+            'totalAssets' => $totalAssets,
+            'activeProjects' => \App\Models\Project::where('status', 'active')->count(),
+            'pendingLoans' => \App\Models\Loan::where('status', 'pending')->count(),
+            'memberGrowth' => number_format($memberGrowth, 1),
+            'assetGrowth' => number_format($assetGrowth, 1),
+            'nearingCompletion' => $nearingCompletion,
+            'totalSavings' => \App\Models\Member::sum('savings'),
+            'totalLoans' => \App\Models\Loan::where('status', 'approved')->count(),
+            'availableFunds' => \App\Models\Member::sum('balance'),
+            'activeInvestments' => \App\Models\Project::where('status', 'active')->count(),
+            'condolenceFund' => \App\Models\Member::sum('savings_balance') * 0.05,
+        ];
+        
+        $dashboards = [
+            'client' => [
+                'title' => 'Client Dashboard',
+                'subtitle' => 'Personal Financial Management',
+                'icon' => 'fa-user-circle',
+                'gradientStart' => '#10b981',
+                'gradientEnd' => '#059669',
+                'color' => 'green',
+                'stat' => 'UGX ' . number_format(\App\Models\Member::avg('savings_balance') ?? 0),
+                'statLabel' => 'Avg. Savings',
+                'features' => [
+                    'Personal savings tracking',
+                    'Loan application & status',
+                    'Transaction history & analytics',
+                    'Savings goals & progress'
+                ],
+                'url' => '/client/dashboard'
+            ],
+            'shareholder' => [
+                'title' => 'Shareholder Dashboard',
+                'subtitle' => 'Portfolio & Investment Management',
+                'icon' => 'fa-chart-pie',
+                'gradientStart' => '#8b5cf6',
+                'gradientEnd' => '#7c3aed',
+                'color' => 'purple',
+                'stat' => number_format(\App\Models\Project::avg('roi') ?? 0, 1) . '%',
+                'statLabel' => 'Avg. ROI',
+                'features' => [
+                    'Portfolio performance tracking',
+                    'Dividend history & projections',
+                    'Investment project analytics',
+                    'Market insights & trends'
+                ],
+                'url' => '/shareholder/dashboard'
+            ],
+            'cashier' => [
+                'title' => 'Cashier Dashboard',
+                'subtitle' => 'Financial Operations Management',
+                'icon' => 'fa-cash-register',
+                'gradientStart' => '#3b82f6',
+                'gradientEnd' => '#2563eb',
+                'color' => 'blue',
+                'stat' => \App\Models\Transaction::whereDate('created_at', today())->count(),
+                'statLabel' => 'Daily Transactions',
+                'features' => [
+                    'Transaction processing & approval',
+                    'Loan management & disbursement',
+                    'Cash flow monitoring',
+                    'Financial reporting & summaries'
+                ],
+                'url' => '/cashier/dashboard'
+            ],
+            'td' => [
+                'title' => 'Technical Director',
+                'subtitle' => 'Project Management & Coordination',
+                'icon' => 'fa-project-diagram',
+                'gradientStart' => '#6366f1',
+                'gradientEnd' => '#4f46e5',
+                'color' => 'indigo',
+                'stat' => \App\Models\Project::where('status', 'active')->count(),
+                'statLabel' => 'Active Projects',
+                'features' => [
+                    'Project progress tracking',
+                    'Team performance analytics',
+                    'Resource allocation management',
+                    'Risk assessment & mitigation'
+                ],
+                'url' => '/td/dashboard'
+            ],
+            'ceo' => [
+                'title' => 'CEO Dashboard',
+                'subtitle' => 'Executive Overview & Strategy',
+                'icon' => 'fa-crown',
+                'gradientStart' => '#374151',
+                'gradientEnd' => '#1f2937',
+                'color' => 'gray',
+                'stat' => ($growthPercentage >= 0 ? '+' : '') . number_format($growthPercentage, 1) . '%',
+                'statLabel' => 'YTD Growth',
+                'features' => [
+                    'Strategic initiatives tracking',
+                    'Executive KPI monitoring',
+                    'Market analysis & intelligence',
+                    'Financial health assessment'
+                ],
+                'url' => '/ceo/dashboard'
+            ],
+            'admin' => [
+                'title' => 'Admin Dashboard',
+                'subtitle' => 'System Management & Control',
+                'icon' => 'fa-cog',
+                'gradientStart' => '#ef4444',
+                'gradientEnd' => '#dc2626',
+                'color' => 'red',
+                'stat' => \App\Models\User::where('is_active', true)->count() . '/' . \App\Models\User::count(),
+                'statLabel' => 'Active Users',
+                'features' => [
+                    'User management & permissions',
+                    'System monitoring & logs',
+                    'Database management & backup',
+                    'Security alerts & maintenance'
+                ],
+                'url' => '/admin/dashboard'
+            ]
+        ];
+        
+        return view('dashboard', compact('stats', 'dashboards'));
+    } catch (\Exception $e) {
+        return response()->json(['error' => $e->getMessage()], 500);
+    }
+})->middleware('auth')->name('dashboard');
 
-// Profile Picture Management
-Route::post('/api/profile/upload-picture', [ProfileController::class, 'uploadProfilePicture']);
-Route::get('/api/profile/picture/{memberId}', [ProfileController::class, 'getProfilePicture']);
+// Debug route
+Route::get('/debug-members', function() {
+    $currentUser = auth()->user();
+    $currentMember = $currentUser ? $currentUser->member : null;
+    $currentMemberId = $currentMember ? $currentMember->member_id : null;
+    
+    $members = \App\Models\Member::limit(5)->get();
+    
+    if ($currentMemberId) {
+        foreach ($members as $member) {
+            if ($member->member_id !== $currentMemberId) {
+                $member->unread_count = \App\Models\ChatMessage::where('sender_id', $member->member_id)
+                    ->where('receiver_id', $currentMemberId)
+                    ->where('is_read', false)
+                    ->count();
+                
+                $member->last_message = \App\Models\ChatMessage::where(function($q) use ($currentMemberId, $member) {
+                    $q->where(function($q2) use ($currentMemberId, $member) {
+                        $q2->where('sender_id', $currentMemberId)->where('receiver_id', $member->member_id);
+                    })->orWhere(function($q2) use ($currentMemberId, $member) {
+                        $q2->where('sender_id', $member->member_id)->where('receiver_id', $currentMemberId);
+                    });
+                })->latest()->first();
+            }
+        }
+    }
+    
+    return response()->json([
+        'current_user_id' => $currentUser ? $currentUser->id : null,
+        'current_member_id' => $currentMemberId,
+        'members' => $members->map(function($m) {
+            return [
+                'id' => $m->id,
+                'member_id' => $m->member_id,
+                'name' => $m->full_name,
+                'unread_count' => $m->unread_count ?? 0,
+                'last_message' => $m->last_message ? [
+                    'message' => $m->last_message->message,
+                    'sender_id' => $m->last_message->sender_id,
+                    'is_read' => $m->last_message->is_read,
+                    'created_at' => $m->last_message->created_at
+                ] : null
+            ];
+        })
+    ]);
+})->middleware('auth');
 
-// Chat Management
-Route::post('/api/chat/send', [ChatController::class, 'sendMessage']);
-Route::get('/api/chat/messages/{senderId}/{receiverId}', [ChatController::class, 'getMessages']);
-Route::get('/api/chat/conversations/{memberId}', [ChatController::class, 'getConversations']);
-Route::post('/api/chat/mark-read', [ChatController::class, 'markAsRead']);
-
-// CRUD Operations (no auth for demo)
-Route::post('/api/members', [CrudController::class, 'createMember']);
-Route::get('/api/members/next-id', [CrudController::class, 'getNextMemberId']);
-Route::put('/api/members/{id}', [CrudController::class, 'updateMember']);
-Route::delete('/api/members/{id}', [CrudController::class, 'deleteMember']);
-Route::get('/api/members/{memberId}/data', [CrudController::class, 'getMemberData']);
-
-Route::post('/api/loans', [CrudController::class, 'createLoan']);
-Route::put('/api/loans/{id}', [CrudController::class, 'updateLoan']);
-Route::delete('/api/loans/{id}', [CrudController::class, 'deleteLoan']);
-Route::post('/api/loans/{id}/approve', [CrudController::class, 'approveLoan']);
-Route::post('/api/loans/{id}/reject', [CrudController::class, 'rejectLoan']);
-Route::post('/api/loans/{id}/pending', [CrudController::class, 'pendingLoan']);
-
-Route::post('/api/transactions', [CrudController::class, 'createTransaction']);
-Route::put('/api/transactions/{id}', [CrudController::class, 'updateTransaction']);
-Route::delete('/api/transactions/{id}', [CrudController::class, 'deleteTransaction']);
-
-Route::post('/api/projects', [CrudController::class, 'createProject']);
-Route::put('/api/projects/{id}', [CrudController::class, 'updateProject']);
-Route::delete('/api/projects/{id}', [CrudController::class, 'deleteProject']);
-
-Route::post('/api/shares', [CrudController::class, 'createShare']);
-Route::put('/api/shares/{id}', [CrudController::class, 'updateShare']);
-
-Route::get('/api/fundraisings', [FundraisingController::class, 'index']);
-Route::post('/api/fundraisings', [FundraisingController::class, 'store']);
-Route::put('/api/fundraisings/{id}', [FundraisingController::class, 'update']);
-Route::delete('/api/fundraisings/{id}', [FundraisingController::class, 'destroy']);
-
-Route::get('/api/fundraising-contributions/{fundraisingId?}', [FundraisingContributionController::class, 'index']);
-Route::post('/api/fundraising-contributions', [FundraisingContributionController::class, 'store']);
-Route::delete('/api/fundraising-contributions/{id}', [FundraisingContributionController::class, 'destroy']);
-
-Route::get('/api/fundraising-expenses/{fundraisingId?}', [FundraisingExpenseController::class, 'index']);
-Route::post('/api/fundraising-expenses', [FundraisingExpenseController::class, 'store']);
-Route::put('/api/fundraising-expenses/{id}', [FundraisingExpenseController::class, 'update']);
-Route::delete('/api/fundraising-expenses/{id}', [FundraisingExpenseController::class, 'destroy']);
-
-// Authenticated Routes
-Route::middleware(['auth'])->group(function () {
-
-    Route::post('/api/bio-data', [BioDataController::class, 'store']);
-    Route::get('/api/bio-data', [BioDataController::class, 'getData']);
-    Route::get('/api/bio-data/{id}', [BioDataController::class, 'show']);
-    Route::put('/api/bio-data/{id}', [BioDataController::class, 'update']);
-    Route::get('/api/bio-data-stats', [BioDataController::class, 'getStats']);
-
-    // Member management routes
-    Route::get('/api/members/{id}/profile', [MemberController::class, 'getProfile']);
-    Route::get('/api/members/search', [MemberController::class, 'search']);
-    Route::post('/api/members/{id}/balance', [MemberController::class, 'updateBalance']);
-
-    // Notification routes
-    Route::get('/api/notifications', [NotificationController::class, 'index']);
-    Route::post('/api/notifications/create', [NotificationController::class, 'store']);
-    Route::post('/api/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
-
-    // Report routes (moved to public admin routes)
-    // Route::get('/api/reports/financial', [ReportController::class, 'financialSummary']);
-    // Route::get('/api/reports/members', [ReportController::class, 'memberReport']);
-    // Route::get('/api/reports/loans', [ReportController::class, 'loanReport']);
-
-    // Analytics routes
-    Route::get('/api/analytics/dashboard', [AnalyticsController::class, 'getDashboardAnalytics']);
-    Route::get('/analytics', function () { return view('analytics-dashboard'); })->name('analytics-dashboard');
-
-    // Meeting routes
-    // Route::get('/api/meetings', [MeetingController::class, 'index']);
-    // Route::post('/api/meetings', [MeetingController::class, 'store']);
-    // Route::get('/api/meetings/{id}', [MeetingController::class, 'show']);
-    // Route::put('/api/meetings/{id}', [MeetingController::class, 'update']);
-    // Route::delete('/api/meetings/{id}', [MeetingController::class, 'destroy']);
-
-    // Document routes
-    // Route::get('/api/documents', [DocumentController::class, 'index']);
-    // Route::post('/api/documents', [DocumentController::class, 'store']);
-    // Route::get('/api/documents/{id}', [DocumentController::class, 'show']);
-    // Route::put('/api/documents/{id}', [DocumentController::class, 'update']);
-    // Route::delete('/api/documents/{id}', [DocumentController::class, 'destroy']);
-    // Route::get('/api/documents/{id}/download', [DocumentController::class, 'download']);
-
-    // Loan Management
-    Route::post('/api/loans/{id}/repayment', [LoanController::class, 'repayment']);
-
-    // Transaction Management
-    Route::get('/api/transactions/member/{memberId}', [TransactionController::class, 'getByMember']);
-    Route::get('/api/transactions/summary', [TransactionController::class, 'summary']);
-
-    // Project Management (authenticated)
-    Route::post('/api/projects/{id}/progress', [ProjectController::class, 'updateProgress']);
-
-
-    // Settings Management (moved to public admin routes)
-    // Route::get('/api/settings', [SettingsController::class, 'getSettings']);
-    // Route::post('/api/settings', [SettingsController::class, 'updateSettings']);
-    Route::post('/api/settings/reset', [SettingsController::class, 'resetSettings']);
-
-    // Share Management Routes
-    Route::resource('/api/shares', ShareController::class);
-    Route::get('/api/shares/member/{memberId}', [ShareController::class, 'getByMember']);
-    Route::post('/api/shares/transfer', [ShareController::class, 'transferShares']);
-    Route::get('/api/shares/summary', [ShareController::class, 'summary']);
-
-    // Dividend Management Routes
-    Route::resource('/api/dividends', DividendController::class);
-    Route::post('/api/dividends/{id}/pay', [DividendController::class, 'payDividend']);
-    Route::post('/api/dividends/calculate', [DividendController::class, 'calculateDividends']);
-
-    // User Management Routes (for authenticated users with appropriate roles)
-    Route::resource('/api/users', UserController::class)->except(['index', 'store']);
-    Route::get('/api/user-roles', [UserController::class, 'getRoles']);
-
-    // Admin Panel Routes
-    Route::get('/admin', function () { return view('admin-panel'); })->name('admin');
-
-    // Deposits Routes (for authenticated users with appropriate roles)
-    Route::resource('/api/deposits', DepositController::class);
+// Chat Routes
+Route::middleware('auth')->prefix('chat')->name('chat.')->group(function () {
+    Route::post('/send', [\App\Http\Controllers\ChatController::class, 'sendMessage'])->name('send');
+    Route::get('/messages/{senderId}/{receiverId}', [\App\Http\Controllers\ChatController::class, 'getMessages'])->name('messages');
+    Route::get('/conversations/{memberId}', [\App\Http\Controllers\ChatController::class, 'getConversations'])->name('conversations');
+    Route::post('/mark-read', [\App\Http\Controllers\ChatController::class, 'markAsRead'])->name('mark-read');
 });
 
-// System Health Check
-Route::get('/api/system/health-check', function() {
-    return response()->json([
-        'status' => 'healthy',
-        'timestamp' => now(),
-        'version' => '2.0.0',
-        'admin_panel' => true,
-        'features' => [
-            'member_management' => true,
-            'loan_processing' => true,
-            'savings_tracking' => true,
-            'project_management' => true,
-            'share_management' => true,
-            'dividend_distribution' => true,
-            'meeting_scheduling' => true,
-            'document_management' => true,
-            'comprehensive_analytics' => true,
-            'notification_system' => true,
-            'admin_panel' => true
-        ]
-    ]);
+// Include role-specific routes
+require __DIR__.'/admin.php';
+require __DIR__.'/ceo.php';
+require __DIR__.'/td.php';
+require __DIR__.'/cashier.php';
+require __DIR__.'/shareholder.php';
+require __DIR__.'/member.php';
+
+// Client alias for member routes
+Route::prefix('client')->name('client.')->middleware(['auth', 'role:client'])->group(function () {
+    Route::get('/dashboard', function () {
+        return redirect()->route('member.dashboard');
+    })->name('dashboard');
 });

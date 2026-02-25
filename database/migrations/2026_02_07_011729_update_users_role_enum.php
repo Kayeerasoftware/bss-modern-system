@@ -27,7 +27,7 @@ return new class extends Migration
         });
         
         Schema::table('users', function (Blueprint $table) {
-            $table->enum('role', ['client', 'shareholder', 'cashier', 'td', 'ceo', 'admin'])->default('client')->after('password');
+            $table->enum('role', ['admin', 'ceo', 'td', 'cashier', 'shareholder', 'client'])->default('client')->after('password');
         });
         
         DB::statement("UPDATE users SET role = role_temp");

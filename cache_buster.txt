@@ -1,2 +1,0 @@
-<!-- Add this to the head section to force reload JS -->
-<script src="{{ asset('js/main.js') }}?v={{ time() }}"></script>

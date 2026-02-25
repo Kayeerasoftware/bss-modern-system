@@ -10,11 +10,18 @@ class Notification extends Model
     use HasFactory;
 
     protected $fillable = [
-        'title', 'message', 'roles', 'type', 'is_read', 'created_by'
+        'member_id', 'title', 'message', 'type', 'is_read', 'created_by', 'roles'
     ];
 
     protected $casts = [
+        'is_read' => 'boolean',
         'roles' => 'array',
-        'is_read' => 'boolean'
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime'
     ];
+
+    public function member()
+    {
+        return $this->belongsTo(Member::class, 'member_id', 'member_id');
+    }
 }

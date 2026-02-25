@@ -20,6 +20,12 @@ class NotificationController extends Controller
         return response()->json($notifications);
     }
 
+    public function unreadCount()
+    {
+        $count = Notification::where('is_read', false)->count();
+        return response()->json(['count' => $count]);
+    }
+
     public function store(Request $request)
     {
         $data = $request->validate([

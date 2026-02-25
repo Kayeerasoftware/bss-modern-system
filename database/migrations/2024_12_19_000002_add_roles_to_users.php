@@ -8,25 +8,12 @@ return new class extends Migration
 {
     public function up()
     {
-        Schema::table('users', function (Blueprint $table) {
-            if (!Schema::hasColumn('users', 'role')) {
-                $table->enum('role', ['admin', 'manager', 'treasurer', 'secretary', 'member'])->default('member');
-            }
-            if (!Schema::hasColumn('users', 'is_active')) {
-                $table->boolean('is_active')->default(true);
-            }
-        });
+        // Role and is_active columns are already created in the initial migration
+        // This migration is kept for reference but does nothing
     }
 
     public function down()
     {
-        Schema::table('users', function (Blueprint $table) {
-            if (Schema::hasColumn('users', 'role')) {
-                $table->dropColumn('role');
-            }
-            if (Schema::hasColumn('users', 'is_active')) {
-                $table->dropColumn('is_active');
-            }
-        });
+        // Nothing to rollback
     }
 };

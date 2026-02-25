@@ -12,7 +12,7 @@ class BioData extends Model
     protected $table = 'bio_data';
 
     protected $fillable = [
-        'full_name', 'nin_no', 'present_address', 'permanent_address',
+        'member_id', 'full_name', 'nin_no', 'present_address', 'permanent_address',
         'telephone', 'email', 'dob', 'nationality', 'birth_place',
         'marital_status', 'spouse_name', 'spouse_nin', 'next_of_kin',
         'next_of_kin_nin', 'father_name', 'mother_name', 'children',
@@ -27,4 +27,9 @@ class BioData extends Model
         'children' => 'array',
         'declaration_date' => 'date'
     ];
+
+    public function member()
+    {
+        return $this->belongsTo(Member::class, 'member_id', 'id');
+    }
 }

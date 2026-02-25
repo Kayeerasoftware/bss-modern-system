@@ -3,44 +3,36 @@
 return [
     /*
     |--------------------------------------------------------------------------
-    | Cache Configuration
+    | Performance Configuration
     |--------------------------------------------------------------------------
+    |
+    | This file contains configuration options for performance optimizations
+    | including cache durations, debounce delays, and other settings.
+    |
     */
+
     'cache' => [
-        'dashboard_ttl' => 3600, // 1 hour
-        'stats_ttl' => 1800,     // 30 minutes
-        'members_ttl' => 900,    // 15 minutes
+        'locations' => [
+            'ttl' => 3600, // 1 hour
+            'regions' => 7200, // 2 hours (rarely change)
+        ],
+        'members' => [
+            'search_ttl' => 300, // 5 minutes
+        ],
     ],
 
-    /*
-    |--------------------------------------------------------------------------
-    | Rate Limiting
-    |--------------------------------------------------------------------------
-    */
-    'rate_limit' => [
-        'api_requests_per_minute' => 100,
-        'form_submissions_per_hour' => 10,
+    'debounce' => [
+        'location_search' => 300, // 300ms
+        'member_search' => 500,   // 500ms
     ],
 
-    /*
-    |--------------------------------------------------------------------------
-    | Performance Monitoring
-    |--------------------------------------------------------------------------
-    */
-    'monitoring' => [
-        'slow_query_threshold' => 2.0, // seconds
-        'log_slow_requests' => true,
-        'enable_query_logging' => env('APP_DEBUG', false),
+    'pagination' => [
+        'default_per_page' => 25,
+        'max_per_page' => 100,
     ],
 
-    /*
-    |--------------------------------------------------------------------------
-    | Database Optimization
-    |--------------------------------------------------------------------------
-    */
     'database' => [
-        'chunk_size' => 1000,
-        'pagination_limit' => 50,
-        'max_results' => 1000,
+        'query_timeout' => 30,
+        'connection_timeout' => 5,
     ],
 ];

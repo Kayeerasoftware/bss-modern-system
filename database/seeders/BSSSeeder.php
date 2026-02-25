@@ -21,14 +21,35 @@ class BSSSeeder extends Seeder
         // Create Users with different roles
         $users = [
             ['name' => 'Admin User', 'email' => 'admin@bss.com', 'password' => Hash::make('admin123'), 'role' => 'admin'],
-            ['name' => 'Manager User', 'email' => 'manager@bss.com', 'password' => Hash::make('manager123'), 'role' => 'manager'],
-            ['name' => 'Treasurer User', 'email' => 'treasurer@bss.com', 'password' => Hash::make('treasurer123'), 'role' => 'treasurer'],
-            ['name' => 'Secretary User', 'email' => 'secretary@bss.com', 'password' => Hash::make('secretary123'), 'role' => 'secretary'],
-            ['name' => 'Member User', 'email' => 'member@bss.com', 'password' => Hash::make('member123'), 'role' => 'member'],
+            ['name' => 'CEO User', 'email' => 'ceo@bss.com', 'password' => Hash::make('ceo123'), 'role' => 'ceo'],
+            ['name' => 'TD User', 'email' => 'td@bss.com', 'password' => Hash::make('td123'), 'role' => 'td'],
+            ['name' => 'Cashier User', 'email' => 'cashier@bss.com', 'password' => Hash::make('cashier123'), 'role' => 'cashier'],
+            ['name' => 'Client User', 'email' => 'client@bss.com', 'password' => Hash::make('client123'), 'role' => 'client'],
         ];
 
         foreach ($users as $userData) {
-            User::create($userData);
+            User::firstOrCreate(['email' => $userData['email']], $userData);
+        }
+
+        // Create Members with user relationships
+        $memberUsers = [
+            ['name' => 'John Doe', 'email' => 'john@bss.com', 'role' => 'client'],
+            ['name' => 'Jane Smith', 'email' => 'jane@bss.com', 'role' => 'shareholder'],
+            ['name' => 'Robert Johnson', 'email' => 'robert@bss.com', 'role' => 'cashier'],
+            ['name' => 'Mary Wilson', 'email' => 'mary@bss.com', 'role' => 'td'],
+            ['name' => 'David Brown', 'email' => 'david@bss.com', 'role' => 'ceo'],
+            ['name' => 'Sarah Connor', 'email' => 'sarah@bss.com', 'role' => 'client'],
+            ['name' => 'Michael Davis', 'email' => 'michael@bss.com', 'role' => 'client'],
+            ['name' => 'Lisa Anderson', 'email' => 'lisa@bss.com', 'role' => 'shareholder'],
+        ];
+
+        foreach ($memberUsers as $userData) {
+            User::firstOrCreate(['email' => $userData['email']], [
+                'name' => $userData['name'],
+                'email' => $userData['email'],
+                'password' => Hash::make('password123'),
+                'role' => $userData['role']
+            ]);
         }
 
         // Create Members
@@ -44,7 +65,11 @@ class BSSSeeder extends Seeder
         ];
 
         foreach ($members as $memberData) {
-            Member::create($memberData);
+            $user = User::where('email', $memberData['email'])->first();
+            if ($user) {
+                $memberData['user_id'] = $user->id;
+                Member::firstOrCreate(['member_id' => $memberData['member_id']], $memberData);
+            }
         }
 
         // Create Deposits
@@ -163,25 +188,6 @@ class BSSSeeder extends Seeder
                     'transaction_date' => now()->subMonths($i),
                 ]);
             }
-        }
-    }
-}
-            ['member_id' => 'BSS001', 'amount' => 50000, 'type' => 'withdrawal', 'description' => 'ATM withdrawal', 'reference' => 'TXN009', 'status' => 'completed', 'created_at' => now()->subMonths(1)],
-            ['member_id' => 'BSS002', 'amount' => 200000, 'type' => 'deposit', 'description' => 'Salary deposit', 'reference' => 'TXN010', 'status' => 'completed', 'created_at' => now()->subMonths(2)],
-            ['member_id' => 'BSS003', 'amount' => 300000, 'type' => 'deposit', 'description' => 'Business income', 'reference' => 'TXN011', 'status' => 'completed', 'created_at' => now()->subMonths(3)],
-            ['member_id' => 'BSS004', 'amount' => 100000, 'type' => 'withdrawal', 'description' => 'Medical expenses', 'reference' => 'TXN012', 'status' => 'completed', 'created_at' => now()->subMonths(1)],
-            ['member_id' => 'BSS005', 'amount' => 500000, 'type' => 'deposit', 'description' => 'Investment return', 'reference' => 'TXN013', 'status' => 'completed', 'created_at' => now()->subWeeks(2)],
-            ['member_id' => 'BSS006', 'amount' => 80000, 'type' => 'deposit', 'description' => 'Monthly savings', 'reference' => 'TXN014', 'status' => 'completed', 'created_at' => now()->subWeeks(1)],
-            ['member_id' => 'BSS007', 'amount' => 150000, 'type' => 'deposit', 'description' => 'Crop sales', 'reference' => 'TXN015', 'status' => 'completed', 'created_at' => now()->subDays(5)],
-            ['member_id' => 'BSS008', 'amount' => 250000, 'type' => 'deposit', 'description' => 'Legal fees', 'reference' => 'TXN016', 'status' => 'completed', 'created_at' => now()->subDays(2)],
-        ];
-
-        foreach ($additionalTransactions as $transactionData) {
-            Transaction::create($transactionData);
-        }
-
-        foreach ($projects as $projectData) {
-            Project::create($projectData);
         }
     }
 }

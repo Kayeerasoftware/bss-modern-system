@@ -4,20 +4,28 @@ namespace App\Http\Controllers;
 
 use App\Models\ChatMessage;
 use App\Models\Member;
+use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class ChatController extends Controller
 {
     public function sendMessage(Request $request)
     {
         $request->validate([
-            'sender_id' => 'required|string',
             'receiver_id' => 'required|string',
             'message' => 'required|string'
         ]);
 
+        $currentUser = Auth::user();
+        $currentMember = $currentUser->member;
+        
+        if (!$currentMember) {
+            return response()->json(['success' => false, 'message' => 'Member not found'], 404);
+        }
+
         $message = ChatMessage::create([
-            'sender_id' => $request->sender_id,
+            'sender_id' => $currentMember->member_id,
             'receiver_id' => $request->receiver_id,
             'message' => $request->message,
             'is_read' => false
@@ -25,8 +33,15 @@ class ChatController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => $message,
-            'time' => $message->created_at->format('H:i')
+            'message' => [
+                'id' => $message->id,
+                'text' => $message->message,
+                'sender' => 'me',
+                'time' => $message->created_at->format('H:i'),
+                'timestamp' => $message->created_at->timestamp * 1000,
+                'status' => 'sent',
+                'is_read' => $message->is_read
+            ]
         ]);
     }
 
@@ -45,12 +60,15 @@ class ChatController extends Controller
             ->update(['is_read' => true]);
 
         return response()->json([
+            'success' => true,
             'messages' => $messages->map(function($msg) use ($senderId) {
                 return [
                     'id' => $msg->id,
                     'text' => $msg->message,
-                    'sender' => $msg->sender_id === $senderId ? 'me' : 'member',
+                    'sender' => $msg->sender_id === $senderId ? 'me' : 'them',
                     'time' => $msg->created_at->format('H:i'),
+                    'timestamp' => $msg->created_at->timestamp * 1000,
+                    'status' => $msg->is_read ? 'read' : 'delivered',
                     'is_read' => $msg->is_read
                 ];
             })
@@ -77,18 +95,25 @@ class ChatController extends Controller
                 return [
                     'member_id' => $otherMemberId,
                     'full_name' => $member->full_name ?? 'Unknown',
-                    'role' => $member->role ?? 'member',
+                    'role' => $member->user->role ?? 'client',
+                    'profile_picture' => $member->profile_picture ? asset('storage/' . $member->profile_picture) : null,
                     'last_message' => $lastMessage->message,
                     'last_time' => $lastMessage->created_at->format('H:i'),
+                    'timestamp' => $lastMessage->created_at->timestamp * 1000,
                     'unread' => $unreadCount
                 ];
             })->values();
 
-        return response()->json(['conversations' => $conversations]);
+        return response()->json(['success' => true, 'conversations' => $conversations]);
     }
 
     public function markAsRead(Request $request)
     {
+        $request->validate([
+            'sender_id' => 'required|string',
+            'receiver_id' => 'required|string'
+        ]);
+
         ChatMessage::where('sender_id', $request->sender_id)
             ->where('receiver_id', $request->receiver_id)
             ->where('is_read', false)

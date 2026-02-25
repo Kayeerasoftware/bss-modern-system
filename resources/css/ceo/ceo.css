@@ -1,0 +1,44 @@
+/* CEO dashboard styles */
+.ceo-dashboard {
+    background-color: #f9fafb;
+}
+
+.executive-card {
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.executive-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+}
+
+.metric-card {
+    border-left: 4px solid #3b82f6;
+}
+
+.revenue-chart {
+    min-height: 300px;
+}
+
+.performance-indicator {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.performance-indicator.high {
+    background-color: #d1fae5;
+    color: #065f46;
+}
+
+.performance-indicator.medium {
+    background-color: #fef3c7;
+    color: #92400e;
+}
+
+.performance-indicator.low {
+    background-color: #fee2e2;
+    color: #991b1b;
+}

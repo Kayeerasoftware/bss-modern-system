@@ -1,0 +1,599 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BSS-2025 Investment Group</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <style>
+        body {
+            background: linear-gradient(to bottom, #f0f9ff, #ffffff);
+            transition: background-color 0.3s, color 0.3s;
+        }
+        body.dark-mode {
+            background: linear-gradient(to bottom, #1f2937, #374151);
+            color: #e5e7eb;
+        }
+        .modal {
+            max-height: 80vh;
+            overflow-y: auto;
+            backdrop-filter: blur(8px);
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .dark-mode .modal {
+            background: rgba(31, 41, 55, 0.9);
+            color: #e5e7eb;
+        }
+        .fade-in {
+            animation: fadeIn 0.3s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .table-container {
+            overflow-x: auto;
+        }
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 1rem;
+            border-radius: 8px;
+            color: white;
+            z-index: 2000;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .toast.show {
+            opacity: 1;
+        }
+        th {
+            cursor: pointer;
+        }
+        th:hover {
+            background: #2563eb;
+        }
+        .nav-tab {
+            transition: all 0.3s;
+        }
+        .nav-tab.active {
+            background: #2563eb;
+            color: white;
+        }
+        .collapsible-header {
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .collapsible-header:hover {
+            background: #e5e7eb;
+        }
+        .dark-mode .collapsible-header:hover {
+            background: #4b5563;
+        }
+        .navbar-item {
+            transition: all 0.3s;
+        }
+        .navbar-item:hover {
+            background: #1d4ed8;
+        }
+        nav {
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            background: #1f2937;
+        }
+        @media (max-width: 640px) {
+            .modal {
+                width: 95%;
+                padding: 1rem;
+            }
+            .text-2xl {
+                font-size: 1.25rem;
+            }
+            .p-6 {
+                padding: 1rem;
+            }
+            .nav-tab {
+                font-size: 0.875rem;
+                padding: 0.5rem;
+            }
+            .table-container table {
+                font-size: 0.75rem;
+            }
+            .navbar-item {
+                font-size: 0.75rem;
+                padding: 0.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="bg-gradient-to-r from-blue-900 to-blue-700 text-white text-center py-6">
+        <img src="Bunya ss.jpeg" alt="BSS-2025 Banner" class="w-full h-48 object-cover rounded-lg shadow-lg">
+        <h1 class="text-4xl font-bold mt-4">BSS-2025 Investment Group</h1>
+        <p class="mt-2 text-lg">Empowering Bunya Secondary School Alumni</p>
+    </header>
+
+    <!-- Navigation -->
+    <nav class="bg-gray-900 text-white p-4 flex flex-wrap justify-between items-center">
+        <div class="flex flex-wrap gap-2">
+            <button onclick="showLogin('client')" class="navbar-item bg-blue-600 px-4 py-2 rounded-lg hover:bg-blue-700 transition">
+                <i class="fas fa-user mr-2"></i>Client
+            </button>
+            <button onclick="showLogin('shareholder')" class="navbar-item bg-blue-600 px-4 py-2 rounded-lg hover:bg-blue-700 transition">
+                <i class="fas fa-user mr-2"></i>Shareholder
+            </button>
+            <button onclick="showLogin('cashier')" class="navbar-item bg-blue-600 px-4 py-2 rounded-lg hover:bg-blue-700 transition">
+                <i class="fas fa-user mr-2"></i>Cashier
+            </button>
+            <button onclick="showLogin('td')" class="navbar-item bg-blue-600 px-4 py-2 rounded-lg hover:bg-blue-700 transition">
+                <i class="fas fa-user mr-2"></i>Technical Director
+            </button>
+            <button onclick="showLogin('ceo')" class="navbar-item bg-blue-600 px-4 py-2 rounded-lg hover:bg-blue-700 transition">
+                <i class="fas fa-user mr-2"></i>CEO & Chairperson
+            </button>
+        </div>
+        <div class="flex gap-2 mt-2 sm:mt-0">
+            <button onclick="showRegister()" class="bg-green-600 px-4 py-2 rounded-lg hover:bg-green-700 transition">
+                <i class="fas fa-user-plus mr-2"></i>Register
+            </button>
+            <button onclick="logout()" class="bg-red-600 px-4 py-2 rounded-lg hover:bg-red-700 transition">
+                <i class="fas fa-sign-out-alt mr-2"></i>Logout
+            </button>
+            <button onclick="toggleDarkMode()" class="bg-gray-600 px-4 py-2 rounded-lg hover:bg-gray-700 transition">
+                <i class="fas fa-moon"></i>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Slider -->
+    <div class="slider-container max-w-6xl mx-auto my-8 overflow-hidden rounded-lg shadow-lg">
+        <div class="slides flex transition-transform duration-500">
+            <img src="for web 2.jpg" alt="Slide 1" class="w-full h-96 object-cover">
+            <video src="https://www.w3schools.com/html/mov_bbb.mp4" muted autoplay loop class="w-full h-96 object-cover"></video>
+            <img src="for web 3.jpg" alt="Slide 3" class="w-full h-96 object-cover">
+            <img src="for web 1.jpg" alt="Slide 3" class="w-full h-96 object-cover">
+            <img src="Bunya logo.jpg" alt="Slide 3" class="w-full h-96 object-cover">
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div class="overlay fixed inset-0 bg-black bg-opacity-60 hidden" id="overlay"></div>
+    <div class="modal hidden fixed bg-white p-6 rounded-lg shadow-2xl max-w-md w-full" id="loginModal">
+        <h2 class="text-2xl font-bold mb-4"><i class="fas fa-sign-in-alt mr-2"></i>Login</h2>
+        <form id="loginForm" onsubmit="event.preventDefault(); login();">
+            <input type="email" id="loginEmail" placeholder="Email" required class="w-full p-3 mb-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600">
+            <input type="password" id="loginPassword" placeholder="Password" required class="w-full p-3 mb-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600">
+            <button type="submit" class="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 transition">Login</button>
+            <button type="button" onclick="showToast('Forgot password not implemented in this demo', 'error')" class="w-full bg-gray-600 text-white p-3 rounded-lg mt-2 hover:bg-gray-700 transition">Forgot Password</button>
+            <button type="button" onclick="closeModal()" class="w-full bg-red-600 text-white p-3 rounded-lg mt-2 hover:bg-red-700 transition">Close</button>
+        </form>
+    </div>
+    <div class="modal hidden fixed bg-white p-6 rounded-lg shadow-2xl max-w-md w-full" id="registerModal">
+        <h2 class="text-2xl font-bold mb-4"><i class="fas fa-user-plus mr-2"></i>Register</h2>
+        <form id="registerForm" onsubmit="event.preventDefault(); register();">
+            <input type="text" id="regFullName" placeholder="Full Name" required class="w-full p-3 mb-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600">
+            <input type="email" id="regEmail" placeholder="Email" required class="w-full p-3 mb-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600">
+            <input type="text" id="regMemberId" placeholder="Member ID (e.g., BSS002)" required class="w-full p-3 mb-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600">
+            <input type="text" id="regLocation" placeholder="Location" required class="w-full p-3 mb-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600">
+            <input type="text" id="regOccupation" placeholder="Occupation" required class="w-full p-3 mb-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600">
+            <input type="tel" id="regContact" placeholder="Contact (e.g., +256700123456)" required class="w-full p-3 mb-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600">
+            <input type="password" id="regPassword" placeholder="Password" required class="w-full p-3 mb-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600">
+            <button type="submit" class="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 transition">Register</button>
+            <button type="button" onclick="closeModal()" class="w-full bg-red-600 text-white p-3 rounded-lg mt-2 hover:bg-red-700 transition">Close</button>
+        </form>
+    </div>
+    <div class="modal hidden fixed bg-white p-6 rounded-lg shadow-2xl max-w-md w-full" id="loanModal">
+        <h2 class="text-2xl font-bold mb-4"><i class="fas fa-money-bill-wave mr-2"></i>Loan Application</h2>
+        <form id="loanForm" onsubmit="event.preventDefault(); applyLoan();">
+            <input type="text" id="loanMemberId" placeholder="Member ID" required class="w-full p-3 mb-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600">
+            <input type="number" id="loanAmount" placeholder="Loan Amount (UGX)" required class="w-full p-3 mb-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600">
+            <textarea id="loanPurpose" placeholder="Purpose of Loan" required class="w-full p-3 mb-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"></textarea>
+            <select id="loanRepayment" required class="w-full p-3 mb-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600">
+                <option value="6">6 Months</option>
+                <option value="12">12 Months</option>
+                <option value="24">24 Months</option>
+            </select>
+            <div class="bg-gray-100 dark:bg-gray-800 p-4 rounded-lg mb-4">
+                <p id="loanEstimate" class="text-sm">Enter amount to estimate interest</p>
+            </div>
+            <button type="submit" class="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 transition">Apply</button>
+            <button type="button" onclick="closeModal()" class="w-full bg-red-600 text-white p-3 rounded-lg mt-2 hover:bg-red-700 transition">Close</button>
+        </form>
+    </div>
+    <div class="modal hidden fixed bg-white p-6 rounded-lg shadow-2xl max-w-md w-full" id="transactionModal">
+        <h2 class="text-2xl font-bold mb-4"><i class="fas fa-exchange-alt mr-2"></i>Record Transaction</h2>
+        <form id="transactionForm" onsubmit="event.preventDefault(); recordTransaction();">
+            <input type="text" id="transMemberId" placeholder="Member ID" required class="w-full p-3 mb-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600">
+            <input type="number" id="transAmount" placeholder="Amount (UGX)" required class="w-full p-3 mb-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600">
+            <select id="transType" required class="w-full p-3 mb-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600">
+                <option value="deposit">Deposit</option>
+                <option value="withdrawal">Withdrawal</option>
+                <option value="loanDisbursement">Loan Disbursement</option>
+            </select>
+            <button type="submit" class="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 transition">Record</button>
+            <button type="button" onclick="closeModal()" class="w-full bg-red-600 text-white p-3 rounded-lg mt-2 hover:bg-red-700 transition">Close</button>
+        </form>
+    </div>
+    <div class="modal hidden fixed bg-white p-6 rounded-lg shadow-2xl max-w-md w-full" id="projectModal">
+        <h2 class="text-2xl font-bold mb-4"><i class="fas fa-project-diagram mr-2"></i>Create Project</h2>
+        <form id="projectForm" onsubmit="event.preventDefault(); createProject();">
+            <input type="text" id="projectName" placeholder="Project Name" required class="w-full p-3 mb-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600">
+            <input type="number" id="projectBudget" placeholder="Budget (UGX)" required class="w-full p-3 mb-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600">
+            <input type="date" id="projectTimeline" required class="w-full p-3 mb-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600">
+            <textarea id="projectDescription" placeholder="Project Description" required class="w-full p-3 mb-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"></textarea>
+            <button type="submit" class="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 transition">Create</button>
+            <button type="button" onclick="closeModal()" class="w-full bg-red-600 text-white p-3 rounded-lg mt-2 hover:bg-red-700 transition">Close</button>
+        </form>
+    </div>
+    <div class="modal hidden fixed bg-white p-6 rounded-lg shadow-2xl max-w-md w-full" id="memberModal">
+        <h2 class="text-2xl font-bold mb-4"><i class="fas fa-user-plus mr-2"></i>Add Member</h2>
+        <form id="memberForm" onsubmit="event.preventDefault(); addMember();">
+            <input type="text" id="memberFullName" placeholder="Full Name" required class="w-full p-3 mb-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600">
+            <input type="email" id="memberEmail" Placeholder="Email" required class="w-full p-3 mb-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600">
+            <input type="text" id="memberId" placeholder="Member ID (e.g., BSS002)" required class="w-full p-3 mb-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600">
+            <input type="text" id="memberLocation" placeholder="Location" required class="w-full p-3 mb-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600">
+            <input type="text" id="memberOccupation" placeholder="Occupation" required class="w-full p-3 mb-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600">
+            <input type="tel" id="memberContact" placeholder="Contact (e.g., +256700123456)" required class="w-full p-3 mb-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600">
+            <button type="submit" class="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 transition">Add</button>
+            <button type="button" onclick="closeModal()" class="w-full bg-red-600 text-white p-3 rounded-lg mt-2 hover:bg-red-700 transition">Close</button>
+        </form>
+    </div>
+    <div class="modal hidden fixed bg-white p-6 rounded-lg shadow-2xl max-w-md w-full" id="editMemberModal">
+        <h2 class="text-2xl font-bold mb-4"><i class="fas fa-user-edit mr-2"></i>Edit Member</h2>
+        <form id="editMemberForm" onsubmit="event.preventDefault(); editMember();">
+            <input type="text" id="editMemberId" readonly class="w-full p-3 mb-4 border rounded-lg bg-gray-100">
+            <input type="text" id="editMemberFullName" placeholder="Full Name" required class="w-full p-3 mb-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600">
+            <input type="email" id="editMemberEmail" placeholder="Email" required class="w-full p-3 mb-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600">
+            <input type="text" id="editMemberLocation" placeholder="Location" required class="w-full p-3 mb-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600">
+            <input type="text" id="editMemberOccupation" placeholder="Occupation" required class="w-full p-3 mb-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600">
+            <input type="tel" id="editMemberContact" placeholder="Contact (e.g., +256700123456)" required class="w-full p-3 mb-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600">
+            <button type="submit" class="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 transition">Update</button>
+            <button type="button" onclick="closeModal()" class="w-full bg-red-600 text-white p-3 rounded-lg mt-2 hover:bg-red-700 transition">Close</button>
+        </form>
+    </div>
+    <div class="modal hidden fixed bg-white p-6 rounded-lg shadow-2xl max-w-md w-full" id="condolenceModal">
+        <h2 class="text-2xl font-bold mb-4"><i class="fas fa-hand-holding-heart mr-2"></i>Condolence Fund</h2>
+        <form id="condolenceForm" onsubmit="event.preventDefault(); contributeCondolence();">
+            <input type="text" id="condolenceMemberId" placeholder="Member ID" required class="w-full p-3 mb-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600">
+            <input type="number" id="condolenceAmount" placeholder="Contribution Amount (UGX)" required class="w-full p-3 mb-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600">
+            <button type="submit" class="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 transition">Contribute</button>
+            <button type="button" onclick="closeModal()" class="w-full bg-red-600 text-white p-3 rounded-lg mt-2 hover:bg-red-700 transition">Close</button>
+        </form>
+    </div>
+    <div class="modal hidden fixed bg-white p-6 rounded-lg shadow-2xl max-w-md w-full" id="profileModal">
+        <h2 class="text-2xl font-bold mb-4"><i class="fas fa-user-edit mr-2"></i>Update Profile</h2>
+        <form id="profileForm" onsubmit="event.preventDefault(); updateProfile();">
+            <input type="text" id="profileFullName" placeholder="Full Name" required class="w-full p-3 mb-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600">
+            <input type="email" id="profileEmail" placeholder="Email" required class="w-full p-3 mb-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600">
+            <input type="text" id="profileLocation" placeholder="Location" required class="w-full p-3 mb-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600">
+            <input type="text" id="profileOccupation" placeholder="Occupation" required class="w-full p-3 mb-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600">
+            <input type="tel" id="profileContact" placeholder="Contact (e.g., +256700123456)" required class="w-full p-3 mb-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600">
+            <button type="submit" class="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 transition">Update</button>
+            <button type="button" onclick="closeModal()" class="w-full bg-red-600 text-white p-3 rounded-lg mt-2 hover:bg-red-700 transition">Close</button>
+        </form>
+    </div>
+    <div class="modal hidden fixed bg-white p-6 rounded-lg shadow-2xl max-w-md w-full" id="announcementModal">
+        <h2 class="text-2xl font-bold mb-4"><i class="fas fa-bullhorn mr-2"></i>Send Announcement</h2>
+        <form id="announcementForm" onsubmit="event.preventDefault(); sendAnnouncement();">
+            <textarea id="announcementMessage" placeholder="Announcement Message" required class="w-full p-3 mb-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"></textarea>
+            <button type="submit" class="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 transition">Send</button>
+            <button type="button" onclick="closeModal()" class="w-full bg-red-600 text-white p-3 rounded-lg mt-2 hover:bg-red-700 transition">Close</button>
+        </form>
+    </div>
+
+    <!-- Dashboard -->
+    <div class="dashboard max-w-6xl mx-auto my-8 bg-white dark:bg-gray-800 rounded-lg shadow-xl hidden fade-in" id="dashboard">
+        <div class="nav-tabs bg-gray-100 dark:bg-gray-900 p-4 flex flex-wrap gap-2 border-b">
+            <div id="navTabs"></div>
+        </div>
+        <div class="content p-6">
+            <!-- Client Dashboard -->
+            <div id="clientDashboard" class="hidden fade-in">
+                <h2 class="text-2xl font-bold mb-4"><i class="fas fa-users mr-2"></i>Client Dashboard</h2>
+                <div class="collapsible-header bg-gray-100 dark:bg-gray-700 p-3 rounded-lg mb-2">
+                    <h3 class="text-lg font-bold"><i class="fas fa-table mr-2"></i>Group Overview</h3>
+                </div>
+                <div class="collapsible-content">
+                    <div class="table-container">
+                        <table class="w-full border-collapse">
+                            <thead>
+                                <tr class="bg-blue-600 text-white">
+                                    <th class="p-3" onclick="sortTable('clientTable', 0)">Date</th>
+                                    <th class="p-3" onclick="sortTable('clientTable', 1)">Registered Members</th>
+                                    <th class="p-3">Cashier</th>
+                                    <th class="p-3">Technical Director</th>
+                                    <th class="p-3">CEO & Chairperson</th>
+                                    <th class="p-3">Loan Available?</th>
+                                </tr>
+                            </thead>
+                            <tbody id="clientTable"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="mt-6 flex flex-wrap gap-4">
+                    <button onclick="showLoanModal()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
+                        <i class="fas fa-money-bill-wave mr-2"></i>Apply for Loan
+                    </button>
+                    <button onclick="exportToCSV('clientTable', 'client_data')" class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition">
+                        <i class="fas fa-download mr-2"></i>Export
+                    </button>
+                </div>
+                <div class="collapsible-header bg-gray-100 dark:bg-gray-700 p-3 rounded-lg mt-6 mb-2">
+                    <h3 class="text-lg font-bold"><i class="fas fa-briefcase mr-2"></i>Investment Opportunities</h3>
+                </div>
+                <div class="collapsible-content">
+                    <p class="mt-2">Explore: Agriculture (12% ROI), Real Estate (8% ROI), Education (10% ROI)</p>
+                </div>
+            </div>
+            <!-- Shareholder Dashboard -->
+            <div id="shareholderDashboard" class="hidden fade-in">
+                <h2 class="text-2xl font-bold mb-4"><i class="fas fa-user mr-2"></i>Shareholder Dashboard</h2>
+                <div class="collapsible-header bg-gray-100 dark:bg-gray-700 p-3 rounded-lg mb-2">
+                    <h3 class="text-lg font-bold"><i class="fas fa-table mr-2"></i>Members</h3>
+                </div>
+                <div class="collapsible-content">
+                    <div class="table-container">
+                        <input type="text" id="shareholderSearch" placeholder="Search by Name or ID" class="w-full p-3 mb-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600">
+                        <table class="w-full border-collapse">
+                            <thead>
+                                <tr class="bg-blue-600 text-white">
+                                    <th class="p-3" onclick="sortTable('shareholderTable', 0)">SN</th>
+                                    <th class="p-3" onclick="sortTable('shareholderTable', 1)">Full Name</th>
+                                    <th class="p-3" onclick="sortTable('shareholderTable', 2)">Member ID</th>
+                                    <th class="p-3" onclick="sortTable('shareholderTable', 3)">Savings (UGX)</th>
+                                    <th class="p-3" onclick="sortTable('shareholderTable', 4)">Current Loan (UGX)</th>
+                                    <th class="p-3">Location</th>
+                                    <th class="p-3">Occupation</th>
+                                    <th class="p-3">Contacts</th>
+                                </tr>
+                            </thead>
+                            <tbody id="shareholderTable"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="collapsible-header bg-gray-100 dark:bg-gray-700 p-3 rounded-lg mt-6 mb-2">
+                    <h3 class="text-lg font-bold"><i class="fas fa-chart-line mr-2"></i>Savings Trend</h3>
+                </div>
+                <div class="collapsible-content">
+                    <div class="flex gap-4">
+                        <input type="text" id="memberIdInput" placeholder="Enter Member ID" class="p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600">
+                        <button onclick="showSavingsTrend(document.getElementById('memberIdInput').value)" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
+                            <i class="fas fa-chart-line mr-2"></i>Show Trend
+                        </button>
+                    </div>
+                    <canvas id="savingsChart" class="mt-4"></canvas>
+                </div>
+                <div class="collapsible-header bg-gray-100 dark:bg-gray-700 p-3 rounded-lg mt-6 mb-2">
+                    <h3 class="text-lg font-bold"><i class="fas fa-wallet mr-2"></i>Portfolio</h3>
+                </div>
+                <div class="collapsible-content">
+                    <p id="portfolio"></p>
+                </div>
+                <div class="collapsible-header bg-gray-100 dark:bg-gray-700 p-3 rounded-lg mt-6 mb-2">
+                    <h3 class="text-lg font-bold"><i class="fas fa-money-bill-wave mr-2"></i>Loan Repayments</h3>
+                </div>
+                <div class="collapsible-content">
+                    <table class="w-full border-collapse">
+                        <thead>
+                            <tr class="bg-blue-600 text-white">
+                                <th class="p-3">Loan Amount (UGX)</th>
+                                <th class="p-3">Interest (UGX)</th>
+                                <th class="p-3">Repayment Period</th>
+                                <th class="p-3">Monthly Payment (UGX)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="repaymentTable"></tbody>
+                    </table>
+                </div>
+                <div class="mt-6 flex flex-wrap gap-4">
+                    <button onclick="showLoanModal()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
+                        <i class="fas fa-money-bill-wave mr-2"></i>Apply for Loan
+                    </button>
+                    <button onclick="showProfileModal()" class="bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700 transition">
+                        <i class="fas fa-user-edit mr-2"></i>Update Profile
+                    </button>
+                    <button onclick="exportToCSV('shareholderTable', 'shareholder_data')" class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition">
+                        <i class="fas fa-download mr-2"></i>Export
+                    </button>
+                </div>
+            </div>
+            <!-- Cashier Dashboard -->
+            <div id="cashierDashboard" class="hidden fade-in">
+                <h2 class="text-2xl font-bold mb-4"><i class="fas fa-calculator mr-2"></i>Cashier Dashboard</h2>
+                <div class="collapsible-header bg-gray-100 dark:bg-gray-700 p-3 rounded-lg mb-2">
+                    <h3 class="text-lg font-bold"><i class="fas fa-wallet mr-2"></i>Financial Summary</h3>
+                </div>
+                <div class="collapsible-content">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                        <div class="bg-blue-100 dark:bg-blue-900 p-4 rounded-lg shadow">
+                            <h3 class="font-bold"><i class="fas fa-money-bill mr-2"></i>Total Savings</h3>
+                            <p id="totalSavings">UGX 0</p>
+                        </div>
+                        <div class="bg-red-100 dark:bg-red-900 p-4 rounded-lg shadow">
+                            <h3 class="font-bold"><i class="fas fa-hand-holding-usd mr-2"></i>Total Loans</h3>
+                            <p id="totalLoans">UGX 0</p>
+                        </div>
+                        <div class="bg-green-100 dark:bg-green-900 p-4 rounded-lg shadow">
+                            <h3 class="font-bold"><i class="fas fa-wallet mr-2"></i>Available Funds</h3>
+                            <p id="availableFunds">UGX 0</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="collapsible-header bg-gray-100 dark:bg-gray-700 p-3 rounded-lg mb-2">
+                    <h3 class="text-lg font-bold"><i class="fas fa-money-check-alt mr-2"></i>Pending Loans</h3>
+                </div>
+                <div class="collapsible-content">
+                    <div class="table-container">
+                        <table class="w-full border-collapse">
+                            <thead>
+                                <tr class="bg-blue-600 text-white">
+                                    <th class="p-3" onclick="sortTable('loanTable', 0)">Member ID</th>
+                                    <th class="p-3" onclick="sortTable('loanTable', 1)">Amount (UGX)</th>
+                                    <th class="p-3">Purpose</th>
+                                    <th class="p-3">Repayment</th>
+                                    <th class="p-3">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="loanTable"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="mt-6 flex flex-wrap gap-4">
+                    <button onclick="showTransactionModal()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
+                        <i class="fas fa-exchange-alt mr-2"></i>Record Transaction
+                    </button>
+                    <button onclick="showCondolenceModal()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
+                        <i class="fas fa-hand-holding-heart mr-2"></i>Contribute to Condolence
+                    </button>
+                    <button onclick="exportToCSV('loanTable', 'loan_data')" class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition">
+                        <i class="fas fa-download mr-2"></i>Export
+                    </button>
+                </div>
+                <div class="collapsible-header bg-gray-100 dark:bg-gray-700 p-3 rounded-lg mt-6 mb-2">
+                    <h3 class="text-lg font-bold"><i class="fas fa-chart-pie mr-2"></i>Financial Distribution</h3>
+                </div>
+                <div class="collapsible-content">
+                    <canvas id="financeChart"></canvas>
+                </div>
+            </div>
+            <!-- Technical Director Dashboard -->
+            <div id="tdDashboard" class="hidden fade-in">
+                <h2 class="text-2xl font-bold mb-4"><i class="fas fa-project-diagram mr-2"></i>Technical Director Dashboard</h2>
+                <div class="collapsible-header bg-gray-100 dark:bg-gray-700 p-3 rounded-lg mb-2">
+                    <h3 class="text-lg font-bold"><i class="fas fa-tasks mr-2"></i>Active Projects</h3>
+                </div>
+                <div class="collapsible-content">
+                    <div class="table-container">
+                        <table class="w-full border-collapse">
+                            <thead>
+                                <tr class="bg-blue-600 text-white">
+                                    <th class="p-3" onclick="sortTable('projectTable', 0)">Name</th>
+                                    <th class="p-3" onclick="sortTable('projectTable', 1)">Budget (UGX)</th>
+                                    <th class="p-3">Timeline</th>
+                                    <th class="p-3" onclick="sortTable('projectTable', 3)">Progress (%)</th>
+                                    <th class="p-3" onclick="sortTable('projectTable', 4)">ROI (%)</th>
+                                    <th class="p-3" onclick="sortTable('projectTable', 5)">Risk Score</th>
+                                </tr>
+                            </thead>
+                            <tbody id="projectTable"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="mt-6 flex flex-wrap gap-4">
+                    <button onclick="showProjectModal()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
+                        <i class="fas fa-plus-circle mr-2"></i>Create Project
+                    </button>
+                    <button onclick="exportToCSV('projectTable', 'project_data')" class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition">
+                        <i class="fas fa-download mr-2"></i>Export
+                    </button>
+                </div>
+                <div class="collapsible-header bg-gray-100 dark:bg-gray-700 p-3 rounded-lg mt-6 mb-2">
+                    <h3 class="text-lg font-bold"><i class="fas fa-chart-bar mr-2"></i>Project Progress</h3>
+                </div>
+                <div class="collapsible-content">
+                    <canvas id="projectChart"></canvas>
+                </div>
+                <div class="collapsible-header bg-gray-100 dark:bg-gray-700 p-3 rounded-lg mt-6 mb-2">
+                    <h3 class="text-lg font-bold"><i class="fas fa-comments mr-2"></i>Team Communication</h3>
+                </div>
+                <div class="collapsible-content">
+                    <textarea id="teamMessage" placeholder="Send message to team" class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"></textarea>
+                    <button onclick="sendMessage()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition mt-2">
+                        <i class="fas fa-paper-plane mr-2"></i>Send
+                    </button>
+                </div>
+            </div>
+            <!-- CEO Dashboard -->
+            <div id="ceoDashboard" class="hidden fade-in">
+                <h2 class="text-2xl font-bold mb-4"><i class="fas fa-crown mr-2"></i>CEO & Chairperson Dashboard</h2>
+                <div class="collapsible-header bg-gray-100 dark:bg-gray-700 p-3 rounded-lg mb-2">
+                    <h3 class="text-lg font-bold"><i class="fas fa-wallet mr-2"></i>Summary</h3>
+                </div>
+                <div class="collapsible-content">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                        <div class="bg-blue-100 dark:bg-blue-900 p-4 rounded-lg shadow">
+                            <h3 class="font-bold"><i class="fas fa-users mr-2"></i>Total Members</h3>
+                            <p id="totalMembers">0</p>
+                        </div>
+                        <div class="bg-green-100 dark:bg-green-900 p-4 rounded-lg shadow">
+                            <h3 class="font-bold"><i class="fas fa-briefcase mr-2"></i>Active Investments</h3>
+                            <p id="activeInvestments">0</p>
+                        </div>
+                        <div class="bg-yellow-100 dark:bg-yellow-900 p-4 rounded-lg shadow">
+                            <h3 class="font-bold"><i class="fas fa-hand-holding-heart mr-2"></i>Condolence Fund</h3>
+                            <p id="condolenceFund">UGX 0</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="collapsible-header bg-gray-100 dark:bg-gray-700 p-3 rounded-lg mb-2">
+                    <h3 class="text-lg font-bold"><i class="fas fa-users mr-2"></i>Members</h3>
+                </div>
+                <div class="collapsible-content">
+                    <div class="table-container">
+                        <input type="text" id="memberSearch" placeholder="Search by Name or ID" class="w-full p-3 mb-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600">
+                        <table class="w-full border-collapse">
+                            <thead>
+                                <tr class="bg-blue-600 text-white">
+                                    <th class="p-3" onclick="sortTable('ceoMemberTable', 0)">SN</th>
+                                    <th class="p-3" onclick="sortTable('ceoMemberTable', 1)">Full Name</th>
+                                    <th class="p-3" onclick="sortTable('ceoMemberTable', 2)">Member ID</th>
+                                    <th class="p-3" onclick="sortTable('ceoMemberTable', 3)">Savings (UGX)</th>
+                                    <th class="p-3" onclick="sortTable('ceoMemberTable', 4)">Current Loan (UGX)</th>
+                                    <th class="p-3">Location</th>
+                                    <th class="p-3">Occupation</th>
+                                    <th class="p-3">Contacts</th>
+                                    <th class="p-3">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="ceoMemberTable"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="mt-6 flex flex-wrap gap-4">
+                    <button onclick="showMemberModal()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
+                        <i class="fas fa-user-plus mr-2"></i>Add Member
+                    </button>
+                    <button onclick="showCondolenceModal()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
+                        <i class="fas fa-hand-holding-heart mr-2"></i>Contribute to Condolence
+                    </button>
+                    <button onclick="showAnnouncementModal()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
+                        <i class="fas fa-bullhorn mr-2"></i>Send Announcement
+                    </button>
+                    <button onclick="exportToCSV('ceoMemberTable', 'member_data')" class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition">
+                        <i class="fas fa-download mr-2"></i>Export
+                    </button>
+                </div>
+                <div class="collapsible-header bg-gray-100 dark:bg-gray-700 p-3 rounded-lg mt-6 mb-2">
+                    <h3 class="text-lg font-bold"><i class="fas fa-chart-line mr-2"></i>Group Performance</h3>
+                </div>
+                <div class="collapsible-content">
+                    <canvas id="managementChart"></canvas>
+                </div>
+                <div class="collapsible-header bg-gray-100 dark:bg-gray-700 p-3 rounded-lg mt-6 mb-2">
+                    <h3 class="text-lg font-bold"><i class="fas fa-history mr-2"></i>Activity Log</h3>
+                </div>
+                <div class="collapsible-content">
+                    <ul id="activityLog" class="list-disc pl-5"></ul>
+                </div>
+            </div>
+            <!-- Notifications -->
+            <div id="notificationsDashboard" class="hidden fade-in">
+                <h2 class="text-2xl font-bold mb-4"><i class="fas fa-bell mr-2"></i>Notifications</h2>
+                <ul id="notificationsList" class="list-disc pl-5"></ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast"></div>
+
+    <script> </script>
+</body>
+</html>

@@ -19,31 +19,38 @@ class UserSeeder extends Seeder
                 'is_active' => true
             ],
             [
-                'name' => 'BSS Manager',
-                'email' => 'manager@bss.com',
-                'password' => Hash::make('manager123'),
-                'role' => 'manager',
+                'name' => 'CEO User',
+                'email' => 'ceo@bss.com',
+                'password' => Hash::make('ceo123'),
+                'role' => 'ceo',
                 'is_active' => true
             ],
             [
-                'name' => 'BSS Treasurer',
-                'email' => 'treasurer@bss.com',
-                'password' => Hash::make('treasurer123'),
-                'role' => 'treasurer',
+                'name' => 'Technical Director',
+                'email' => 'td@bss.com',
+                'password' => Hash::make('td123'),
+                'role' => 'td',
                 'is_active' => true
             ],
             [
-                'name' => 'BSS Secretary',
-                'email' => 'secretary@bss.com',
-                'password' => Hash::make('secretary123'),
-                'role' => 'secretary',
+                'name' => 'Cashier User',
+                'email' => 'cashier@bss.com',
+                'password' => Hash::make('cashier123'),
+                'role' => 'cashier',
                 'is_active' => true
             ],
             [
-                'name' => 'John Member',
-                'email' => 'member@bss.com',
-                'password' => Hash::make('member123'),
-                'role' => 'member',
+                'name' => 'Shareholder User',
+                'email' => 'shareholder@bss.com',
+                'password' => Hash::make('shareholder123'),
+                'role' => 'shareholder',
+                'is_active' => true
+            ],
+            [
+                'name' => 'Client User',
+                'email' => 'client@bss.com',
+                'password' => Hash::make('client123'),
+                'role' => 'client',
                 'is_active' => true
             ]
         ];

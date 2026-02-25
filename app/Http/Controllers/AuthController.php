@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Models\Member;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Password;
 
 class AuthController extends Controller
 {
@@ -14,29 +15,33 @@ class AuthController extends Controller
     {
         $credentials = $request->validate([
             'email' => 'required|email',
-            'password' => 'required'
+            'password' => 'required',
+            'role' => 'required|in:admin,ceo,td,cashier,shareholder,client'
         ]);
 
-        if (Auth::attempt($credentials)) {
-            $user = Auth::user();
-            return response()->json([
-                'success' => true,
-                'user' => $user,
-                'role' => $user->role ?? 'member'
-            ]);
+        // Check if the selected role is active
+        $roleStatus = \App\Models\Setting::get('role_status_' . $request->role, 1);
+        if ($roleStatus != 1) {
+            return back()->withErrors(['role' => 'The selected role is currently inactive. Please contact the administrator.'])->withInput();
         }
 
-        // Try member login
-        $member = Member::where('email', $credentials['email'])->first();
-        if ($member && Hash::check($credentials['password'], $member->password)) {
-            return response()->json([
-                'success' => true,
-                'user' => $member,
-                'role' => $member->role ?? 'client'
-            ]);
+        // Find user by email
+        $user = User::where('email', $request->email)->first();
+        
+        // Check if user exists and has the selected role
+        if ($user && !$user->hasRole($request->role)) {
+            return back()->withErrors(['role' => 'The selected role does not match your registered role. Please select the correct role.'])->withInput();
         }
 
-        return response()->json(['success' => false, 'message' => 'Invalid credentials'], 401);
+        $remember = $request->filled('remember');
+
+        if (Auth::attempt(['email' => $credentials['email'], 'password' => $credentials['password']], $remember)) {
+            $request->session()->regenerate();
+            $request->session()->put('active_role', $request->role);
+            return redirect()->route('login')->with(['login_success' => true, 'login_role' => ucfirst($request->role)]);
+        }
+
+        return back()->withErrors(['email' => 'Invalid credentials'])->withInput();
     }
 
     public function register(Request $request)
@@ -44,23 +49,61 @@ class AuthController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users',
-            'password' => 'required|min:6'
+            'password' => 'required|min:6|confirmed',
+            'role' => 'required|in:admin,ceo,td,cashier,shareholder,client'
         ]);
+
+        // Check if registration is allowed for this role
+        $registrationAllowed = \App\Models\Setting::get('allow_registration_' . $request->role, 1);
+        if ($registrationAllowed != 1) {
+            return back()->withErrors(['role' => 'Registration for this role is currently disabled. Please contact the administrator.'])->withInput();
+        }
+
+        // Check if the selected role is active
+        $roleStatus = \App\Models\Setting::get('role_status_' . $request->role, 1);
+        if ($roleStatus != 1) {
+            return back()->withErrors(['role' => 'The selected role is currently inactive. Please contact the administrator.'])->withInput();
+        }
 
         $user = User::create([
             'name' => $validated['name'],
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
-            'role' => 'member'
+            'role' => $validated['role']
         ]);
+
+        // Assign role to user
+        $user->assignRole($validated['role']);
+
+        // Auto-create member with BSS-C15-000x format
+        $lastMember = Member::withTrashed()
+            ->where('member_id', 'like', 'BSS-C15-%')
+            ->orderBy('member_id', 'desc')
+            ->first();
+        
+        if ($lastMember && preg_match('/BSS-C15-(\d+)/', $lastMember->member_id, $matches)) {
+            $nextNumber = intval($matches[1]) + 1;
+        } else {
+            $nextNumber = 1;
+        }
+        
+        $member = Member::create([
+            'member_id' => 'BSS-C15-' . str_pad($nextNumber, 4, '0', STR_PAD_LEFT),
+            'full_name' => $user->name,
+            'email' => $user->email,
+            'contact' => '',
+            'password' => $user->password,
+            'role' => $user->role,
+            'user_id' => $user->id,
+        ]);
+
+        // Assign role to member
+        $member->assignRole($validated['role']);
 
         Auth::login($user);
+        $request->session()->regenerate();
 
-        return response()->json([
-            'success' => true,
-            'user' => $user,
-            'role' => $user->role
-        ]);
+        return redirect()->route('register')->with(['register_success' => true, 'register_role' => ucfirst($validated['role'])]);
     }
 
     public function logout()
@@ -80,5 +123,37 @@ class AuthController extends Controller
             'user' => $user,
             'role' => $user->role ?? 'client'
         ]);
+    }
+
+    public function sendResetLink(Request $request)
+    {
+        $request->validate(['email' => 'required|email']);
+        
+        $status = Password::sendResetLink($request->only('email'));
+        
+        return $status === Password::RESET_LINK_SENT
+            ? back()->with('status', __($status))
+            : back()->withErrors(['email' => __($status)]);
+    }
+
+    public function resetPassword(Request $request)
+    {
+        $request->validate([
+            'token' => 'required',
+            'email' => 'required|email',
+            'password' => 'required|min:6|confirmed',
+        ]);
+
+        $status = Password::reset(
+            $request->only('email', 'password', 'password_confirmation', 'token'),
+            function ($user, $password) {
+                $user->password = Hash::make($password);
+                $user->save();
+            }
+        );
+
+        return $status === Password::PASSWORD_RESET
+            ? redirect()->route('login')->with('status', __($status))
+            : back()->withErrors(['email' => [__($status)]]);
     }
 }

@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 
 class MemberController extends Controller
 {
@@ -239,6 +240,70 @@ class MemberController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Error deleting member: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Search member by ID
+     */
+    public function searchById($memberId)
+    {
+        try {
+            // Use caching for frequently searched members
+            $member = Cache::remember("member_search_{$memberId}", 300, function () use ($memberId) {
+                return Member::where('member_id', $memberId)
+                    ->orWhere('id', $memberId)
+                    ->select([
+                        'id', 'member_id', 'full_name', 'email', 'contact', 'nin_no', 'dob',
+                        'nationality', 'marital_status', 'spouse_name', 'spouse_nin',
+                        'next_of_kin', 'next_of_kin_nin', 'father_name', 'mother_name',
+                        'occupation', 'about_yourself', 'present_region', 'present_district',
+                        'present_county', 'present_subcounty', 'present_ward', 'present_village'
+                    ])
+                    ->first();
+            });
+
+            if (!$member) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Member not found'
+                ], 404);
+            }
+
+            return response()->json([
+                'success' => true,
+                'id' => $member->id,
+                'member_id' => $member->member_id,
+                'full_name' => $member->full_name,
+                'name' => $member->full_name,
+                'email' => $member->email,
+                'telephone' => $member->contact,
+                'phone' => $member->contact,
+                'nin_no' => $member->nin_no ?? '',
+                'dob' => $member->dob ?? '',
+                'nationality' => $member->nationality ?? 'Ugandan',
+                'marital_status' => $member->marital_status ?? '',
+                'spouse_name' => $member->spouse_name ?? '',
+                'spouse_nin' => $member->spouse_nin ?? '',
+                'next_of_kin' => $member->next_of_kin ?? '',
+                'next_of_kin_nin' => $member->next_of_kin_nin ?? '',
+                'father_name' => $member->father_name ?? '',
+                'mother_name' => $member->mother_name ?? '',
+                'occupation' => $member->occupation ?? '',
+                'about_yourself' => $member->about_yourself ?? '',
+                'present_region' => $member->present_region ?? '',
+                'present_district' => $member->present_district ?? '',
+                'present_county' => $member->present_county ?? '',
+                'present_subcounty' => $member->present_subcounty ?? '',
+                'present_ward' => $member->present_ward ?? '',
+                'present_village' => $member->present_village ?? ''
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error searching member: ' . $e->getMessage()
             ], 500);
         }
     }

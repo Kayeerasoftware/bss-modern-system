@@ -10,15 +10,14 @@ return new class extends Migration
     {
         Schema::create('documents', function (Blueprint $table) {
             $table->id();
-            $table->string('title');
-            $table->string('filename');
+            $table->string('member_id')->nullable();
+            $table->string('name');
+            $table->string('category');
             $table->string('file_path');
             $table->string('file_type');
-            $table->integer('file_size');
-            $table->enum('category', ['financial', 'legal', 'meeting', 'project', 'member', 'other']);
-            $table->text('description')->nullable();
-            $table->string('uploaded_by');
-            $table->json('access_roles')->nullable(); // Which roles can access
+            $table->bigInteger('file_size');
+            $table->string('type')->default('pdf');
+            $table->enum('status', ['pending', 'verified', 'rejected'])->default('pending');
             $table->timestamps();
         });
     }

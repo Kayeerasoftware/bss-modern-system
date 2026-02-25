@@ -1,0 +1,49 @@
+/* Cashier dashboard styles */
+.cashier-dashboard {
+    background-color: #ffffff;
+}
+
+.transaction-card {
+    border-left: 4px solid #10b981;
+    transition: background-color 0.2s;
+}
+
+.transaction-card:hover {
+    background-color: #f9fafb;
+}
+
+.transaction-type {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.transaction-type.deposit {
+    background-color: #d1fae5;
+    color: #065f46;
+}
+
+.transaction-type.withdrawal {
+    background-color: #fee2e2;
+    color: #991b1b;
+}
+
+.quick-action-btn {
+    padding: 1rem;
+    border-radius: 0.5rem;
+    font-weight: 600;
+    transition: all 0.2s;
+}
+
+.quick-action-btn:hover {
+    transform: scale(1.05);
+}
+
+.daily-summary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 0.5rem;
+    padding: 1.5rem;
+}

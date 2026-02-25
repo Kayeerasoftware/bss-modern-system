@@ -13,7 +13,7 @@ return [
     |
     */
 
-    'name' => env('APP_NAME', 'Laravel'),
+    'name' => env('APP_NAME', 'BSS System'),
 
     /*
     |--------------------------------------------------------------------------
@@ -65,7 +65,7 @@ return [
     |
     */
 
-    'timezone' => 'Africa/Kampala',
+    'timezone' => env('APP_TIMEZONE', 'Africa/Kampala'),
 
     /*
     |--------------------------------------------------------------------------

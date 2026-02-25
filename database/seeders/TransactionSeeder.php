@@ -5,49 +5,76 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 use App\Models\Transaction;
 use App\Models\Member;
-use Illuminate\Support\Facades\DB;
+use App\Models\User;
 
 class TransactionSeeder extends Seeder
 {
     public function run()
     {
-        $members = Member::pluck('member_id')->toArray();
-        
-        if (empty($members)) {
-            $this->command->info('No members found. Please run MemberSeeder first.');
+        $members = Member::all();
+        $users = User::where('role', 'admin')->orWhere('role', 'cashier')->get();
+
+        if ($members->isEmpty() || $users->isEmpty()) {
+            $this->command->warn('No members or users found. Please seed members and users first.');
             return;
         }
 
-        $types = ['deposit', 'withdrawal', 'transfer', 'loan_payment', 'loan_request', 'fundraising', 'condolence'];
-        $descriptions = [
-            'deposit' => ['Monthly savings', 'Salary deposit', 'Business income', 'Investment return'],
-            'withdrawal' => ['Emergency withdrawal', 'School fees', 'Medical expenses', 'Business capital'],
-            'transfer' => ['Transfer to member', 'Internal transfer', 'Account transfer'],
-            'loan_payment' => ['Loan repayment', 'Monthly installment', 'Loan settlement'],
-            'loan_request' => ['Business loan request', 'Emergency loan', 'Education loan', 'Medical loan'],
-            'fundraising' => ['Community project', 'School fundraising', 'Church fundraising', 'Medical fundraising'],
-            'condolence' => ['Funeral support', 'Bereavement fund', 'Condolence contribution']
-        ];
+        $types = ['deposit', 'withdrawal', 'transfer'];
+        $methods = ['cash', 'bank_transfer', 'mobile_money', 'cheque'];
+        $statuses = ['completed', 'pending', 'failed'];
 
-        $transactions = [];
-        
-        for ($i = 0; $i < 50; $i++) {
-            $type = $types[array_rand($types)];
-            $amount = rand(10000, 500000);
+        foreach ($members->random(min(20, $members->count())) as $member) {
+            $transactionCount = rand(3, 8);
             
-            $transactions[] = [
-                'transaction_id' => 'TXN' . str_pad($i + 1, 6, '0', STR_PAD_LEFT),
-                'member_id' => $members[array_rand($members)],
-                'type' => $type,
-                'amount' => $amount,
-                'description' => $descriptions[$type][array_rand($descriptions[$type])],
-                'created_at' => now()->subDays(rand(0, 90)),
-                'updated_at' => now()
-            ];
+            for ($i = 0; $i < $transactionCount; $i++) {
+                $type = $types[array_rand($types)];
+                $amount = rand(10000, 500000);
+                
+                Transaction::create([
+                    'member_id' => $member->member_id,
+                    'type' => $type,
+                    'amount' => $amount,
+                    'payment_method' => $methods[array_rand($methods)],
+                    'reference' => 'TXN' . strtoupper(uniqid()),
+                    'description' => $this->getDescription($type),
+                    'status' => $statuses[array_rand($statuses)],
+                    'processed_by' => $users->random()->id,
+                    'transaction_date' => now()->subDays(rand(0, 90)),
+                    'created_at' => now()->subDays(rand(0, 90)),
+                    'updated_at' => now()->subDays(rand(0, 90)),
+                ]);
+            }
         }
 
-        DB::table('transactions')->insert($transactions);
-        
-        $this->command->info('50 transactions created successfully!');
+        $this->command->info('Transactions seeded successfully!');
+    }
+
+    private function getDescription($type)
+    {
+        $descriptions = [
+            'deposit' => [
+                'Monthly savings contribution',
+                'Initial deposit',
+                'Additional savings',
+                'Dividend reinvestment',
+                'Bonus deposit',
+            ],
+            'withdrawal' => [
+                'Emergency withdrawal',
+                'Partial withdrawal',
+                'Savings withdrawal',
+                'Account closure withdrawal',
+                'Loan repayment withdrawal',
+            ],
+            'transfer' => [
+                'Internal transfer',
+                'Account transfer',
+                'Balance adjustment',
+                'Fund reallocation',
+                'Inter-account transfer',
+            ],
+        ];
+
+        return $descriptions[$type][array_rand($descriptions[$type])];
     }
 }

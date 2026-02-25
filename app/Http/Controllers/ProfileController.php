@@ -29,6 +29,11 @@ class ProfileController extends Controller
                 $member->profile_picture = $path;
                 $member->save();
 
+                // Sync to user
+                if ($member->user) {
+                    $member->user->update(['profile_picture' => $path]);
+                }
+
                 return response()->json([
                     'success' => true,
                     'message' => 'Profile picture updated successfully',

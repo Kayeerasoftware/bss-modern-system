@@ -13,7 +13,7 @@ class Project extends Model
     protected $fillable = [
         'project_id', 'name', 'budget', 'timeline', 'description',
         'progress', 'roi', 'risk_score', 'category', 'status',
-        'start_date', 'manager', 'location'
+        'start_date', 'end_date', 'manager', 'location', 'notes'
     ];
 
     protected $casts = [
@@ -27,5 +27,15 @@ class Project extends Model
         static::creating(function ($project) {
             $project->project_id = 'PRJ' . Str::random(6);
         });
+        
+        static::deleting(function ($project) {
+            // Delete related fundraising campaigns
+            $project->fundraisingCampaigns()->delete();
+        });
+    }
+    
+    public function fundraisingCampaigns()
+    {
+        return $this->hasMany(\App\Models\Fundraising::class, 'project_id', 'id');
     }
 }

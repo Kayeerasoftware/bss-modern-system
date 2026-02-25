@@ -1,0 +1,10 @@
+<?php
+
+namespace App\Http\Controllers\Api\Financial;
+
+use App\Http\Controllers\Controller;
+
+class TransferController extends Controller
+{
+    //
+}

@@ -1,0 +1,87 @@
+<?php
+
+namespace App\Http\Controllers\Admin;
+
+use App\Http\Controllers\Controller;
+use App\Models\Member;
+use App\Models\Financial\Transaction;
+use App\Models\Loans\Loan;
+use App\Models\Projects\Project;
+use App\Models\System\AuditLog;
+use App\Models\Reports\GeneratedReport;
+use Illuminate\Http\Request;
+
+class ReportController extends Controller
+{
+    public function index()
+    {
+        $summary = [
+            'total_income' => Transaction::where('type', 'deposit')->sum('amount'),
+            'total_expenses' => Transaction::where('type', 'withdrawal')->sum('amount'),
+            'net_balance' => Member::sum('balance'),
+            'total_transactions' => Transaction::count(),
+        ];
+        
+        $reports = GeneratedReport::latest()->get();
+        
+        return view('admin.reports.index', compact('summary', 'reports'));
+    }
+
+    public function generate(Request $request)
+    {
+        $validated = $request->validate([
+            'type' => 'required|in:members,financial,loans,transactions,projects,audit,deposits,withdrawals',
+            'from_date' => 'required|date',
+            'to_date' => 'required|date',
+            'format' => 'required|in:html,csv',
+        ]);
+
+        $data = $this->getReportData($validated['type'], $validated['from_date'], $validated['to_date']);
+        
+        // Save report to database
+        GeneratedReport::create([
+            'name' => ucfirst($validated['type']) . ' Report',
+            'type' => $validated['type'],
+            'from_date' => $validated['from_date'],
+            'to_date' => $validated['to_date'],
+            'format' => $validated['format'],
+            'user_id' => auth()->id(),
+        ]);
+        
+        return view('admin.reports.view', [
+            'type' => $validated['type'],
+            'data' => $data,
+            'from_date' => $validated['from_date'],
+            'to_date' => $validated['to_date'],
+            'format' => $validated['format'],
+        ]);
+    }
+
+    public function save(Request $request)
+    {
+        GeneratedReport::create([
+            'name' => $request->name,
+            'type' => $request->type,
+            'from_date' => $request->from_date,
+            'to_date' => $request->to_date,
+            'format' => $request->format,
+        ]);
+        
+        return redirect()->route('admin.reports.index')->with('success', 'Report saved successfully');
+    }
+
+    public function getReportData($type, $from, $to)
+    {
+        return match($type) {
+            'members' => Member::whereBetween('created_at', [$from, $to])->get(),
+            'financial' => Transaction::with('member')->whereBetween('created_at', [$from, $to])->get(),
+            'loans' => Loan::with('member')->whereBetween('created_at', [$from, $to])->get(),
+            'transactions' => Transaction::with('member')->whereBetween('created_at', [$from, $to])->get(),
+            'deposits' => Transaction::with('member')->where('type', 'deposit')->whereBetween('created_at', [$from, $to])->get(),
+            'withdrawals' => Transaction::with('member')->where('type', 'withdrawal')->whereBetween('created_at', [$from, $to])->get(),
+            'projects' => Project::whereBetween('created_at', [$from, $to])->get(),
+            'audit' => AuditLog::whereBetween('created_at', [$from, $to])->get(),
+            default => [],
+        };
+    }
+}
