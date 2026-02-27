@@ -60,9 +60,12 @@
     showChatModal: false,
     showMemberChatModal: false,
     clientProfile: {
-        name: '{{ auth()->user()->name }}',
-        role: 'Client',
-        email: '{{ auth()->user()->email }}'
+        id: {{ Js::from($currentUser->id) }},
+        member_id: {{ Js::from($currentUser->member?->member_id ?? 'N/A') }},
+        name: {{ Js::from($currentUser->name) }},
+        role: {{ Js::from(ucfirst($currentUser->role ?? 'client')) }},
+        email: {{ Js::from($currentUser->email) }},
+        phone: {{ Js::from($currentUser->phone ?? $currentUser->member?->contact ?? '+256 700 000 000') }}
     },
     notificationStats: {
         unread: 0

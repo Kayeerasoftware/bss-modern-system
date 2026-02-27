@@ -41,7 +41,14 @@
     showChatModal: false,
     showMemberChatModal: false,
     notificationStats: { unread: 0 },
-    adminProfile: { name: '{{ auth()->user()->name ?? "Cashier" }}', role: 'Cashier' },
+    adminProfile: {
+        id: {{ Js::from($currentUser->id) }},
+        member_id: {{ Js::from($currentUser->member?->member_id ?? 'N/A') }},
+        name: {{ Js::from($currentUser->name ?? 'Cashier') }},
+        email: {{ Js::from($currentUser->email) }},
+        role: {{ Js::from(ucfirst($currentUser->role ?? 'cashier')) }},
+        phone: {{ Js::from($currentUser->phone ?? $currentUser->member?->contact ?? '+256 700 000 000') }}
+    },
     members: {{ Js::from($usersData) }},
     originalMembers: {{ Js::from($usersData) }},
     profilePicture: {{ Js::from($currentUser->profile_picture_url) }},

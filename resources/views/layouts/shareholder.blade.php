@@ -44,7 +44,14 @@
     showShareholderModal: false,
     showChatModal: false,
     showMemberChatModal: false,
-    adminProfile: { name: '{{ auth()->user()->name }}', role: '{{ ucfirst(auth()->user()->role) }}' },
+    adminProfile: {
+        id: {{ Js::from($currentUser->id) }},
+        member_id: {{ Js::from($currentUser->member?->member_id ?? 'N/A') }},
+        name: {{ Js::from($currentUser->name) }},
+        email: {{ Js::from($currentUser->email) }},
+        role: {{ Js::from(ucfirst($currentUser->role ?? 'shareholder')) }},
+        phone: {{ Js::from($currentUser->phone ?? $currentUser->member?->contact ?? '+256 700 000 000') }}
+    },
     notificationStats: { unread: 0 },
     members: {{ Js::from($usersData) }},
     originalMembers: {{ Js::from($usersData) }},

@@ -66,6 +66,8 @@
     currentUserId: {{ auth()->id() }},
     profilePicture: {{ Js::from($currentUser->profile_picture_url) }},
     adminProfile: {
+        id: {{ Js::from($currentUser->id) }},
+        member_id: {{ Js::from($currentUser->member?->member_id ?? 'N/A') }},
         name: {{ Js::from($currentUser->name) }},
         email: {{ Js::from($currentUser->email) }},
         role: {{ Js::from(ucfirst($currentUser->role)) }},
