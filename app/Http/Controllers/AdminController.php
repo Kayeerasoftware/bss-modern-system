@@ -9,35 +9,63 @@ use App\Models\Project;
 use App\Models\Notification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Cache;
 
 class AdminController extends Controller
 {
+    private function clearAdminApiCaches(): void
+    {
+        Cache::forget('api_admin:dashboard:v1');
+        Cache::forget('api_admin:members:v1');
+        Cache::forget('api_admin:loans:v1');
+        Cache::forget('api_admin:transactions:v1');
+        Cache::forget('api_admin:projects:v1');
+    }
+
     public function dashboard()
     {
-        $stats = [
-            'totalMembers' => Member::count(),
-            'totalSavings' => Member::sum('savings'),
-            'activeLoans' => Loan::where('status', 'approved')->count(),
-            'totalProjects' => Project::count(),
-            'pendingLoans' => Loan::where('status', 'pending')->count(),
-            'totalTransactions' => Transaction::count(),
-            'monthlyDeposits' => Transaction::where('type', 'deposit')->whereMonth('created_at', now()->month)->sum('amount'),
-            'monthlyWithdrawals' => Transaction::where('type', 'withdrawal')->whereMonth('created_at', now()->month)->sum('amount'),
-            'roleDistribution' => [
-                'client' => Member::where('role', 'client')->count(),
-                'shareholder' => Member::where('role', 'shareholder')->count(),
-                'cashier' => Member::where('role', 'cashier')->count(),
-                'td' => Member::where('role', 'td')->count(),
-                'ceo' => Member::where('role', 'ceo')->count()
-            ]
-        ];
+        $stats = Cache::remember('api_admin:dashboard:v1', now()->addSeconds(45), static function () {
+            $memberSummary = Member::query()
+                ->selectRaw('COUNT(*) as total_members, COALESCE(SUM(savings),0) as total_savings, SUM(CASE WHEN role = "client" THEN 1 ELSE 0 END) as client_count, SUM(CASE WHEN role = "shareholder" THEN 1 ELSE 0 END) as shareholder_count, SUM(CASE WHEN role = "cashier" THEN 1 ELSE 0 END) as cashier_count, SUM(CASE WHEN role = "td" THEN 1 ELSE 0 END) as td_count, SUM(CASE WHEN role = "ceo" THEN 1 ELSE 0 END) as ceo_count')
+                ->first();
+
+            $loanSummary = Loan::query()
+                ->selectRaw('SUM(CASE WHEN status = "approved" THEN 1 ELSE 0 END) as active_loans, SUM(CASE WHEN status = "pending" THEN 1 ELSE 0 END) as pending_loans')
+                ->first();
+
+            $transactionSummary = Transaction::query()
+                ->selectRaw('COUNT(*) as total_transactions, COALESCE(SUM(CASE WHEN type = "deposit" AND created_at >= ? THEN amount ELSE 0 END),0) as monthly_deposits, COALESCE(SUM(CASE WHEN type = "withdrawal" AND created_at >= ? THEN amount ELSE 0 END),0) as monthly_withdrawals', [now()->startOfMonth(), now()->startOfMonth()])
+                ->first();
+
+            return [
+                'totalMembers' => (int) ($memberSummary->total_members ?? 0),
+                'totalSavings' => (float) ($memberSummary->total_savings ?? 0),
+                'activeLoans' => (int) ($loanSummary->active_loans ?? 0),
+                'totalProjects' => Project::query()->count(),
+                'pendingLoans' => (int) ($loanSummary->pending_loans ?? 0),
+                'totalTransactions' => (int) ($transactionSummary->total_transactions ?? 0),
+                'monthlyDeposits' => (float) ($transactionSummary->monthly_deposits ?? 0),
+                'monthlyWithdrawals' => (float) ($transactionSummary->monthly_withdrawals ?? 0),
+                'roleDistribution' => [
+                    'client' => (int) ($memberSummary->client_count ?? 0),
+                    'shareholder' => (int) ($memberSummary->shareholder_count ?? 0),
+                    'cashier' => (int) ($memberSummary->cashier_count ?? 0),
+                    'td' => (int) ($memberSummary->td_count ?? 0),
+                    'ceo' => (int) ($memberSummary->ceo_count ?? 0),
+                ],
+            ];
+        });
 
         return response()->json($stats);
     }
 
     public function getMembers()
     {
-        return response()->json(Member::orderBy('created_at', 'desc')->get());
+        $members = Cache::remember('api_admin:members:v1', now()->addSeconds(30), static function () {
+            return Member::query()->orderBy('created_at', 'desc')->get();
+        });
+
+        return response()->json($members);
     }
 
     public function createMember(Request $request)
@@ -55,6 +83,8 @@ class AdminController extends Controller
             'password' => Hash::make($request->password ?? 'password123')
         ]);
 
+        $this->clearAdminApiCaches();
+
         return response()->json($member);
     }
 
@@ -62,18 +92,24 @@ class AdminController extends Controller
     {
         $member = Member::findOrFail($id);
         $member->update($request->all());
+        $this->clearAdminApiCaches();
         return response()->json($member);
     }
 
     public function deleteMember($id)
     {
         Member::findOrFail($id)->delete();
+        $this->clearAdminApiCaches();
         return response()->json(['message' => 'Member deleted successfully']);
     }
 
     public function getLoans()
     {
-        return response()->json(Loan::with('member')->orderBy('created_at', 'desc')->get());
+        $loans = Cache::remember('api_admin:loans:v1', now()->addSeconds(30), static function () {
+            return Loan::query()->with('member')->orderBy('created_at', 'desc')->get();
+        });
+
+        return response()->json($loans);
     }
 
     public function approveLoan($id)
@@ -83,6 +119,7 @@ class AdminController extends Controller
         
         $member = Member::where('member_id', $loan->member_id)->first();
         $member->increment('loan', $loan->amount);
+        $this->clearAdminApiCaches();
 
         return response()->json($loan);
     }
@@ -91,12 +128,17 @@ class AdminController extends Controller
     {
         $loan = Loan::findOrFail($id);
         $loan->update(['status' => 'rejected']);
+        $this->clearAdminApiCaches();
         return response()->json($loan);
     }
 
     public function getTransactions()
     {
-        return response()->json(Transaction::with('member')->orderBy('created_at', 'desc')->get());
+        $transactions = Cache::remember('api_admin:transactions:v1', now()->addSeconds(30), static function () {
+            return Transaction::query()->with('member')->orderBy('created_at', 'desc')->get();
+        });
+
+        return response()->json($transactions);
     }
 
     public function createTransaction(Request $request)
@@ -116,12 +158,18 @@ class AdminController extends Controller
             $member->decrement('savings', $request->amount);
         }
 
+        $this->clearAdminApiCaches();
+
         return response()->json($transaction->load('member'));
     }
 
     public function getProjects()
     {
-        return response()->json(Project::orderBy('created_at', 'desc')->get());
+        $projects = Cache::remember('api_admin:projects:v1', now()->addSeconds(30), static function () {
+            return Project::query()->orderBy('created_at', 'desc')->get();
+        });
+
+        return response()->json($projects);
     }
 
     public function createProject(Request $request)
@@ -137,6 +185,8 @@ class AdminController extends Controller
             'risk_score' => $request->risk_score ?? 0
         ]);
 
+        $this->clearAdminApiCaches();
+
         return response()->json($project);
     }
 
@@ -144,12 +194,14 @@ class AdminController extends Controller
     {
         $project = Project::findOrFail($id);
         $project->update($request->all());
+        $this->clearAdminApiCaches();
         return response()->json($project);
     }
 
     public function deleteProject($id)
     {
         Project::findOrFail($id)->delete();
+        $this->clearAdminApiCaches();
         return response()->json(['message' => 'Project deleted successfully']);
     }
 

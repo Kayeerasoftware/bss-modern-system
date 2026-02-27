@@ -7,9 +7,47 @@ use App\Models\Loan;
 use App\Models\Member;
 use App\Models\LoanSetting;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 
 class LoanController extends Controller
 {
+    private function getLoanSettings(): LoanSetting
+    {
+        return Cache::remember('loan_settings:default:v1', now()->addMinutes(5), function () {
+            return LoanSetting::firstOrCreate([], [
+                'is_loan_available' => true,
+                'default_interest_rate' => 10.00,
+                'min_interest_rate' => 5.00,
+                'max_interest_rate' => 30.00,
+                'min_loan_amount' => 10000.00,
+                'max_loan_amount' => 10000000.00,
+                'max_loan_to_savings_ratio' => 300,
+                'min_repayment_months' => 3,
+                'max_repayment_months' => 60,
+                'default_repayment_months' => 12,
+                'processing_fee_percentage' => 2.00,
+                'late_payment_penalty' => 5.00,
+                'grace_period_days' => 7,
+                'auto_approve_amount' => 0.00,
+                'require_guarantors' => false,
+                'guarantors_required' => 2,
+                'email_notifications' => true,
+                'sms_notifications' => true,
+                'payment_reminder_days' => 3,
+            ]);
+        });
+    }
+
+    private function getLoanMembers()
+    {
+        return Cache::remember('loan_form:members:v1', now()->addMinutes(2), static function () {
+            return Member::query()
+                ->select('id', 'member_id', 'full_name', 'email', 'contact', 'savings', 'balance', 'status')
+                ->orderBy('full_name')
+                ->get();
+        });
+    }
+
     public function index(Request $request)
     {
         $query = Loan::with('member');
@@ -75,67 +113,19 @@ class LoanController extends Controller
 
     public function create()
     {
-        $settings = LoanSetting::first();
-        
-        if (!$settings) {
-            $settings = LoanSetting::create([
-                'is_loan_available' => true,
-                'default_interest_rate' => 10.00,
-                'min_interest_rate' => 5.00,
-                'max_interest_rate' => 30.00,
-                'min_loan_amount' => 10000.00,
-                'max_loan_amount' => 10000000.00,
-                'max_loan_to_savings_ratio' => 300,
-                'min_repayment_months' => 3,
-                'max_repayment_months' => 60,
-                'default_repayment_months' => 12,
-                'processing_fee_percentage' => 2.00,
-                'late_payment_penalty' => 5.00,
-                'grace_period_days' => 7,
-                'auto_approve_amount' => 0.00,
-                'require_guarantors' => false,
-                'guarantors_required' => 2,
-                'email_notifications' => true,
-                'sms_notifications' => true,
-                'payment_reminder_days' => 3,
-            ]);
-        }
+        $settings = $this->getLoanSettings();
         
         if (!$settings->is_loan_available) {
             return redirect()->route('admin.loans.index')->with('error', 'Loan applications are currently disabled.');
         }
         
-        $members = Member::all();
+        $members = $this->getLoanMembers();
         return view('admin.loans.create', compact('members', 'settings'));
     }
 
     public function store(Request $request)
     {
-        $settings = LoanSetting::first();
-        
-        if (!$settings) {
-            $settings = LoanSetting::create([
-                'is_loan_available' => true,
-                'default_interest_rate' => 10.00,
-                'min_interest_rate' => 5.00,
-                'max_interest_rate' => 30.00,
-                'min_loan_amount' => 10000.00,
-                'max_loan_amount' => 10000000.00,
-                'max_loan_to_savings_ratio' => 300,
-                'min_repayment_months' => 3,
-                'max_repayment_months' => 60,
-                'default_repayment_months' => 12,
-                'processing_fee_percentage' => 2.00,
-                'late_payment_penalty' => 5.00,
-                'grace_period_days' => 7,
-                'auto_approve_amount' => 0.00,
-                'require_guarantors' => false,
-                'guarantors_required' => 2,
-                'email_notifications' => true,
-                'sms_notifications' => true,
-                'payment_reminder_days' => 3,
-            ]);
-        }
+        $settings = $this->getLoanSettings();
         
         if (!$settings->is_loan_available) {
             return redirect()->route('admin.loans.index')->with('error', 'Loan applications are currently disabled.');
@@ -194,8 +184,8 @@ class LoanController extends Controller
     public function edit($id)
     {
         $loan = Loan::findOrFail($id);
-        $members = Member::all();
-        $settings = LoanSetting::first();
+        $members = $this->getLoanMembers();
+        $settings = $this->getLoanSettings();
         return view('admin.loans.edit', compact('loan', 'members', 'settings'));
     }
 

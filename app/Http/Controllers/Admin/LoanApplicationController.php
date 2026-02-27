@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Loans\LoanApplication;
 use App\Models\Member;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 
 class LoanApplicationController extends Controller
 {
@@ -63,7 +64,12 @@ class LoanApplicationController extends Controller
     public function edit($id)
     {
         $application = LoanApplication::findOrFail($id);
-        $members = Member::all();
+        $members = Cache::remember('loan_application_form:members:v1', now()->addMinutes(2), static function () {
+            return Member::query()
+                ->select('id', 'member_id', 'full_name', 'email', 'contact', 'status')
+                ->orderBy('full_name')
+                ->get();
+        });
         return view('admin.loan-applications.edit', compact('application', 'members'));
     }
 

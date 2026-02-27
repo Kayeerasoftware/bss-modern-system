@@ -10,17 +10,28 @@ use App\Models\Projects\Project;
 use App\Models\System\AuditLog;
 use App\Models\Reports\GeneratedReport;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 
 class ReportController extends Controller
 {
     public function index(Request $request)
     {
-        $summary = [
-            'total_income' => Transaction::where('type', 'deposit')->sum('amount'),
-            'total_expenses' => Transaction::where('type', 'withdrawal')->sum('amount'),
-            'net_balance' => Member::sum('balance'),
-            'total_transactions' => Transaction::count(),
-        ];
+        $summary = Cache::remember('admin_reports:summary:v1', now()->addSeconds(60), static function () {
+            $txSummary = Transaction::query()
+                ->selectRaw('COALESCE(SUM(CASE WHEN type = "deposit" THEN amount ELSE 0 END),0) as total_income, COALESCE(SUM(CASE WHEN type = "withdrawal" THEN amount ELSE 0 END),0) as total_expenses, COUNT(*) as total_transactions')
+                ->first();
+
+            $memberSummary = Member::query()
+                ->selectRaw('COALESCE(SUM(balance),0) as net_balance')
+                ->first();
+
+            return [
+                'total_income' => (float) ($txSummary->total_income ?? 0),
+                'total_expenses' => (float) ($txSummary->total_expenses ?? 0),
+                'net_balance' => (float) ($memberSummary->net_balance ?? 0),
+                'total_transactions' => (int) ($txSummary->total_transactions ?? 0),
+            ];
+        });
         
         $query = GeneratedReport::query();
 
