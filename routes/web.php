@@ -83,11 +83,17 @@ Route::post('/switch-role', function(\Illuminate\Http\Request $request) {
     // Respect role status settings (default active if setting missing).
     $roleStatus = (int) \App\Models\Setting::get('role_status_' . $role, 1);
     if ($roleStatus !== 1) {
+        \App\Services\AuditLogService::log($user, 'role_switch_failed', 'Role switch blocked because role is inactive', [
+            'requested_role' => $role,
+            'current_role' => $user->role,
+            'ip' => $request->ip(),
+        ]);
         return response()->json(['success' => false, 'message' => 'Selected role is currently inactive.'], 403);
     }
 
     // Backward compatibility: allow current users.role even if user_roles table is not populated.
     if ($user->hasRole($role) || strtolower((string) $user->role) === $role) {
+        $previousRole = $user->role;
         if (!$user->hasRole($role)) {
             $user->assignRole($role);
         }
@@ -95,8 +101,20 @@ Route::post('/switch-role', function(\Illuminate\Http\Request $request) {
         $request->session()->put('active_role', $role);
         $user->forceFill(['role' => $role])->save();
 
+        \App\Services\AuditLogService::log($user, 'role_switch', 'User switched active role', [
+            'from' => $previousRole,
+            'to' => $role,
+            'ip' => $request->ip(),
+        ]);
+
         return response()->json(['success' => true, 'role' => $role]);
     }
+
+    \App\Services\AuditLogService::log($user, 'role_switch_failed', 'Role switch denied because role is not assigned', [
+        'requested_role' => $role,
+        'current_role' => $user->role,
+        'ip' => $request->ip(),
+    ]);
 
     return response()->json(['success' => false, 'message' => 'You are not assigned to this role.'], 403);
 })->middleware('auth')->name('switch.role');

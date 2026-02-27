@@ -8,6 +8,7 @@ use App\Models\Member;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Password;
+use App\Services\AuditLogService;
 
 class AuthController extends Controller
 {
@@ -30,6 +31,11 @@ class AuthController extends Controller
         
         // Check if user exists and has the selected role
         if ($user && !$user->hasRole($request->role)) {
+            AuditLogService::log($user, 'login_failed', 'Login failed due to role mismatch', [
+                'requested_role' => $request->role,
+                'email' => $request->email,
+                'ip' => $request->ip(),
+            ]);
             return back()->withErrors(['role' => 'The selected role does not match your registered role. Please select the correct role.'])->withInput();
         }
 
@@ -38,8 +44,22 @@ class AuthController extends Controller
         if (Auth::attempt(['email' => $credentials['email'], 'password' => $credentials['password']], $remember)) {
             $request->session()->regenerate();
             $request->session()->put('active_role', $request->role);
+
+            AuditLogService::log(Auth::user(), 'login', 'User logged into the system', [
+                'role' => $request->role,
+                'remember' => $remember,
+                'ip' => $request->ip(),
+                'user_agent' => (string) $request->userAgent(),
+            ]);
+
             return redirect()->route('login')->with(['login_success' => true, 'login_role' => ucfirst($request->role)]);
         }
+
+        AuditLogService::log($user ?: $request->email, 'login_failed', 'Invalid login credentials', [
+            'requested_role' => $request->role,
+            'email' => $request->email,
+            'ip' => $request->ip(),
+        ]);
 
         return back()->withErrors(['email' => 'Invalid credentials'])->withInput();
     }
@@ -108,6 +128,14 @@ class AuthController extends Controller
 
     public function logout()
     {
+        $user = Auth::user();
+        if ($user) {
+            AuditLogService::log($user, 'logout', 'User logged out of the system', [
+                'ip' => request()->ip(),
+                'user_agent' => (string) request()->userAgent(),
+            ]);
+        }
+
         Auth::logout();
         return redirect('/login');
     }
