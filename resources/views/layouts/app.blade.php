@@ -15,6 +15,7 @@
     </style>
 </head>
 <body class="bg-gray-50">
+    @include('components.navigation-loading')
     @include('components.loading-screen')
     @yield('content')
 </body>

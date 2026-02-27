@@ -50,6 +50,7 @@
     originalMembers: {{ Js::from($usersData) }},
     profilePicture: {{ Js::from($currentUser->profile_picture_url) }}
 }" x-init="initChat();">
+    @include('components.navigation-loading')
     @include('partials.navs.shareholder-topnav')
     @include('partials.navs.shareholder-sidenav')
 

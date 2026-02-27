@@ -75,6 +75,7 @@
     members: {{ Js::from($usersData) }},
     originalMembers: {{ Js::from($usersData) }}
 }" x-init="initChat();">
+    @include('components.navigation-loading')
     @include('components.loading-screen')
     @include('partials.navs.admin-topnav')
     @include('partials.navs.admin-sidenav')

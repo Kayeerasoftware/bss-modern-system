@@ -55,6 +55,7 @@
         }
     }
 }" x-init="initChat(); fetchNotificationCount(); setInterval(() => fetchNotificationCount(), 30000);">
+    @include('components.navigation-loading')
     @include('partials.navs.cashier-topnav')
     @include('partials.navs.cashier-sidenav')
 
