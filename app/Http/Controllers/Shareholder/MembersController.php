@@ -28,7 +28,9 @@ class MembersController extends Controller
                 $q->where('full_name', 'like', "%{$search}%")
                   ->orWhere('email', 'like', "%{$search}%")
                   ->orWhere('contact', 'like', "%{$search}%")
-                  ->orWhere('phone', 'like', "%{$search}%")
+                  ->orWhereHas('user', function ($userQuery) use ($search) {
+                      $userQuery->where('phone', 'like', "%{$search}%");
+                  })
                   ->orWhere('member_id', 'like', "%{$search}%");
             });
         }
