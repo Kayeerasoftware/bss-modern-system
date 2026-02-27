@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\User;
 use App\Models\Member;
@@ -33,6 +34,11 @@ class AppServiceProvider extends ServiceProvider
         
         // Set timezone
         date_default_timezone_set(config('app.timezone', 'Africa/Kampala'));
+
+        // Ensure generated URLs/forms use HTTPS in production behind proxies.
+        if ($this->app->isProduction()) {
+            URL::forceScheme('https');
+        }
         
         // Register observers for user-member synchronization
         User::observe(UserObserver::class);
