@@ -2,6 +2,35 @@
 
 use Illuminate\Support\Str;
 
+$resolveMysqlSslCa = static function (): ?string {
+    $sslCa = env('MYSQL_ATTR_SSL_CA');
+
+    if (is_string($sslCa) && $sslCa !== '' && is_file($sslCa)) {
+        return $sslCa;
+    }
+
+    $aivenCaPem = env('AIVEN_CA_PEM');
+    if (!is_string($aivenCaPem) || trim($aivenCaPem) === '') {
+        return null;
+    }
+
+    $certDir = storage_path('certs');
+    $certPath = $certDir.DIRECTORY_SEPARATOR.'aiven-ca.pem';
+
+    if (!is_dir($certDir)) {
+        mkdir($certDir, 0755, true);
+    }
+
+    $existing = is_file($certPath) ? file_get_contents($certPath) : '';
+    if (trim((string) $existing) !== trim($aivenCaPem)) {
+        file_put_contents($certPath, $aivenCaPem.PHP_EOL);
+    }
+
+    return $certPath;
+};
+
+$mysqlSslCa = $resolveMysqlSslCa();
+
 return [
 
     /*
@@ -58,7 +87,8 @@ return [
             'strict' => true,
             'engine' => null,
             'options' => extension_loaded('pdo_mysql') ? array_filter([
-                PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
+                PDO::MYSQL_ATTR_SSL_CA => $mysqlSslCa,
+                PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT => filter_var(env('MYSQL_ATTR_SSL_VERIFY_SERVER_CERT', false), FILTER_VALIDATE_BOOL),
             ]) : [],
         ],
 
@@ -78,7 +108,8 @@ return [
             'strict' => true,
             'engine' => null,
             'options' => extension_loaded('pdo_mysql') ? array_filter([
-                PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
+                PDO::MYSQL_ATTR_SSL_CA => $mysqlSslCa,
+                PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT => filter_var(env('MYSQL_ATTR_SSL_VERIFY_SERVER_CERT', false), FILTER_VALIDATE_BOOL),
             ]) : [],
         ],
 
