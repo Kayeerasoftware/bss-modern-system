@@ -40,8 +40,8 @@
             <td class="px-2 md:px-3 py-2">
                 <div class="flex items-center gap-1.5 md:gap-2">
                     <div class="relative flex-shrink-0">
-                        @if($user->profile_picture)
-                            <img src="{{ asset('storage/' . $user->profile_picture) }}" alt="{{ $user->name }}" class="w-6 h-6 md:w-8 md:h-8 rounded-lg shadow-sm object-cover">
+                        @if($user->profile_picture_url)
+                            <img src="{{ $user->profile_picture_url }}" alt="{{ $user->name }}" class="w-6 h-6 md:w-8 md:h-8 rounded-lg shadow-sm object-cover">
                         @else
                             <img src="https://ui-avatars.com/api/?name={{ urlencode($user->name) }}&size=32&background=random&bold=true" alt="{{ $user->name }}" class="w-6 h-6 md:w-8 md:h-8 rounded-lg shadow-sm">
                         @endif
@@ -112,3 +112,4 @@
 <div class="px-3 py-2 md:py-3 bg-gradient-to-r from-gray-50 to-gray-100 border-t border-gray-200">
     {{ $users->links() }}
 </div>
+

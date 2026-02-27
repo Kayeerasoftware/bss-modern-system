@@ -8,15 +8,57 @@ use Illuminate\Http\Request;
 
 class FundraisingController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $fundraisings = Fundraising::latest()->paginate(15);
+        $query = Fundraising::query();
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('campaign_id', 'like', "%{$search}%")
+                    ->orWhere('title', 'like', "%{$search}%")
+                    ->orWhere('description', 'like', "%{$search}%");
+            });
+        }
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        if ($request->filled('date_from')) {
+            $query->whereDate('start_date', '>=', $request->date_from);
+        }
+
+        if ($request->filled('date_to')) {
+            $query->whereDate('end_date', '<=', $request->date_to);
+        }
+
+        $fundraisings = $query->latest()->paginate(15)->appends($request->query());
         return view('admin.fundraising.index', compact('fundraisings'));
     }
 
-    public function campaigns()
+    public function campaigns(Request $request)
     {
-        $campaigns = Fundraising::where('status', 'active')->latest()->paginate(15);
+        $query = Fundraising::where('status', 'active');
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('campaign_id', 'like', "%{$search}%")
+                    ->orWhere('title', 'like', "%{$search}%")
+                    ->orWhere('description', 'like', "%{$search}%");
+            });
+        }
+
+        if ($request->filled('date_from')) {
+            $query->whereDate('start_date', '>=', $request->date_from);
+        }
+
+        if ($request->filled('date_to')) {
+            $query->whereDate('end_date', '<=', $request->date_to);
+        }
+
+        $campaigns = $query->latest()->paginate(15)->appends($request->query());
         return view('admin.fundraising.campaigns', compact('campaigns'));
     }
 

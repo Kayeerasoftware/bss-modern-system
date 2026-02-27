@@ -30,11 +30,7 @@
             <div class="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-1.5 lg:gap-4">
                 <div class="flex items-center gap-2 lg:gap-4">
                     <h1 class="text-white text-xl sm:text-2xl lg:text-5xl font-bold">Welcome, <span class="text-gray-900">{{ Auth::user()->name }}</span>!</h1>
-                    @if(Auth::user()->profile_picture)
-                        <img src="{{ asset('storage/' . Auth::user()->profile_picture) }}" alt="User" class="w-10 h-10 lg:w-16 lg:h-16 rounded-xl border-2 border-white object-cover" style="box-shadow: 0 4px 12px rgba(0,0,0,0.2);">
-                    @else
-                        <img src="https://ui-avatars.com/api/?name={{ urlencode(Auth::user()->name) }}&background=3b82f6&color=fff&size=64" alt="User" class="w-10 h-10 lg:w-16 lg:h-16 rounded-xl border-2 border-white" style="box-shadow: 0 4px 12px rgba(0,0,0,0.2);">
-                    @endif
+                    <img src="{{ Auth::user()->profile_picture_url }}" alt="User" class="w-10 h-10 lg:w-16 lg:h-16 rounded-xl border-2 border-white object-cover" style="box-shadow: 0 4px 12px rgba(0,0,0,0.2);">
                 </div>
                 <div class="w-full lg:w-auto">
                     @if(Auth::user()->role === 'client')
@@ -181,11 +177,7 @@
                     <span class="block lg:hidden text-sm text-gray-300 mt-1">Current: <span class="text-green-400 font-semibold">{{ ucfirst(Auth::user()->role) }} <i class="fas fa-check"></i></span></span>
                 </h3>
                 <span class="text-green-400 font-semibold flex items-center gap-2 text-sm">
-                    @if(Auth::user()->profile_picture)
-                        <img src="{{ asset('storage/' . Auth::user()->profile_picture) }}" alt="User" class="w-8 h-8 rounded-full object-cover">
-                    @else
-                        <img src="https://ui-avatars.com/api/?name={{ urlencode(Auth::user()->name) }}&background=10b981&color=fff&size=32" alt="User" class="w-8 h-8 rounded-full">
-                    @endif
+                    <img src="{{ Auth::user()->profile_picture_url }}" alt="User" class="w-8 h-8 rounded-full object-cover">
                     <span class="hidden lg:inline">{{ Auth::user()->name }} (<span class="text-white">{{ ucfirst(Auth::user()->role) }}</span>)</span>
                 </span>
             </div>

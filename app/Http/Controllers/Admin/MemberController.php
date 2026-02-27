@@ -252,9 +252,9 @@ class MemberController extends Controller
         // Delete associated user
         if ($member->user) {
             $member->user->delete();
+        } else {
+            $member->delete();
         }
-
-        $member->delete();
 
         return redirect()->route('admin.members.index')->with('success', 'Member deleted successfully');
     }

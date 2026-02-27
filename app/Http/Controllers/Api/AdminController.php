@@ -401,7 +401,7 @@ class AdminController extends Controller
                 'email' => $user->email,
                 'role' => $user->role,
                 'status' => $user->is_active ? 'active' : 'inactive',
-                'profile_picture' => $user->profile_picture ? '/storage/' . $user->profile_picture : null,
+                'profile_picture' => $user->profile_picture_url,
                 'member_id' => $user->member ? $user->member->member_id : null,
                 'savings' => $user->member ? $user->member->savings : null,
                 'loan' => $user->member ? $user->member->loan : null
@@ -537,7 +537,7 @@ class AdminController extends Controller
                 'email' => $user->email,
                 'role' => $user->role,
                 'status' => $user->is_active ? 'active' : 'inactive',
-                'profile_picture' => $user->profile_picture ? '/storage/' . $user->profile_picture : null
+                'profile_picture' => $user->profile_picture_url
             ]
         ]);
     }
@@ -546,11 +546,7 @@ class AdminController extends Controller
     {
         $user = User::findOrFail($id);
         $userName = $user->name;
-        
-        if ($user->member) {
-            $user->member->delete();
-        }
-        
+
         $user->delete();
         
         DB::table('audit_logs')->insert([

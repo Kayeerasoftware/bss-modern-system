@@ -13,7 +13,7 @@ use Illuminate\Http\Request;
 
 class ReportController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         $summary = [
             'total_income' => Transaction::where('type', 'deposit')->sum('amount'),
@@ -22,7 +22,33 @@ class ReportController extends Controller
             'total_transactions' => Transaction::count(),
         ];
         
-        $reports = GeneratedReport::latest()->get();
+        $query = GeneratedReport::query();
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('type', 'like', "%{$search}%");
+            });
+        }
+
+        if ($request->filled('type')) {
+            $query->where('type', $request->type);
+        }
+
+        if ($request->filled('format')) {
+            $query->where('format', $request->format);
+        }
+
+        if ($request->filled('date_from')) {
+            $query->whereDate('created_at', '>=', $request->date_from);
+        }
+
+        if ($request->filled('date_to')) {
+            $query->whereDate('created_at', '<=', $request->date_to);
+        }
+
+        $reports = $query->latest()->paginate(15)->appends($request->query());
         
         return view('admin.reports.index', compact('summary', 'reports'));
     }

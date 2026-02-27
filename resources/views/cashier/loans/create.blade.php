@@ -56,7 +56,7 @@
                                             data-savings="{{ $member->savings }}" 
                                             data-loan="{{ $member->loan }}" 
                                             data-balance="{{ $member->balance }}"
-                                            data-photo="{{ $member->profile_picture ? asset('storage/' . $member->profile_picture) : '' }}"
+                                            data-photo="{{ $member->profile_picture ? $member->profile_picture_url : '' }}"
                                             {{ old('member_id') == $member->member_id ? 'selected' : '' }}>
                                         {{ $member->full_name }} ({{ $member->member_id }})
                                     </option>
@@ -317,3 +317,4 @@ function calculateLoan() {
 }
 </script>
 @endsection
+

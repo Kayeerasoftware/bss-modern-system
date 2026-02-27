@@ -13,6 +13,13 @@
         @method('PUT')
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Current Profile Picture</label>
+                <div class="w-28 h-28 rounded-xl overflow-hidden border border-gray-200 bg-gray-50">
+                    <img src="{{ auth()->user()->profile_picture_url }}" alt="Profile" class="w-full h-full object-cover">
+                </div>
+            </div>
+            <div></div>
+            <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
                 <input type="text" name="name" value="{{ auth()->user()->name }}" class="w-full px-4 py-2 border rounded-lg">
             </div>
@@ -108,9 +115,8 @@ function cropAndUpload() {
     }).toBlob(function(blob) {
         const formData = new FormData();
         formData.append('profile_picture', blob, currentFile.name);
-        formData.append('_method', 'PUT');
         
-        fetch('{{ route("td.profile.update") }}', {
+        fetch('{{ route("td.profile.picture") }}', {
             method: 'POST',
             headers: {
                 'X-CSRF-TOKEN': '{{ csrf_token() }}',

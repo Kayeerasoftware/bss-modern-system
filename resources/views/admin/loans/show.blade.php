@@ -28,8 +28,8 @@
         <div class="lg:col-span-1">
             <div class="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
                 <div class="bg-gradient-to-r from-green-600 via-teal-600 to-blue-600 p-6 text-center">
-                    @if($loan->member && $loan->member->profile_picture)
-                        <img src="{{ asset('storage/' . $loan->member->profile_picture) }}" class="w-24 h-24 rounded-full mx-auto object-cover ring-4 ring-white shadow-xl" alt="">
+                    @if($loan->member && $loan->member->profile_picture_url)
+                        <img src="{{ $loan->member->profile_picture_url }}" class="w-24 h-24 rounded-full mx-auto object-cover ring-4 ring-white shadow-xl" alt="">
                     @else
                         <div class="w-24 h-24 rounded-full bg-white mx-auto flex items-center justify-center ring-4 ring-white shadow-xl">
                             <span class="text-green-600 font-bold text-3xl">{{ substr($loan->member->full_name ?? 'N', 0, 1) }}</span>
@@ -256,3 +256,4 @@
     </div>
 </div>
 @endsection
+

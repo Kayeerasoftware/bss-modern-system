@@ -56,8 +56,8 @@
                         </td>
                         <td class="px-4 py-3">
                             <div class="flex items-center gap-2">
-                                @if($deposit->member && $deposit->member->profile_picture)
-                                    <img src="{{ asset('storage/' . $deposit->member->profile_picture) }}" class="w-10 h-10 rounded-full object-cover ring-2 ring-green-500 ring-offset-2" alt="">
+                                @if($deposit->member && $deposit->member->profile_picture_url)
+                                    <img src="{{ $deposit->member->profile_picture_url }}" class="w-10 h-10 rounded-full object-cover ring-2 ring-green-500 ring-offset-2" alt="">
                                 @else
                                     <div class="w-10 h-10 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center ring-2 ring-green-500 ring-offset-2">
                                         <span class="text-white font-bold text-sm">{{ substr($deposit->member->full_name ?? 'N', 0, 1) }}</span>
@@ -123,3 +123,4 @@
 }
 </style>
 @endsection
+

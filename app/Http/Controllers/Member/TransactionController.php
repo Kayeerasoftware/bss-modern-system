@@ -16,6 +16,15 @@ class TransactionController extends Controller
         $member = $user->member ?? Member::where('email', $user->email)->first();
         
         $query = Transaction::where('member_id', $member->member_id);
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('transaction_id', 'like', "%{$search}%")
+                    ->orWhere('description', 'like', "%{$search}%")
+                    ->orWhere('reference', 'like', "%{$search}%");
+            });
+        }
         
         if ($request->type) {
             $query->where('type', $request->type);
@@ -29,7 +38,7 @@ class TransactionController extends Controller
             $query->whereDate('created_at', '<=', $request->date_to);
         }
         
-        $transactions = $query->latest()->paginate(20);
+        $transactions = $query->latest()->paginate(20)->appends($request->query());
         
         return view('member.transactions.history', compact('transactions', 'member'));
     }

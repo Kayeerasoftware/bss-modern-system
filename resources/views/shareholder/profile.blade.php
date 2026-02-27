@@ -35,11 +35,7 @@
                         <div class="absolute -inset-1 bg-gradient-to-r from-purple-600 via-pink-600 to-purple-600 rounded-[2rem] blur opacity-75 group-hover:opacity-100 transition duration-1000 group-hover:duration-200 animate-tilt"></div>
                         <div class="relative w-48 h-48 rounded-[2rem] bg-gradient-to-br from-purple-500 via-pink-500 to-purple-500 p-2">
                             <div class="w-full h-full rounded-[1.75rem] overflow-hidden bg-white">
-                                @if(auth()->user()->profile_picture)
-                                    <img src="{{ asset('storage/' . auth()->user()->profile_picture) }}" alt="Profile" class="w-full h-full object-cover">
-                                @else
-                                    <img src="https://ui-avatars.com/api/?name={{ urlencode(auth()->user()->name) }}&size=512&background=random&bold=true" alt="Profile" class="w-full h-full object-cover">
-                                @endif
+                                <img src="{{ auth()->user()->profile_picture_url }}" alt="Profile" class="w-full h-full object-cover">
                             </div>
                         </div>
                         <button onclick="document.getElementById('profilePictureInput').click()" class="absolute -bottom-4 -right-4 w-16 h-16 bg-gradient-to-r from-pink-500 to-purple-500 text-white rounded-2xl shadow-2xl hover:shadow-pink-500/50 transform hover:scale-110 hover:rotate-12 transition-all duration-300">
@@ -296,9 +292,8 @@ function cropAndUpload() {
     }).toBlob(function(blob) {
         const formData = new FormData();
         formData.append('profile_picture', blob, currentFile.name);
-        formData.append('_method', 'PUT');
         
-        fetch('{{ route("shareholder.profile.update") }}', {
+        fetch('{{ route("shareholder.profile.picture") }}', {
             method: 'POST',
             headers: {
                 'X-CSRF-TOKEN': '{{ csrf_token() }}',

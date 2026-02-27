@@ -121,8 +121,8 @@
                         <td class="px-6 py-4 whitespace-nowrap border-r border-gray-200">
                             <div class="flex items-center gap-3">
                                 @if($withdrawal->member)
-                                @if($withdrawal->member->profile_picture)
-                                    <img src="{{ asset('storage/' . $withdrawal->member->profile_picture) }}" class="w-10 h-10 rounded-full object-cover ring-2 ring-red-500 ring-offset-2">
+                                @if($withdrawal->member->profile_picture_url)
+                                    <img src="{{ $withdrawal->member->profile_picture_url }}" class="w-10 h-10 rounded-full object-cover ring-2 ring-red-500 ring-offset-2">
                                 @else
                                     <div class="w-10 h-10 rounded-full bg-gradient-to-br from-red-500 to-pink-600 flex items-center justify-center ring-2 ring-red-500 ring-offset-2">
                                         <span class="text-white font-bold">{{ substr($withdrawal->member->full_name, 0, 1) }}</span>
@@ -181,3 +181,4 @@ tr::after {
 tr:hover::after { opacity: 0.6; }
 </style>
 @endsection
+

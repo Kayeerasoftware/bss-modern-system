@@ -11,15 +11,36 @@ use Illuminate\Support\Facades\DB;
 
 class WithdrawalController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         $user = Auth::user();
         $member = $user->member ?? Member::where('email', $user->email)->first();
         
-        $withdrawals = Transaction::where('member_id', $member->member_id)
-            ->where('type', 'withdrawal')
-            ->latest()
-            ->paginate(15);
+        $query = Transaction::where('member_id', $member->member_id)
+            ->where('type', 'withdrawal');
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('transaction_id', 'like', "%{$search}%")
+                    ->orWhere('description', 'like', "%{$search}%")
+                    ->orWhere('reference', 'like', "%{$search}%");
+            });
+        }
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        if ($request->filled('date_from')) {
+            $query->whereDate('created_at', '>=', $request->date_from);
+        }
+
+        if ($request->filled('date_to')) {
+            $query->whereDate('created_at', '<=', $request->date_to);
+        }
+
+        $withdrawals = $query->latest()->paginate(15)->appends($request->query());
         
         return view('member.withdrawals.index', compact('withdrawals', 'member'));
     }

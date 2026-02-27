@@ -23,7 +23,7 @@
                 <div class="flex justify-center mb-4">
                     <div class="relative group picture-container" data-member-id="{{ $member->id }}">
                         <div class="w-32 h-32 rounded-full bg-white flex items-center justify-center overflow-hidden border-4 border-white shadow-2xl">
-                            @if($member->profile_picture)
+                            @if($member->profile_picture_url)
                                 <img id="preview" src="{{ $member->profile_picture_url }}" alt="{{ $member->full_name }}" class="w-full h-full object-cover">
                             @else
                                 <img id="preview" src="" alt="" class="w-full h-full object-cover hidden">
@@ -37,7 +37,7 @@
                         </label>
                         
                         <!-- Delete Button (only show if picture exists) -->
-                        @if($member->profile_picture)
+                        @if($member->profile_picture_url)
                             <button type="button" id="delete-btn" class="absolute top-0 right-0 bg-red-500 text-white p-2 rounded-full hover:bg-red-600 transition-all shadow-lg transform group-hover:scale-110">
                                 <i class="fas fa-trash text-xs"></i>
                             </button>
@@ -63,7 +63,7 @@
                 @enderror
                 
                 <!-- Picture Info -->
-                @if($member->profile_picture)
+                @if($member->profile_picture_url)
                     <div class="mt-3 text-white/70 text-xs">
                         <div class="flex justify-center gap-4">
                             <span><i class="fas fa-image mr-1"></i>{{ pathinfo($member->profile_picture, PATHINFO_EXTENSION) }}</span>
@@ -351,3 +351,4 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 @endsection
+

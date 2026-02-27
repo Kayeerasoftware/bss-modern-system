@@ -123,8 +123,8 @@
                         </td>
                         <td class="px-6 py-4 border-r border-gray-200">
                             <div class="flex items-center gap-3">
-                                @if($transaction->member && $transaction->member->profile_picture)
-                                    <img src="{{ asset('storage/' . $transaction->member->profile_picture) }}" class="w-10 h-10 rounded-full object-cover ring-2 ring-purple-500 ring-offset-2" alt="">
+                                @if($transaction->member && $transaction->member->profile_picture_url)
+                                    <img src="{{ $transaction->member->profile_picture_url }}" class="w-10 h-10 rounded-full object-cover ring-2 ring-purple-500 ring-offset-2" alt="">
                                 @else
                                     <div class="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center ring-2 ring-purple-500 ring-offset-2">
                                         <span class="text-white font-bold text-sm">{{ substr($transaction->member->full_name ?? 'N', 0, 1) }}</span>
@@ -274,3 +274,4 @@ tr::after {
 tr:hover::after { opacity: 0.6; }
 </style>
 @endsection
+

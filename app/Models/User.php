@@ -57,6 +57,25 @@ class User extends Authenticatable
         ];
     }
 
+    protected static function booted(): void
+    {
+        static::deleting(function (User $user): void {
+            $member = Member::withTrashed()
+                ->where('user_id', $user->id)
+                ->first();
+
+            if (!$member) {
+                return;
+            }
+
+            DB::table('loans')->where('member_id', $member->member_id)->delete();
+            DB::table('transactions')->where('member_id', $member->member_id)->delete();
+            DB::table('savings_history')->where('member_id', $member->member_id)->delete();
+
+            $member->forceDelete();
+        });
+    }
+
     public function isAdmin(): bool
     {
         return $this->role === 'admin';
@@ -159,21 +178,67 @@ class User extends Authenticatable
     public function getProfilePictureUrlAttribute()
     {
         // Check user's profile picture first
-        if ($this->profile_picture) {
-            // Handle both storage/ and uploads/ paths
-            if (str_starts_with($this->profile_picture, 'storage/') || str_starts_with($this->profile_picture, 'uploads/')) {
-                return asset($this->profile_picture);
-            }
-            return asset('storage/' . $this->profile_picture);
+        $userPictureUrl = $this->resolveProfilePictureUrl($this->profile_picture);
+        if ($userPictureUrl) {
+            return $userPictureUrl;
         }
-        // Fall back to member's profile picture if user is linked to a member
-        if ($this->member && $this->member->profile_picture) {
-            if (str_starts_with($this->member->profile_picture, 'storage/') || str_starts_with($this->member->profile_picture, 'uploads/')) {
-                return asset($this->member->profile_picture);
+
+        // Fall back to member's profile picture only when relation is already eager loaded.
+        if ($this->relationLoaded('member') && $this->member) {
+            $memberPictureUrl = $this->resolveProfilePictureUrl($this->member->profile_picture);
+            if ($memberPictureUrl) {
+                return $memberPictureUrl;
             }
-            return asset('storage/' . $this->member->profile_picture);
         }
+
         return asset('images/default-avatar.svg');
+    }
+
+    protected function resolveProfilePictureUrl(?string $path): ?string
+    {
+        if (!$path) {
+            return null;
+        }
+
+        $normalizedPath = ltrim($path, '/');
+
+        if (str_starts_with($normalizedPath, 'public/')) {
+            $normalizedPath = substr($normalizedPath, 7);
+        }
+
+        if (str_starts_with($normalizedPath, 'storage/') || str_starts_with($normalizedPath, 'uploads/')) {
+            if (is_file(public_path($normalizedPath))) {
+                return asset($normalizedPath);
+            }
+
+            if (str_starts_with($normalizedPath, 'uploads/')) {
+                $storagePath = 'storage/' . substr($normalizedPath, 8);
+                if (is_file(public_path($storagePath))) {
+                    return asset($storagePath);
+                }
+            }
+
+            if (str_starts_with($normalizedPath, 'storage/')) {
+                $uploadsPath = 'uploads/' . substr($normalizedPath, 8);
+                if (is_file(public_path($uploadsPath))) {
+                    return asset($uploadsPath);
+                }
+            }
+
+            return asset($normalizedPath);
+        }
+
+        $uploadsPath = 'uploads/' . $normalizedPath;
+        if (is_file(public_path($uploadsPath))) {
+            return asset($uploadsPath);
+        }
+
+        $storagePath = 'storage/' . $normalizedPath;
+        if (is_file(public_path($storagePath))) {
+            return asset($storagePath);
+        }
+
+        return asset('uploads/' . $normalizedPath);
     }
 
     public function syncProfilePictureToMember($picturePath)

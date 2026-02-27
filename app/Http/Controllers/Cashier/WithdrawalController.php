@@ -9,9 +9,31 @@ use Illuminate\Http\Request;
 
 class WithdrawalController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $withdrawals = Transaction::where('type', 'withdrawal')->with('member')->latest()->paginate(20);
+        $query = Transaction::where('type', 'withdrawal')->with('member');
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('transaction_id', 'like', "%{$search}%")
+                    ->orWhere('member_id', 'like', "%{$search}%")
+                    ->orWhere('reference', 'like', "%{$search}%")
+                    ->orWhereHas('member', function ($memberQuery) use ($search) {
+                        $memberQuery->where('full_name', 'like', "%{$search}%");
+                    });
+            });
+        }
+
+        if ($request->filled('date_from')) {
+            $query->whereDate('created_at', '>=', $request->date_from);
+        }
+
+        if ($request->filled('date_to')) {
+            $query->whereDate('created_at', '<=', $request->date_to);
+        }
+
+        $withdrawals = $query->latest()->paginate(20)->appends($request->query());
         return view('cashier.withdrawals.index', compact('withdrawals'));
     }
 

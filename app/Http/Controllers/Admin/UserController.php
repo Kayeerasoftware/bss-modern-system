@@ -180,12 +180,6 @@ class UserController extends Controller
     public function destroy($id)
     {
         $user = User::findOrFail($id);
-        
-        // Delete associated member
-        if ($user->member) {
-            $user->member->delete();
-        }
-        
         $user->delete();
 
         return redirect()->route('admin.users.index')->with('success', 'User deleted successfully');

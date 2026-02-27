@@ -35,11 +35,7 @@
                         <div class="absolute -inset-1 bg-gradient-to-r from-pink-600 via-purple-600 to-blue-600 rounded-[2rem] blur opacity-75 group-hover:opacity-100 transition duration-1000 group-hover:duration-200 animate-tilt"></div>
                         <div class="relative w-48 h-48 rounded-[2rem] bg-gradient-to-br from-violet-500 via-purple-500 to-indigo-500 p-2">
                             <div class="w-full h-full rounded-[1.75rem] overflow-hidden bg-white">
-                                @if($user->profile_picture)
-                                    <img src="{{ asset('storage/' . $user->profile_picture) }}" alt="Profile" class="w-full h-full object-cover">
-                                @else
-                                    <img src="https://ui-avatars.com/api/?name={{ urlencode($user->name) }}&size=512&background=random&bold=true" alt="Profile" class="w-full h-full object-cover">
-                                @endif
+                                <img src="{{ $user->profile_picture_url }}" alt="Profile" class="w-full h-full object-cover">
                             </div>
                         </div>
                         <button onclick="document.getElementById('profilePictureInput').click()" class="absolute -bottom-4 -right-4 w-16 h-16 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-2xl shadow-2xl hover:shadow-pink-500/50 transform hover:scale-110 hover:rotate-12 transition-all duration-300">

@@ -155,8 +155,8 @@
                         </td>
                         <td class="px-4 py-3">
                             <div class="flex items-center gap-2">
-                                @if($transaction->member && $transaction->member->profile_picture)
-                                    <img src="{{ asset('storage/' . $transaction->member->profile_picture) }}" class="w-10 h-10 rounded-full object-cover ring-2 ring-cyan-500 ring-offset-2" alt="">
+                                @if($transaction->member && $transaction->member->profile_picture_url)
+                                    <img src="{{ $transaction->member->profile_picture_url }}" class="w-10 h-10 rounded-full object-cover ring-2 ring-cyan-500 ring-offset-2" alt="">
                                 @else
                                     <div class="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center ring-2 ring-cyan-500 ring-offset-2">
                                         <span class="text-white font-bold text-sm">{{ substr($transaction->member->full_name ?? 'N', 0, 1) }}</span>
@@ -328,3 +328,4 @@
 }
 </style>
 @endsection
+

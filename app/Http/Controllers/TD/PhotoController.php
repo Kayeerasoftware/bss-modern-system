@@ -9,9 +9,27 @@ use Illuminate\Support\Facades\Storage;
 
 class PhotoController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $photos = DashboardPhoto::orderBy('order')->orderBy('created_at', 'desc')->get();
+        $query = DashboardPhoto::query();
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('title', 'like', "%{$search}%")
+                    ->orWhere('description', 'like', "%{$search}%");
+            });
+        }
+
+        if ($request->filled('type')) {
+            $query->where('type', $request->type);
+        }
+
+        if ($request->filled('status')) {
+            $query->where('is_active', $request->status === 'active');
+        }
+
+        $photos = $query->orderBy('order')->orderBy('created_at', 'desc')->get();
         $projectPhotos = $photos->where('type', 'project');
         $meetingPhotos = $photos->where('type', 'meeting');
         

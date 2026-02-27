@@ -57,8 +57,8 @@
                 <td class="px-6 py-4 whitespace-nowrap font-medium">{{ $loan->loan_id }}</td>
                 <td class="px-6 py-4 whitespace-nowrap">
                     <div class="flex items-center">
-                        @if($loan->member && $loan->member->profile_picture)
-                            <img src="{{ asset('storage/' . $loan->member->profile_picture) }}" class="w-8 h-8 rounded-full mr-2" alt="">
+                        @if($loan->member && $loan->member->profile_picture_url)
+                            <img src="{{ $loan->member->profile_picture_url }}" class="w-8 h-8 rounded-full mr-2" alt="">
                         @else
                             <div class="w-8 h-8 rounded-full bg-gray-300 mr-2 flex items-center justify-center">
                                 <span class="text-xs">{{ $loan->member ? substr($loan->member->full_name, 0, 1) : 'N' }}</span>
@@ -111,3 +111,4 @@
     {{ $loans->links() }}
 </div>
 @endsection
+

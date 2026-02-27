@@ -23,8 +23,8 @@
         <div class="lg:col-span-1">
             <div class="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
                 <div class="bg-gradient-to-r from-purple-600 via-pink-600 to-indigo-600 p-6 text-center">
-                    @if($transaction->member && $transaction->member->profile_picture)
-                        <img src="{{ asset('storage/' . $transaction->member->profile_picture) }}" class="w-24 h-24 rounded-full mx-auto object-cover ring-4 ring-white shadow-xl" alt="">
+                    @if($transaction->member && $transaction->member->profile_picture_url)
+                        <img src="{{ $transaction->member->profile_picture_url }}" class="w-24 h-24 rounded-full mx-auto object-cover ring-4 ring-white shadow-xl" alt="">
                     @else
                         <div class="w-24 h-24 rounded-full bg-white mx-auto flex items-center justify-center ring-4 ring-white shadow-xl">
                             <span class="text-purple-600 font-bold text-3xl">{{ substr($transaction->member->name ?? 'N', 0, 1) }}</span>
@@ -254,4 +254,5 @@
 }
 </style>
 @endsection
+
 

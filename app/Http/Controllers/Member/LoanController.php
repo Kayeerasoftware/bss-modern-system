@@ -19,14 +19,35 @@ class LoanController extends Controller
         return view('member.loans.apply', compact('member'));
     }
 
-    public function myLoans()
+    public function myLoans(Request $request)
     {
         $user = Auth::user();
         $member = $user->member ?? Member::where('email', $user->email)->first();
         
-        $loans = Loan::where('member_id', $member->member_id)
-            ->latest()
-            ->paginate(10);
+        $query = Loan::where('member_id', $member->member_id);
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('loan_id', 'like', "%{$search}%")
+                    ->orWhere('purpose', 'like', "%{$search}%")
+                    ->orWhere('amount', 'like', "%{$search}%");
+            });
+        }
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        if ($request->filled('date_from')) {
+            $query->whereDate('created_at', '>=', $request->date_from);
+        }
+
+        if ($request->filled('date_to')) {
+            $query->whereDate('created_at', '<=', $request->date_to);
+        }
+
+        $loans = $query->latest()->paginate(10)->appends($request->query());
         
         return view('member.loans.my-loans', compact('loans', 'member'));
     }

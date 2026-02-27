@@ -23,8 +23,8 @@
                 <div class="flex flex-col md:flex-row items-center gap-6">
                     <div class="relative">
                         <div class="w-32 h-32 rounded-full bg-white flex items-center justify-center overflow-hidden border-4 border-white shadow-2xl">
-                            @if($user->profile_picture)
-                                <img src="{{ asset('storage/' . $user->profile_picture) }}" alt="{{ $user->name }}" class="w-full h-full object-cover">
+                            @if($user->profile_picture_url)
+                                <img src="{{ $user->profile_picture_url }}" alt="{{ $user->name }}" class="w-full h-full object-cover">
                             @else
                                 <img src="https://ui-avatars.com/api/?name={{ urlencode($user->name) }}&size=128&background=random&bold=true" alt="{{ $user->name }}" class="w-full h-full object-cover">
                             @endif
@@ -170,3 +170,4 @@
     </div>
 </div>
 @endsection
+

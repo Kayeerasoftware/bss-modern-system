@@ -21,8 +21,8 @@
                 <div class="flex justify-center mb-4">
                     <div class="relative group">
                         <div class="w-24 h-24 rounded-full bg-white flex items-center justify-center shadow-2xl overflow-hidden">
-                            @if($user->profile_picture)
-                                <img id="preview" src="{{ asset('storage/' . $user->profile_picture) }}" alt="{{ $user->name }}" class="w-full h-full object-cover">
+                            @if($user->profile_picture_url)
+                                <img id="preview" src="{{ $user->profile_picture_url }}" alt="{{ $user->name }}" class="w-full h-full object-cover">
                             @else
                                 <img id="preview" src="https://ui-avatars.com/api/?name={{ urlencode($user->name) }}&size=96&background=random&bold=true" alt="{{ $user->name }}" class="w-full h-full object-cover">
                             @endif
@@ -185,3 +185,4 @@ function previewImage(event) {
 }
 </script>
 @endsection
+

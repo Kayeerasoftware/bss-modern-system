@@ -217,9 +217,19 @@ window.adminPanel = function() {
             this.filteredProjects = this.projects;
             this.filteredUsers = this.users;
             const savedPicture = localStorage.getItem('adminProfilePicture');
-            if (savedPicture) this.profilePicture = savedPicture;
+            if (!this.profilePicture && savedPicture) {
+                this.profilePicture = savedPicture;
+            }
+
             const savedProfile = localStorage.getItem('adminProfile');
-            if (savedProfile) this.adminProfile = JSON.parse(savedProfile);
+            if (
+                savedProfile &&
+                this.adminProfile &&
+                this.adminProfile.name === 'Admin' &&
+                this.adminProfile.email === 'admin@bss.com'
+            ) {
+                this.adminProfile = JSON.parse(savedProfile);
+            }
             setInterval(() => {
                 this.loadDashboard();
                 this.loadMembers();
@@ -2870,6 +2880,5 @@ async function submitPictureUpload() {
         alert('Error: ' + error.message);
     }
 }
-
 
 

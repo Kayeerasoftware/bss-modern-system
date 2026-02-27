@@ -10,8 +10,8 @@
             <div class="flex items-center gap-3 md:gap-4">
                 <div class="relative">
                     <div class="absolute inset-0 bg-gradient-to-r from-green-600 to-blue-600 rounded-xl md:rounded-2xl blur-xl opacity-50"></div>
-                    <div class="relative bg-gradient-to-br from-green-600 to-blue-600 p-3 md:p-4 rounded-xl md:rounded-2xl shadow-xl">
-                        <i class="fas fa-user-circle text-white text-2xl md:text-3xl"></i>
+                    <div class="relative w-14 h-14 md:w-16 md:h-16 rounded-xl md:rounded-2xl overflow-hidden shadow-xl bg-white">
+                        <img src="{{ auth()->user()->profile_picture_url }}" alt="{{ $member->full_name ?? auth()->user()->name }}" class="w-full h-full object-cover">
                     </div>
                 </div>
                 <div>

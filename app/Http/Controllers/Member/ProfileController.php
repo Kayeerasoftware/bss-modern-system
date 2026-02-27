@@ -7,6 +7,7 @@ use App\Models\BioData;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 
 class ProfileController extends Controller
 {
@@ -26,11 +27,29 @@ class ProfileController extends Controller
         $user = Auth::user();
         $user->update($request->only(['name', 'email', 'phone']));
 
+        if ($user->member && $request->filled('phone')) {
+            $user->member->update(['contact' => $request->phone]);
+        }
+
+        if ($request->expectsJson()) {
+            return response()->json(['success' => true, 'message' => 'Profile updated successfully']);
+        }
+
         return redirect()->back()->with('success', 'Profile updated successfully');
     }
 
     public function updatePassword(Request $request)
     {
+        $newPassword = $request->input('new_password', $request->input('password'));
+        $newPasswordConfirmation = $request->input('new_password_confirmation', $request->input('password_confirmation'));
+
+        if ($newPassword && !$request->has('password')) {
+            $request->merge([
+                'password' => $newPassword,
+                'password_confirmation' => $newPasswordConfirmation,
+            ]);
+        }
+
         $request->validate([
             'current_password' => 'required',
             'password' => 'required|min:8|confirmed'
@@ -39,12 +58,62 @@ class ProfileController extends Controller
         $user = Auth::user();
 
         if (!Hash::check($request->current_password, $user->password)) {
+            if ($request->expectsJson()) {
+                return response()->json(['success' => false, 'message' => 'Current password is incorrect'], 422);
+            }
+
             return redirect()->back()->withErrors(['current_password' => 'Current password is incorrect']);
         }
 
         $user->update(['password' => Hash::make($request->password)]);
 
+        if ($request->expectsJson()) {
+            return response()->json(['success' => true, 'message' => 'Password updated successfully']);
+        }
+
         return redirect()->back()->with('success', 'Password updated successfully');
+    }
+
+    public function uploadProfilePicture(Request $request)
+    {
+        try {
+            $request->validate([
+                'profile_picture' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048'
+            ]);
+
+            $user = Auth::user();
+
+            if (!$request->hasFile('profile_picture')) {
+                return response()->json(['success' => false, 'message' => 'No file uploaded'], 400);
+            }
+
+            $file = $request->file('profile_picture');
+            if (!$file->isValid()) {
+                return response()->json(['success' => false, 'message' => 'Invalid file'], 400);
+            }
+
+            if ($user->profile_picture && Storage::disk('public')->exists($user->profile_picture)) {
+                Storage::disk('public')->delete($user->profile_picture);
+            }
+
+            $path = $file->store('profile_pictures', 'public');
+            if (!$path) {
+                return response()->json(['success' => false, 'message' => 'Failed to store file'], 500);
+            }
+
+            $user->update(['profile_picture' => $path]);
+            if ($user->member) {
+                $user->member->update(['profile_picture' => $path]);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Profile picture updated successfully',
+                'profile_picture_url' => $user->fresh()->profile_picture_url
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
     }
 
     public function createBioData()

@@ -83,21 +83,67 @@ class Member extends Authenticatable
     public function getProfilePictureUrlAttribute()
     {
         // Check member's profile picture first
-        if ($this->profile_picture) {
-            // Handle both storage/ and uploads/ paths
-            if (str_starts_with($this->profile_picture, 'storage/') || str_starts_with($this->profile_picture, 'uploads/')) {
-                return asset($this->profile_picture);
-            }
-            return asset('storage/' . $this->profile_picture);
+        $memberPictureUrl = $this->resolveProfilePictureUrl($this->profile_picture);
+        if ($memberPictureUrl) {
+            return $memberPictureUrl;
         }
-        // Fall back to user's profile picture if member is linked to a user
-        if ($this->user && $this->user->profile_picture) {
-            if (str_starts_with($this->user->profile_picture, 'storage/') || str_starts_with($this->user->profile_picture, 'uploads/')) {
-                return asset($this->user->profile_picture);
+
+        // Fall back to user's profile picture only when relation is already eager loaded.
+        if ($this->relationLoaded('user') && $this->user) {
+            $userPictureUrl = $this->resolveProfilePictureUrl($this->user->profile_picture);
+            if ($userPictureUrl) {
+                return $userPictureUrl;
             }
-            return asset('storage/' . $this->user->profile_picture);
         }
+
         return asset('images/default-avatar.svg');
+    }
+
+    protected function resolveProfilePictureUrl(?string $path): ?string
+    {
+        if (!$path) {
+            return null;
+        }
+
+        $normalizedPath = ltrim($path, '/');
+
+        if (str_starts_with($normalizedPath, 'public/')) {
+            $normalizedPath = substr($normalizedPath, 7);
+        }
+
+        if (str_starts_with($normalizedPath, 'storage/') || str_starts_with($normalizedPath, 'uploads/')) {
+            if (is_file(public_path($normalizedPath))) {
+                return asset($normalizedPath);
+            }
+
+            if (str_starts_with($normalizedPath, 'uploads/')) {
+                $storagePath = 'storage/' . substr($normalizedPath, 8);
+                if (is_file(public_path($storagePath))) {
+                    return asset($storagePath);
+                }
+            }
+
+            if (str_starts_with($normalizedPath, 'storage/')) {
+                $uploadsPath = 'uploads/' . substr($normalizedPath, 8);
+                if (is_file(public_path($uploadsPath))) {
+                    return asset($uploadsPath);
+                }
+            }
+
+            return asset($normalizedPath);
+        }
+
+        $uploadsPath = 'uploads/' . $normalizedPath;
+        if (is_file(public_path($uploadsPath))) {
+            return asset($uploadsPath);
+        }
+
+        $storagePath = 'storage/' . $normalizedPath;
+        if (is_file(public_path($storagePath))) {
+            return asset($storagePath);
+        }
+
+        return asset('uploads/' . $normalizedPath);
     }
 
     public function sentMessages()

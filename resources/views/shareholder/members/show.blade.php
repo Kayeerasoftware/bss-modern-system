@@ -28,8 +28,8 @@
                     <div class="flex flex-col md:flex-row md:items-end gap-6">
                         <!-- Profile Picture -->
                         <div class="-mt-20">
-                            @if($member->profile_picture)
-                                <img src="{{ asset('storage/' . $member->profile_picture) }}" alt="{{ $member->full_name }}" class="w-40 h-40 rounded-3xl object-cover border-8 border-white shadow-2xl">
+                            @if($member->profile_picture_url)
+                                <img src="{{ $member->profile_picture_url }}" alt="{{ $member->full_name }}" class="w-40 h-40 rounded-3xl object-cover border-8 border-white shadow-2xl">
                             @else
                                 <div class="w-40 h-40 rounded-3xl bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center border-8 border-white shadow-2xl">
                                     <span class="text-6xl font-bold text-white">{{ substr($member->full_name, 0, 1) }}</span>
@@ -191,3 +191,4 @@
     </div>
 </div>
 @endsection
+

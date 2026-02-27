@@ -124,8 +124,8 @@
                         <td class="px-6 py-4 whitespace-nowrap border-r border-gray-200">
                             <div class="flex items-center gap-4">
                                 <div class="relative">
-                                    @if($member->profile_picture)
-                                        <img src="{{ asset('storage/' . $member->profile_picture) }}" class="w-12 h-12 rounded-full object-cover ring-2 ring-blue-500 ring-offset-2">
+                                    @if($member->profile_picture_url)
+                                        <img src="{{ $member->profile_picture_url }}" class="w-12 h-12 rounded-full object-cover ring-2 ring-blue-500 ring-offset-2">
                                     @else
                                         <div class="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-cyan-600 flex items-center justify-center ring-2 ring-blue-500 ring-offset-2">
                                             <span class="text-white font-bold text-lg">{{ substr($member->full_name, 0, 1) }}</span>
@@ -196,3 +196,4 @@ tr::after {
 tr:hover::after { opacity: 0.6; }
 </style>
 @endsection
+

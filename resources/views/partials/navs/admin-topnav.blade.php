@@ -86,7 +86,7 @@
                 <span class="bg-gradient-to-br from-blue-600 to-purple-600 bg-clip-text text-transparent text-xs font-bold tracking-tight hidden lg:inline" x-text="'Welcome back, ' + adminProfile.name">Welcome back, Admin</span>
                 <i class="fas fa-chevron-down dropdown-arrow transition-all duration-300 text-blue-600 text-xs drop-shadow-md hidden lg:inline" :class="showProfileDropdown ? 'rotate-180' : ''"></i>
                 <div class="profile-avatar relative">
-                    <img :src="profilePicture || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=40&h=40&fit=crop&crop=face'" alt="Profile" class="w-6 h-6 rounded-full object-cover border-2 border-green-500 shadow-md transition-all duration-300">
+                    <img :src="profilePicture || '{{ asset('images/default-avatar.svg') }}'" alt="Profile" class="w-6 h-6 rounded-full object-cover border-2 border-green-500 shadow-md transition-all duration-300">
                     <div class="status-indicator online absolute bottom-0 right-0 w-2 h-2 rounded-full border-2 border-white bg-gradient-to-br from-green-500 to-green-600 shadow-md animate-pulse"></div>
                 </div>
             </button>
@@ -104,7 +104,7 @@
         <div class="absolute inset-0 bg-black/5"></div>
         <div class="relative">
             <div class="w-16 h-16 rounded-full mx-auto mb-2 p-1 bg-white shadow-lg">
-                <img :src="profilePicture || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=64&h=64&fit=crop&crop=face'" alt="Profile" class="w-full h-full rounded-full object-cover">
+                <img :src="profilePicture || '{{ asset('images/default-avatar.svg') }}'" alt="Profile" class="w-full h-full rounded-full object-cover">
             </div>
             <p class="text-sm font-bold text-white truncate" x-text="adminProfile.name">Admin</p>
             <p class="text-xs text-blue-100" x-text="adminProfile.role">Administrator</p>

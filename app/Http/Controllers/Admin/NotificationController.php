@@ -8,9 +8,40 @@ use Illuminate\Http\Request;
 
 class NotificationController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $notifications = Notification::latest()->paginate(15);
+        $query = Notification::query();
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('title', 'like', "%{$search}%")
+                    ->orWhere('message', 'like', "%{$search}%")
+                    ->orWhere('created_by', 'like', "%{$search}%");
+            });
+        }
+
+        if ($request->filled('type')) {
+            $query->where('type', $request->type);
+        }
+
+        if ($request->filled('status')) {
+            if ($request->status === 'read') {
+                $query->where('is_read', true);
+            } elseif ($request->status === 'unread') {
+                $query->where('is_read', false);
+            }
+        }
+
+        if ($request->filled('date_from')) {
+            $query->whereDate('created_at', '>=', $request->date_from);
+        }
+
+        if ($request->filled('date_to')) {
+            $query->whereDate('created_at', '<=', $request->date_to);
+        }
+
+        $notifications = $query->latest()->paginate(15)->appends($request->query());
         return view('admin.notifications.index', compact('notifications'));
     }
 
@@ -60,9 +91,32 @@ class NotificationController extends Controller
         return redirect()->route('admin.notifications.index')->with('success', 'Notification deleted successfully');
     }
 
-    public function history()
+    public function history(Request $request)
     {
-        $notifications = Notification::latest()->paginate(15);
+        $query = Notification::query();
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('title', 'like', "%{$search}%")
+                    ->orWhere('message', 'like', "%{$search}%")
+                    ->orWhere('created_by', 'like', "%{$search}%");
+            });
+        }
+
+        if ($request->filled('type')) {
+            $query->where('type', $request->type);
+        }
+
+        if ($request->filled('date_from')) {
+            $query->whereDate('created_at', '>=', $request->date_from);
+        }
+
+        if ($request->filled('date_to')) {
+            $query->whereDate('created_at', '<=', $request->date_to);
+        }
+
+        $notifications = $query->latest()->paginate(15)->appends($request->query());
         return view('admin.notifications.history', compact('notifications'));
     }
 }

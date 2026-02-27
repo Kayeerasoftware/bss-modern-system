@@ -94,15 +94,36 @@ class LoansController extends Controller
         return view('shareholder.loans.show', compact('loan'));
     }
     
-    public function applications()
+    public function applications(Request $request)
     {
         $user = auth()->user();
         $member = $user->member;
         
-        $applications = LoanApplication::with('member')
-            ->where('member_id', $member->member_id)
-            ->latest()
-            ->paginate(20);
+        $query = LoanApplication::with('member')
+            ->where('member_id', $member->member_id);
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('application_id', 'like', "%{$search}%")
+                    ->orWhere('purpose', 'like', "%{$search}%")
+                    ->orWhere('amount', 'like', "%{$search}%");
+            });
+        }
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        if ($request->filled('date_from')) {
+            $query->whereDate('created_at', '>=', $request->date_from);
+        }
+
+        if ($request->filled('date_to')) {
+            $query->whereDate('created_at', '<=', $request->date_to);
+        }
+
+        $applications = $query->latest()->paginate(20)->appends($request->query());
             
         return view('shareholder.loans.applications', compact('applications'));
     }

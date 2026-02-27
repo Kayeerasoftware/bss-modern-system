@@ -8,9 +8,44 @@ use Illuminate\Http\Request;
 
 class TransactionController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $transactions = Transaction::with('member')->latest()->paginate(15);
+        $query = Transaction::with('member');
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('transaction_id', 'like', "%{$search}%")
+                    ->orWhere('member_id', 'like', "%{$search}%")
+                    ->orWhere('reference', 'like', "%{$search}%")
+                    ->orWhere('description', 'like', "%{$search}%")
+                    ->orWhereHas('member', function ($memberQuery) use ($search) {
+                        $memberQuery->where('full_name', 'like', "%{$search}%");
+                    });
+            });
+        }
+
+        if ($request->filled('type')) {
+            $query->where('type', $request->type);
+        }
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        if ($request->filled('payment_method')) {
+            $query->where('payment_method', $request->payment_method);
+        }
+
+        if ($request->filled('date_from')) {
+            $query->whereDate('created_at', '>=', $request->date_from);
+        }
+
+        if ($request->filled('date_to')) {
+            $query->whereDate('created_at', '<=', $request->date_to);
+        }
+
+        $transactions = $query->latest()->paginate(15)->appends($request->query());
         return view('admin.financial.transactions', compact('transactions'));
     }
 
@@ -160,21 +195,87 @@ class TransactionController extends Controller
         return redirect()->route('admin.financial.transactions')->with('success', 'Transaction deleted and balance restored successfully');
     }
 
-    public function deposits()
+    public function deposits(Request $request)
     {
-        $deposits = Transaction::where('type', 'deposit')->with('member')->latest()->paginate(15);
+        $query = Transaction::where('type', 'deposit')->with('member');
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('transaction_id', 'like', "%{$search}%")
+                    ->orWhere('member_id', 'like', "%{$search}%")
+                    ->orWhere('reference', 'like', "%{$search}%")
+                    ->orWhereHas('member', function ($memberQuery) use ($search) {
+                        $memberQuery->where('full_name', 'like', "%{$search}%");
+                    });
+            });
+        }
+
+        if ($request->filled('date_from')) {
+            $query->whereDate('created_at', '>=', $request->date_from);
+        }
+
+        if ($request->filled('date_to')) {
+            $query->whereDate('created_at', '<=', $request->date_to);
+        }
+
+        $deposits = $query->latest()->paginate(15)->appends($request->query());
         return view('admin.financial.deposits', compact('deposits'));
     }
 
-    public function withdrawals()
+    public function withdrawals(Request $request)
     {
-        $withdrawals = Transaction::where('type', 'withdrawal')->with('member')->latest()->paginate(15);
+        $query = Transaction::where('type', 'withdrawal')->with('member');
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('transaction_id', 'like', "%{$search}%")
+                    ->orWhere('member_id', 'like', "%{$search}%")
+                    ->orWhere('reference', 'like', "%{$search}%")
+                    ->orWhereHas('member', function ($memberQuery) use ($search) {
+                        $memberQuery->where('full_name', 'like', "%{$search}%");
+                    });
+            });
+        }
+
+        if ($request->filled('date_from')) {
+            $query->whereDate('created_at', '>=', $request->date_from);
+        }
+
+        if ($request->filled('date_to')) {
+            $query->whereDate('created_at', '<=', $request->date_to);
+        }
+
+        $withdrawals = $query->latest()->paginate(15)->appends($request->query());
         return view('admin.financial.withdrawals', compact('withdrawals'));
     }
 
-    public function transfers()
+    public function transfers(Request $request)
     {
-        $transactions = Transaction::where('type', 'transfer')->with('member')->latest()->paginate(15);
+        $query = Transaction::where('type', 'transfer')->with('member');
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('transaction_id', 'like', "%{$search}%")
+                    ->orWhere('member_id', 'like', "%{$search}%")
+                    ->orWhere('reference', 'like', "%{$search}%")
+                    ->orWhereHas('member', function ($memberQuery) use ($search) {
+                        $memberQuery->where('full_name', 'like', "%{$search}%");
+                    });
+            });
+        }
+
+        if ($request->filled('date_from')) {
+            $query->whereDate('created_at', '>=', $request->date_from);
+        }
+
+        if ($request->filled('date_to')) {
+            $query->whereDate('created_at', '<=', $request->date_to);
+        }
+
+        $transactions = $query->latest()->paginate(15)->appends($request->query());
         return view('admin.financial.transfers', compact('transactions'));
     }
 

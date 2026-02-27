@@ -44,6 +44,7 @@ Route::prefix('td')->name('td.')->middleware(['auth', 'role:td,admin'])->group(f
     // Profile
     Route::get('/profile', [ProfileController::class, 'index'])->name('profile');
     Route::put('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::post('/profile/picture', [ProfileController::class, 'uploadProfilePicture'])->name('profile.picture');
     
     // Photos
     Route::prefix('photos')->name('photos.')->group(function () {

@@ -15,9 +15,34 @@ class DocumentController extends Controller
         $user = Auth::user();
         $member = $user->member;
         
-        $documents = Document::where('member_id', $member->member_id ?? null)
-            ->latest()
-            ->get();
+        $query = Document::where('member_id', $member->member_id ?? null);
+
+        if (request()->filled('search')) {
+            $search = request('search');
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('category', 'like', "%{$search}%")
+                    ->orWhere('file_type', 'like', "%{$search}%");
+            });
+        }
+
+        if (request()->filled('category')) {
+            $query->where('category', request('category'));
+        }
+
+        if (request()->filled('status')) {
+            $query->where('status', request('status'));
+        }
+
+        if (request()->filled('date_from')) {
+            $query->whereDate('created_at', '>=', request('date_from'));
+        }
+
+        if (request()->filled('date_to')) {
+            $query->whereDate('created_at', '<=', request('date_to'));
+        }
+
+        $documents = $query->latest()->get();
         
         $stats = [
             'total' => $documents->count(),

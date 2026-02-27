@@ -26,8 +26,8 @@
             </td>
             <td class="px-6 py-4 border-r border-gray-200">
                 <div class="flex items-center gap-2">
-                    @if($app->member && $app->member->profile_picture)
-                        <img src="{{ asset('storage/' . $app->member->profile_picture) }}" class="w-10 h-10 rounded-full object-cover ring-2 ring-yellow-500 ring-offset-2" alt="">
+                    @if($app->member && $app->member->profile_picture_url)
+                        <img src="{{ $app->member->profile_picture_url }}" class="w-10 h-10 rounded-full object-cover ring-2 ring-yellow-500 ring-offset-2" alt="">
                     @else
                         <div class="w-10 h-10 rounded-full bg-gradient-to-br from-yellow-500 to-orange-600 flex items-center justify-center ring-2 ring-yellow-500 ring-offset-2">
                             <span class="text-white font-bold text-sm">{{ substr($app->member->full_name ?? 'N', 0, 1) }}</span>
@@ -122,3 +122,4 @@ tr:hover::after {
     opacity: 0.6;
 }
 </style>
+

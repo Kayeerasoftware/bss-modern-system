@@ -56,8 +56,8 @@
                         </td>
                         <td class="px-4 py-3">
                             <div class="flex items-center gap-2">
-                                @if($withdrawal->member && $withdrawal->member->profile_picture)
-                                    <img src="{{ asset('storage/' . $withdrawal->member->profile_picture) }}" class="w-10 h-10 rounded-full object-cover ring-2 ring-red-500 ring-offset-2" alt="">
+                                @if($withdrawal->member && $withdrawal->member->profile_picture_url)
+                                    <img src="{{ $withdrawal->member->profile_picture_url }}" class="w-10 h-10 rounded-full object-cover ring-2 ring-red-500 ring-offset-2" alt="">
                                 @else
                                     <div class="w-10 h-10 rounded-full bg-gradient-to-br from-red-500 to-pink-600 flex items-center justify-center ring-2 ring-red-500 ring-offset-2">
                                         <span class="text-white font-bold text-sm">{{ substr($withdrawal->member->full_name ?? 'N', 0, 1) }}</span>
@@ -131,3 +131,4 @@
 }
 </style>
 @endsection
+

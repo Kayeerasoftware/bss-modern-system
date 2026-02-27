@@ -54,6 +54,7 @@ Route::prefix('shareholder')->name('shareholder.')->middleware(['auth', 'role:sh
     Route::get('/profile', [ProfileController::class, 'index'])->name('profile');
     Route::put('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::post('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password');
+    Route::post('/profile/picture', [ProfileController::class, 'uploadProfilePicture'])->name('profile.picture');
     
     // Bio Data
     Route::get('/bio-data/create', [ProfileController::class, 'createBioData'])->name('bio-data.create');
