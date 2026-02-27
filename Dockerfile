@@ -36,10 +36,14 @@ WORKDIR /var/www/html
 
 # Install PHP dependencies first for better Docker layer caching.
 COPY composer.json composer.lock ./
-RUN composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction
+RUN composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction --no-scripts
 
 # Copy application source.
 COPY . .
+
+# Run Laravel/Composer scripts only after full source exists.
+RUN composer dump-autoload --optimize --no-interaction \
+    && php artisan package:discover --ansi
 
 # Runtime write permissions.
 RUN chown -R www-data:www-data storage bootstrap/cache \
@@ -49,4 +53,3 @@ RUN chown -R www-data:www-data storage bootstrap/cache \
 EXPOSE 80
 
 CMD ["apache2-foreground"]
-
