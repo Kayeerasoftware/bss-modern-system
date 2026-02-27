@@ -101,9 +101,6 @@ Route::post('/switch-role', function(\Illuminate\Http\Request $request) {
             $user->assignRole($role);
         }
 
-        $request->session()->put('active_role', $role);
-        $user->forceFill(['role' => $role])->save();
-
         \App\Services\AuditLogService::log($user, 'role_switch', 'User switched active role', [
             'from' => $previousRole,
             'to' => $role,

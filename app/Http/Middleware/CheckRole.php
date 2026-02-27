@@ -16,14 +16,25 @@ class CheckRole
         }
 
         $requiredRoles = array_map(fn ($role) => strtolower((string) $role), $roles);
-        $activeRole = strtolower((string) $request->session()->get('active_role', $user->role));
         $userRole = strtolower((string) $user->role);
 
-        // Prefer the active role in session when it's valid for the user.
-        if ($activeRole !== '' && in_array($activeRole, $requiredRoles, true) && $user->hasRole($activeRole)) {
-            if ($userRole !== $activeRole) {
-                $user->forceFill(['role' => $activeRole])->save();
+        if (empty($requiredRoles)) {
+            return $next($request);
+        }
+
+        $allowed = false;
+        $matchedRole = null;
+        foreach ($requiredRoles as $requiredRole) {
+            if ($userRole === $requiredRole || $user->hasRole($requiredRole)) {
+                $allowed = true;
+                $matchedRole = $requiredRole;
+                break;
             }
+        }
+
+        if ($allowed) {
+            // Request-scoped role context. Avoid mutating shared session or DB role.
+            $request->attributes->set('active_role', $matchedRole);
             return $next($request);
         }
 
@@ -31,7 +42,6 @@ class CheckRole
             \Log::warning('Access denied', [
                 'user' => $user->email,
                 'user_role' => $userRole,
-                'active_role' => $activeRole,
                 'required_roles' => $requiredRoles,
                 'url' => $request->url()
             ]);
