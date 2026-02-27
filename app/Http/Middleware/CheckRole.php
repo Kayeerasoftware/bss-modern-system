@@ -10,20 +10,39 @@ class CheckRole
 {
     public function handle(Request $request, Closure $next, string ...$roles): Response
     {
-        if (!$request->user()) {
+        $user = $request->user();
+        if (!$user) {
             return redirect()->route('login')->with('error', 'Please login to continue');
         }
 
-        $userRole = $request->user()->role;
-        
-        if (!in_array($userRole, $roles)) {
+        $requiredRoles = array_map(fn ($role) => strtolower((string) $role), $roles);
+        $activeRole = strtolower((string) $request->session()->get('active_role', $user->role));
+        $userRole = strtolower((string) $user->role);
+
+        // Prefer the active role in session when it's valid for the user.
+        if ($activeRole !== '' && in_array($activeRole, $requiredRoles, true) && $user->hasRole($activeRole)) {
+            if ($userRole !== $activeRole) {
+                $user->forceFill(['role' => $activeRole])->save();
+            }
+            return $next($request);
+        }
+
+        if (!in_array($userRole, $requiredRoles, true)) {
             \Log::warning('Access denied', [
-                'user' => $request->user()->email,
+                'user' => $user->email,
                 'user_role' => $userRole,
-                'required_roles' => $roles,
+                'active_role' => $activeRole,
+                'required_roles' => $requiredRoles,
                 'url' => $request->url()
             ]);
-            abort(403, "Unauthorized access. Your role ($userRole) does not have permission.");
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'message' => "Unauthorized access for role '{$userRole}'."
+                ], 403);
+            }
+
+            return redirect()->route('dashboard')->with('error', 'You do not have permission for that page using your current role.');
         }
 
         return $next($request);

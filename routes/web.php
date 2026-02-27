@@ -72,17 +72,33 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
 // Switch active role
 Route::post('/switch-role', function(\Illuminate\Http\Request $request) {
-    $role = $request->input('role');
+    $allowedRoles = ['client', 'shareholder', 'cashier', 'td', 'ceo', 'admin'];
+    $role = strtolower((string) $request->input('role'));
     $user = auth()->user();
-    
-    if ($user && $user->hasRole($role)) {
+
+    if (!$user || !in_array($role, $allowedRoles, true)) {
+        return response()->json(['success' => false, 'message' => 'Invalid role.'], 422);
+    }
+
+    // Respect role status settings (default active if setting missing).
+    $roleStatus = (int) \App\Models\Setting::get('role_status_' . $role, 1);
+    if ($roleStatus !== 1) {
+        return response()->json(['success' => false, 'message' => 'Selected role is currently inactive.'], 403);
+    }
+
+    // Backward compatibility: allow current users.role even if user_roles table is not populated.
+    if ($user->hasRole($role) || strtolower((string) $user->role) === $role) {
+        if (!$user->hasRole($role)) {
+            $user->assignRole($role);
+        }
+
         $request->session()->put('active_role', $role);
-        $user->role = $role;
-        $user->save();
+        $user->forceFill(['role' => $role])->save();
+
         return response()->json(['success' => true, 'role' => $role]);
     }
-    
-    return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
+
+    return response()->json(['success' => false, 'message' => 'You are not assigned to this role.'], 403);
 })->middleware('auth')->name('switch.role');
 
 // Unified Dashboard

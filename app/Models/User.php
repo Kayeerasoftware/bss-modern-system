@@ -133,9 +133,19 @@ class User extends Authenticatable
 
     public function hasRole($role)
     {
+        $normalizedRole = strtolower(trim((string) $role));
+        if ($normalizedRole === '') {
+            return false;
+        }
+
+        // Backward compatibility: many legacy records store only users.role.
+        if (strtolower((string) $this->role) === $normalizedRole) {
+            return true;
+        }
+
         return DB::table('user_roles')
             ->where('user_id', $this->id)
-            ->where('role', $role)
+            ->where('role', $normalizedRole)
             ->exists();
     }
 
@@ -169,10 +179,16 @@ class User extends Authenticatable
 
     public function getRolesListAttribute()
     {
-        return DB::table('user_roles')
+        $roles = DB::table('user_roles')
             ->where('user_id', $this->id)
             ->pluck('role')
             ->toArray();
+
+        if (!empty($this->role)) {
+            $roles[] = strtolower((string) $this->role);
+        }
+
+        return array_values(array_unique(array_map(fn ($role) => strtolower((string) $role), $roles)));
     }
 
     public function getProfilePictureUrlAttribute()

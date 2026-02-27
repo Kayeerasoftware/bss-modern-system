@@ -134,7 +134,7 @@ function goToRole() {
                 };
                 window.location.href = roleRoutes[selectedRole] || '/dashboard';
             } else {
-                showToast('Failed to switch role', 'error');
+                showToast(data.message || 'Failed to switch role', 'error');
             }
         })
         .catch(error => {

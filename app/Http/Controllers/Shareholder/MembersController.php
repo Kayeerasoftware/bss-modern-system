@@ -13,7 +13,8 @@ class MembersController extends Controller
     public function index()
     {
         if (Setting::get('shareholder_members_access', 1) == 0) {
-            abort(403, 'Access to members section has been restricted by administrator.');
+            return redirect()->route('shareholder.dashboard')
+                ->with('error', 'Access to members section has been restricted by administrator.');
         }
 
         $currentUser = auth()->user();
@@ -129,7 +130,8 @@ class MembersController extends Controller
     public function show($id)
     {
         if (Setting::get('shareholder_members_access', 1) == 0) {
-            abort(403, 'Access to members section has been restricted by administrator.');
+            return redirect()->route('shareholder.dashboard')
+                ->with('error', 'Access to members section has been restricted by administrator.');
         }
 
         $member = Member::with(['loans', 'transactions', 'shares'])->findOrFail($id);
