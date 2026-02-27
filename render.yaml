@@ -1,0 +1,56 @@
+services:
+  - type: web
+    name: bss-system-web
+    env: php
+    plan: starter
+    buildCommand: "bash scripts/render-build.sh"
+    preDeployCommand: "bash scripts/render-prepare-cert.sh && php artisan migrate --force"
+    startCommand: "bash scripts/render-start.sh"
+    healthCheckPath: /
+    autoDeploy: true
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: false
+      - key: LOG_CHANNEL
+        value: stack
+      - key: LOG_LEVEL
+        value: error
+      - key: DB_CONNECTION
+        value: mysql
+      - key: CACHE_STORE
+        value: file
+      - key: SESSION_DRIVER
+        value: file
+      - key: QUEUE_CONNECTION
+        value: database
+      - key: FILESYSTEM_DISK
+        value: public
+
+  - type: worker
+    name: bss-system-worker
+    env: php
+    plan: starter
+    buildCommand: "bash scripts/render-build.sh"
+    startCommand: "bash scripts/render-worker.sh"
+    autoDeploy: true
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: false
+      - key: LOG_CHANNEL
+        value: stack
+      - key: LOG_LEVEL
+        value: error
+      - key: DB_CONNECTION
+        value: mysql
+      - key: CACHE_STORE
+        value: file
+      - key: SESSION_DRIVER
+        value: file
+      - key: QUEUE_CONNECTION
+        value: database
+      - key: FILESYSTEM_DISK
+        value: public
