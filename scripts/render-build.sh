@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-bash scripts/render-prepare-cert.sh
+source scripts/render-prepare-cert.sh
 
 mkdir -p storage/framework/{cache,sessions,views} storage/logs bootstrap/cache public/uploads
 

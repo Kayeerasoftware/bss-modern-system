@@ -4,7 +4,7 @@ services:
     env: php
     plan: starter
     buildCommand: "bash scripts/render-build.sh"
-    preDeployCommand: "bash scripts/render-prepare-cert.sh && php artisan migrate --force"
+    preDeployCommand: "bash -lc 'source scripts/render-prepare-cert.sh && php artisan migrate --force'"
     startCommand: "bash scripts/render-start.sh"
     healthCheckPath: /
     autoDeploy: true

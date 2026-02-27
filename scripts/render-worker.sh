@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-bash scripts/render-prepare-cert.sh
+source scripts/render-prepare-cert.sh
 
 if [[ -z "${APP_KEY:-}" ]]; then
   echo "APP_KEY is missing. Set APP_KEY in Render environment variables."
