@@ -47,7 +47,11 @@ RUN composer dump-autoload --optimize --no-interaction \
 
 # Runtime write permissions.
 RUN chown -R www-data:www-data storage bootstrap/cache \
-    && chmod -R ug+rwx storage bootstrap/cache
+    && chmod -R ug+rwx storage bootstrap/cache \
+    && mkdir -p public/uploads \
+    && chown -R www-data:www-data public/uploads \
+    && chmod -R ug+rwx public/uploads \
+    && ln -sfn /var/www/html/storage/app/public /var/www/html/public/storage
 
 RUN chmod +x scripts/docker-start.sh
 

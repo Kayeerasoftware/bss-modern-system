@@ -15,6 +15,11 @@ if [[ -z "${APP_KEY:-}" ]]; then
   exit 1
 fi
 
+mkdir -p public/uploads storage/app/public storage/framework/{cache,sessions,views} storage/logs bootstrap/cache
+chown -R www-data:www-data storage bootstrap/cache public/uploads || true
+chmod -R ug+rwx storage bootstrap/cache public/uploads || true
+ln -sfn /var/www/html/storage/app/public /var/www/html/public/storage
+
 php artisan storage:link || true
 php artisan config:clear || true
 php artisan route:clear || true
@@ -26,4 +31,3 @@ if [[ "${RUN_MIGRATIONS:-false}" == "true" ]]; then
 fi
 
 exec apache2-foreground
-
