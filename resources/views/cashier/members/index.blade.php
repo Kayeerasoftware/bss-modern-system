@@ -123,11 +123,11 @@
                     <tr class="transition-all duration-200 {{ $loop->iteration % 2 == 0 ? 'bg-blue-50' : 'bg-white' }} hover:bg-gradient-to-r hover:from-blue-50 hover:to-cyan-50 border-l-4 border-blue-500 cursor-pointer" onclick="window.location='{{ route('cashier.members.show', $member->id) }}'">
                         <td class="px-6 py-4 whitespace-nowrap border-r border-gray-200">
                             <div class="flex items-center gap-4">
-                                <div class="relative">
+                                <div class="relative w-12 h-12 rounded-full overflow-hidden shrink-0">
                                     @if($member->profile_picture_url)
-                                        <img src="{{ $member->profile_picture_url }}" class="w-12 h-12 rounded-full object-cover ring-2 ring-blue-500 ring-offset-2">
+                                        <img src="{{ $member->profile_picture_url }}" onerror="this.onerror=null;this.src='{{ asset('images/default-avatar.svg') }}';" class="w-12 h-12 rounded-full object-cover ring-2 ring-blue-500 ring-offset-2 shrink-0">
                                     @else
-                                        <div class="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-cyan-600 flex items-center justify-center ring-2 ring-blue-500 ring-offset-2">
+                                        <div class="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-cyan-600 flex items-center justify-center ring-2 ring-blue-500 ring-offset-2 shrink-0">
                                             <span class="text-white font-bold text-lg">{{ substr($member->full_name, 0, 1) }}</span>
                                         </div>
                                     @endif

@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\DB;
 class Member extends Authenticatable
 {
     use HasFactory, Notifiable, SoftDeletes;
+    private static array $userPictureCache = [];
 
     protected $fillable = [
         'member_id', 'full_name', 'email', 'profile_picture', 'location', 'occupation',
@@ -88,9 +89,22 @@ class Member extends Authenticatable
             return $memberPictureUrl;
         }
 
-        // Fall back to user's profile picture only when relation is already eager loaded.
+        // Fall back to user's profile picture.
+        $userPicturePath = null;
         if ($this->relationLoaded('user') && $this->user) {
-            $userPictureUrl = $this->resolveProfilePictureUrl($this->user->profile_picture);
+            $userPicturePath = $this->user->profile_picture;
+        } elseif (!empty($this->user_id)) {
+            $cacheKey = (int) $this->user_id;
+            if (!array_key_exists($cacheKey, self::$userPictureCache)) {
+                self::$userPictureCache[$cacheKey] = User::query()
+                    ->whereKey($cacheKey)
+                    ->value('profile_picture');
+            }
+            $userPicturePath = self::$userPictureCache[$cacheKey];
+        }
+
+        if ($userPicturePath) {
+            $userPictureUrl = $this->resolveProfilePictureUrl($userPicturePath);
             if ($userPictureUrl) {
                 return $userPictureUrl;
             }

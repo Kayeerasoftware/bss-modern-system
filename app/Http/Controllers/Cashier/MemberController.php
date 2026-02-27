@@ -10,7 +10,7 @@ class MemberController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Member::query();
+        $query = Member::query()->with('user:id,profile_picture');
 
         if ($request->filled('search')) {
             $search = $request->search;
