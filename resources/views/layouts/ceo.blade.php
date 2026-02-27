@@ -43,6 +43,7 @@
     @stack('styles')
 </head>
 @php
+    $currentUser = auth()->user();
     $usersData = \App\Models\User::with('member')
         ->where('id', '!=', auth()->id())
         ->get()->map(function($user) {
@@ -54,17 +55,26 @@
                 'phone' => $user->member->contact ?? null,
                 'contact' => $user->member->contact ?? null,
                 'member_id' => $user->member->member_id ?? null,
-                'profile_picture' => $user->profile_picture ? asset('storage/' . $user->profile_picture) : null,
+                'profile_picture' => $user->profile_picture_url,
             ];
         });
 @endphp
 <body class="bg-gray-50 dark:bg-gray-900 transition-colors duration-300" x-data="{ 
     ...adminPanel(),
     ...chatModule(),
+    showProfileModal: false,
     currentUserId: {{ auth()->id() }},
+    profilePicture: {{ Js::from($currentUser->profile_picture_url) }},
+    adminProfile: {
+        name: {{ Js::from($currentUser->name) }},
+        email: {{ Js::from($currentUser->email) }},
+        role: {{ Js::from(ucfirst($currentUser->role)) }},
+        phone: {{ Js::from($currentUser->phone ?? $currentUser->member?->contact ?? '+256 700 000 000') }},
+        location: {{ Js::from($currentUser->location ?? $currentUser->member?->location ?? 'Kampala, Uganda') }}
+    },
     members: {{ Js::from($usersData) }},
     originalMembers: {{ Js::from($usersData) }}
-}" x-init="initChat(); filteredMembersChat = originalMembers;">
+}" x-init="initChat();">
     @include('partials.navs.ceo-topnav')
     @include('partials.navs.ceo-sidenav')
 

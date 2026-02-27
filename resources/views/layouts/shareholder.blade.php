@@ -29,14 +29,16 @@
                 'phone' => $user->member->contact ?? null,
                 'contact' => $user->member->contact ?? null,
                 'member_id' => $user->member->member_id ?? null,
-                'profile_picture' => $user->profile_picture ? asset('storage/' . $user->profile_picture) : null,
+                'profile_picture' => $user->profile_picture_url,
             ];
         });
 @endphp
+@php($currentUser = auth()->user())
 <body class="bg-gray-50" x-data="{ 
     ...chatModule(),
     sidebarOpen: false,
     sidebarCollapsed: false,
+    showProfileModal: false,
     showProfileDropdown: false,
     showLogoModal: false,
     showShareholderModal: false,
@@ -46,8 +48,8 @@
     notificationStats: { unread: 0 },
     members: {{ Js::from($usersData) }},
     originalMembers: {{ Js::from($usersData) }},
-    profilePicture: '{{ auth()->user()->profile_picture ? asset("storage/" . auth()->user()->profile_picture) : "" }}'
-}" x-init="initChat(); filteredMembersChat = originalMembers;">
+    profilePicture: {{ Js::from($currentUser->profile_picture_url) }}
+}" x-init="initChat();">
     @include('partials.navs.shareholder-topnav')
     @include('partials.navs.shareholder-sidenav')
 

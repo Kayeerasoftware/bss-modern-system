@@ -4,30 +4,72 @@ namespace App\Http\Controllers;
 
 use App\Models\ChatMessage;
 use App\Models\Member;
-use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 
 class ChatController extends Controller
 {
+    protected function currentMemberId(): ?string
+    {
+        $user = Auth::user();
+        return $user?->member?->member_id;
+    }
+
+    public function me()
+    {
+        $memberId = $this->currentMemberId();
+
+        if (!$memberId) {
+            return response()->json(['success' => false, 'message' => 'Member not found'], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'member_id' => $memberId,
+            'full_name' => Auth::user()->member->full_name,
+            'role' => Auth::user()->role,
+        ]);
+    }
+
     public function sendMessage(Request $request)
     {
         $request->validate([
             'receiver_id' => 'required|string',
-            'message' => 'required|string'
+            'message' => 'nullable|string',
+            'attachment' => 'nullable|file|max:20480'
         ]);
 
-        $currentUser = Auth::user();
-        $currentMember = $currentUser->member;
-        
-        if (!$currentMember) {
+        $currentMemberId = $this->currentMemberId();
+        if (!$currentMemberId) {
             return response()->json(['success' => false, 'message' => 'Member not found'], 404);
         }
 
+        $receiver = Member::where('member_id', $request->receiver_id)->first();
+        if (!$receiver) {
+            return response()->json(['success' => false, 'message' => 'Receiver not found'], 404);
+        }
+
+        $cleanMessage = trim((string) $request->message);
+        $attachmentPath = null;
+
+        if ($request->hasFile('attachment')) {
+            $attachmentPath = $request->file('attachment')->store('chat-attachments', 'public');
+        }
+
+        if ($cleanMessage === '' && !$attachmentPath) {
+            return response()->json(['success' => false, 'message' => 'Message or attachment is required'], 422);
+        }
+
+        if ($request->receiver_id === $currentMemberId) {
+            return response()->json(['success' => false, 'message' => 'You cannot message yourself'], 422);
+        }
+
         $message = ChatMessage::create([
-            'sender_id' => $currentMember->member_id,
+            'sender_id' => $currentMemberId,
             'receiver_id' => $request->receiver_id,
-            'message' => $request->message,
+            'message' => $cleanMessage !== '' ? $cleanMessage : '',
+            'attachment' => $attachmentPath,
             'is_read' => false
         ]);
 
@@ -40,63 +82,116 @@ class ChatController extends Controller
                 'time' => $message->created_at->format('H:i'),
                 'timestamp' => $message->created_at->timestamp * 1000,
                 'status' => 'sent',
-                'is_read' => $message->is_read
+                'is_read' => $message->is_read,
+                'sender_id' => $message->sender_id,
+                'receiver_id' => $message->receiver_id,
+                'attachment' => $message->attachment,
+                'attachment_url' => $message->attachment ? Storage::url($message->attachment) : null,
+                'attachment_name' => $message->attachment ? basename($message->attachment) : null,
             ]
         ]);
     }
 
-    public function getMessages($senderId, $receiverId)
+    public function getMessagesWithMember($otherMemberId)
     {
-        $messages = ChatMessage::where(function($query) use ($senderId, $receiverId) {
-            $query->where('sender_id', $senderId)->where('receiver_id', $receiverId);
-        })->orWhere(function($query) use ($senderId, $receiverId) {
-            $query->where('sender_id', $receiverId)->where('receiver_id', $senderId);
+        $currentMemberId = $this->currentMemberId();
+        if (!$currentMemberId) {
+            return response()->json(['success' => false, 'message' => 'Member not found'], 404);
+        }
+
+        if ($otherMemberId === $currentMemberId) {
+            return response()->json(['success' => false, 'message' => 'Invalid conversation'], 422);
+        }
+
+        $otherMember = Member::where('member_id', $otherMemberId)->first();
+        if (!$otherMember) {
+            return response()->json(['success' => false, 'message' => 'Member not found'], 404);
+        }
+
+        $messages = ChatMessage::where(function ($query) use ($currentMemberId, $otherMemberId) {
+            $query->where('sender_id', $currentMemberId)->where('receiver_id', $otherMemberId);
+        })->orWhere(function ($query) use ($currentMemberId, $otherMemberId) {
+            $query->where('sender_id', $otherMemberId)->where('receiver_id', $currentMemberId);
         })->orderBy('created_at', 'asc')->get();
 
-        // Mark messages as read
-        ChatMessage::where('sender_id', $receiverId)
-            ->where('receiver_id', $senderId)
+        ChatMessage::where('sender_id', $otherMemberId)
+            ->where('receiver_id', $currentMemberId)
             ->where('is_read', false)
             ->update(['is_read' => true]);
 
         return response()->json([
             'success' => true,
-            'messages' => $messages->map(function($msg) use ($senderId) {
+            'messages' => $messages->map(function ($msg) use ($currentMemberId) {
                 return [
                     'id' => $msg->id,
                     'text' => $msg->message,
-                    'sender' => $msg->sender_id === $senderId ? 'me' : 'them',
+                    'sender' => $msg->sender_id === $currentMemberId ? 'me' : 'them',
                     'time' => $msg->created_at->format('H:i'),
                     'timestamp' => $msg->created_at->timestamp * 1000,
-                    'status' => $msg->is_read ? 'read' : 'delivered',
-                    'is_read' => $msg->is_read
+                    'status' => $msg->sender_id === $currentMemberId
+                        ? ($msg->is_read ? 'read' : 'delivered')
+                        : 'delivered',
+                    'is_read' => $msg->is_read,
+                    'sender_id' => $msg->sender_id,
+                    'receiver_id' => $msg->receiver_id,
+                    'attachment' => $msg->attachment,
+                    'attachment_url' => $msg->attachment ? Storage::url($msg->attachment) : null,
+                    'attachment_name' => $msg->attachment ? basename($msg->attachment) : null,
                 ];
             })
         ]);
     }
 
-    public function getConversations($memberId)
+    public function getMessages($senderId, $receiverId)
     {
-        $conversations = ChatMessage::where('sender_id', $memberId)
-            ->orWhere('receiver_id', $memberId)
+        $currentMemberId = $this->currentMemberId();
+        if (!$currentMemberId) {
+            return response()->json(['success' => false, 'message' => 'Member not found'], 404);
+        }
+
+        if ($senderId === $currentMemberId) {
+            return $this->getMessagesWithMember($receiverId);
+        }
+
+        if ($receiverId === $currentMemberId) {
+            return $this->getMessagesWithMember($senderId);
+        }
+
+        return response()->json(['success' => false, 'message' => 'Unauthorized conversation access'], 403);
+    }
+
+    public function getConversations($memberId = null)
+    {
+        $currentMemberId = $this->currentMemberId();
+        if (!$currentMemberId) {
+            return response()->json(['success' => false, 'message' => 'Member not found'], 404);
+        }
+
+        if ($memberId !== null && $memberId !== $currentMemberId) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized conversation access'], 403);
+        }
+
+        $conversations = ChatMessage::with(['sender.user', 'receiver.user'])
+            ->where('sender_id', $currentMemberId)
+            ->orWhere('receiver_id', $currentMemberId)
             ->orderBy('created_at', 'desc')
             ->get()
-            ->groupBy(function($msg) use ($memberId) {
-                return $msg->sender_id === $memberId ? $msg->receiver_id : $msg->sender_id;
+            ->groupBy(function ($msg) use ($currentMemberId) {
+                return $msg->sender_id === $currentMemberId ? $msg->receiver_id : $msg->sender_id;
             })
-            ->map(function($messages, $otherMemberId) use ($memberId) {
+            ->map(function ($messages, $otherMemberId) use ($currentMemberId) {
                 $lastMessage = $messages->first();
-                $unreadCount = $messages->where('receiver_id', $memberId)
+                $unreadCount = $messages->where('receiver_id', $currentMemberId)
                     ->where('is_read', false)
                     ->count();
-                
-                $member = Member::where('member_id', $otherMemberId)->first();
-                
+
+                $member = Member::with('user')->where('member_id', $otherMemberId)->first();
+
                 return [
                     'member_id' => $otherMemberId,
-                    'full_name' => $member->full_name ?? 'Unknown',
-                    'role' => $member->user->role ?? 'client',
-                    'profile_picture' => $member->profile_picture ? asset('storage/' . $member->profile_picture) : null,
+                    'full_name' => $member?->full_name ?? 'Unknown',
+                    'role' => $member?->user?->role ?? 'client',
+                    'profile_picture' => $member?->profile_picture_url,
                     'last_message' => $lastMessage->message,
                     'last_time' => $lastMessage->created_at->format('H:i'),
                     'timestamp' => $lastMessage->created_at->timestamp * 1000,
@@ -110,15 +205,59 @@ class ChatController extends Controller
     public function markAsRead(Request $request)
     {
         $request->validate([
-            'sender_id' => 'required|string',
-            'receiver_id' => 'required|string'
+            'sender_id' => 'nullable|string',
+            'receiver_id' => 'nullable|string',
+            'member_id' => 'nullable|string',
+            'other_member_id' => 'nullable|string',
         ]);
 
-        ChatMessage::where('sender_id', $request->sender_id)
-            ->where('receiver_id', $request->receiver_id)
+        $currentMemberId = $this->currentMemberId();
+        if (!$currentMemberId) {
+            return response()->json(['success' => false, 'message' => 'Member not found'], 404);
+        }
+
+        $otherMemberId = $request->other_member_id
+            ?? $request->member_id
+            ?? $request->sender_id;
+
+        if (!$otherMemberId) {
+            return response()->json(['success' => false, 'message' => 'Member is required'], 422);
+        }
+
+        ChatMessage::where('sender_id', $otherMemberId)
+            ->where('receiver_id', $currentMemberId)
             ->where('is_read', false)
             ->update(['is_read' => true]);
 
         return response()->json(['success' => true]);
+    }
+
+    public function markConversationAsRead($otherMemberId)
+    {
+        $currentMemberId = $this->currentMemberId();
+        if (!$currentMemberId) {
+            return response()->json(['success' => false, 'message' => 'Member not found'], 404);
+        }
+
+        ChatMessage::where('sender_id', $otherMemberId)
+            ->where('receiver_id', $currentMemberId)
+            ->where('is_read', false)
+            ->update(['is_read' => true]);
+
+        return response()->json(['success' => true]);
+    }
+
+    public function unreadCount()
+    {
+        $currentMemberId = $this->currentMemberId();
+        if (!$currentMemberId) {
+            return response()->json(['success' => false, 'message' => 'Member not found'], 404);
+        }
+
+        $count = ChatMessage::where('receiver_id', $currentMemberId)
+            ->where('is_read', false)
+            ->count();
+
+        return response()->json(['success' => true, 'unread' => $count]);
     }
 }

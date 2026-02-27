@@ -5,7 +5,9 @@
                 <div class="flex items-center justify-between mb-3">
                     <div class="flex items-center gap-3">
                         <template x-if="profilePicture">
-                            <img :src="profilePicture" class="w-12 h-12 rounded-full object-cover border-2 border-white shadow-lg">
+                            <button type="button" @click="openImagePreview(profilePicture, 'My Profile Picture')" class="block">
+                                <img :src="profilePicture" class="w-12 h-12 rounded-full object-cover border-2 border-white shadow-lg cursor-zoom-in">
+                            </button>
                         </template>
                         <template x-if="!profilePicture">
                             <div class="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center border-2 border-white shadow-lg">
@@ -42,31 +44,34 @@
                         <span class="flex items-center gap-2"><i class="fas fa-users text-blue-600"></i> Contacts</span>
                         <span class="bg-blue-600 text-white px-2.5 py-1 rounded-full text-[9px] font-bold shadow-sm" x-text="filteredMembersChat.length"></span>
                     </p>
-                    <template x-for="(member, index) in filteredMembersChat" :key="index">
+                    <template x-for="member in filteredMembersChat" :key="member.member_id">
                         <div @click.stop="selectMemberChat(member)" 
-                             :class="selectedMemberChat?.id === member.id ? 'bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-blue-600 shadow-md' : 'hover:bg-gray-50 border-l-4 border-transparent'" 
+                             :class="selectedMemberChat?.member_id === member.member_id ? 'bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-blue-600 shadow-md' : 'hover:bg-gray-50 border-l-4 border-transparent'" 
                              class="p-3 mb-2 rounded-xl cursor-pointer transition-all duration-200 relative z-20"
                              style="pointer-events: auto;">
                             <div class="flex items-center space-x-3">
                                 <div class="relative flex-shrink-0">
                                     <template x-if="member.profile_picture">
-                                        <img :src="member.profile_picture" class="w-10 h-10 rounded-full object-cover shadow-lg border-2 border-white">
+                                        <button type="button" @click.stop="openImagePreview(member.profile_picture, (member.full_name || member.name || 'User') + ' Profile Picture')" class="block">
+                                            <img :src="member.profile_picture" class="w-10 h-10 rounded-full object-cover shadow-lg border-2 border-white cursor-zoom-in">
+                                        </button>
                                     </template>
                                     <template x-if="!member.profile_picture">
                                         <div class="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white font-bold shadow-lg text-xs">
                                             <span x-text="(member.full_name || member.name)?.charAt(0) || 'U'"></span>
                                         </div>
                                     </template>
-                                    <div x-show="isOnline(member.id || member.member_id)" class="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
+                                    <div x-show="isOnline(member.member_id)" class="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
                                 </div>
                                 <div class="flex-1 min-w-0">
                                     <div class="flex justify-between items-start mb-0.5">
                                         <p class="text-xs font-semibold text-gray-800 truncate" x-text="member.full_name || member.name"></p>
                                     </div>
                                     <div class="flex items-center justify-between gap-2">
-                                        <p class="text-[10px] text-gray-500 truncate flex items-center gap-1 flex-1">Click to start chat</p>
+                                        <p class="text-[10px] text-gray-500 truncate flex items-center gap-1 flex-1" x-text="getLastMessage(member)"></p>
                                         <div class="flex items-center gap-1.5 flex-shrink-0">
-                                            <span class="text-[9px] text-gray-400"></span>
+                                            <span class="text-[9px] text-gray-400" x-text="getLastMessageTime(member)"></span>
+                                            <span x-show="member.unread > 0" class="bg-green-500 text-white text-[9px] min-w-[18px] h-[18px] px-1 rounded-full inline-flex items-center justify-center font-bold" x-text="member.unread"></span>
                                         </div>
                                     </div>
                                 </div>
@@ -91,28 +96,48 @@
                     </button>
                     <div class="relative">
                         <template x-if="selectedMemberChat?.profile_picture">
-                            <img :src="selectedMemberChat.profile_picture" class="w-10 h-10 rounded-full object-cover shadow-lg border-2 border-white">
+                            <button type="button" @click="openImagePreview(selectedMemberChat.profile_picture, (selectedMemberChat?.full_name || selectedMemberChat?.name || 'User') + ' Profile Picture')" class="block">
+                                <img :src="selectedMemberChat.profile_picture" class="w-10 h-10 rounded-full object-cover shadow-lg border-2 border-white cursor-zoom-in">
+                            </button>
                         </template>
                         <template x-if="!selectedMemberChat?.profile_picture">
                             <div class="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white font-bold shadow-lg text-xs">
                                 <span x-text="selectedMemberChat?.full_name?.charAt(0) || 'U'"></span>
                             </div>
                         </template>
-                        <div x-show="isOnline(selectedMemberChat?.id || selectedMemberChat?.member_id)" class="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
+                        <div x-show="isOnline(selectedMemberChat?.member_id)" class="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
                     </div>
                     <div>
                         <h3 class="text-sm font-bold text-gray-800" x-text="selectedMemberChat?.full_name || selectedMemberChat?.name || ''"></h3>
-                        <p class="text-[10px] flex items-center" :class="isOnline(selectedMemberChat?.id || selectedMemberChat?.member_id) ? 'text-green-600' : 'text-gray-500'">
-                            <span x-show="isOnline(selectedMemberChat?.id || selectedMemberChat?.member_id)" class="w-1.5 h-1.5 bg-green-500 rounded-full mr-1 animate-pulse"></span>
-                            <span x-text="isOnline(selectedMemberChat?.id || selectedMemberChat?.member_id) ? 'Active now' : 'Offline'"></span>
+                        <p class="text-[10px] flex items-center" :class="isOnline(selectedMemberChat?.member_id) ? 'text-green-600' : 'text-gray-500'">
+                            <span x-show="isOnline(selectedMemberChat?.member_id)" class="w-1.5 h-1.5 bg-green-500 rounded-full mr-1 animate-pulse"></span>
+                            <span x-text="isOnline(selectedMemberChat?.member_id) ? 'Active now' : 'Offline'"></span>
                         </p>
+                        <div class="mt-1 flex flex-wrap gap-1.5 text-[9px]">
+                            <span class="px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700" x-text="(selectedMemberChat?.role || 'client').toUpperCase()"></span>
+                            <span class="px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">
+                                <i class="fas fa-id-card mr-1"></i><span x-text="selectedMemberChat?.member_id || 'N/A'"></span>
+                            </span>
+                            <span class="px-1.5 py-0.5 rounded bg-gray-100 text-gray-700 max-w-[210px] truncate">
+                                <i class="fas fa-envelope mr-1"></i><span x-text="selectedMemberChat?.email || 'No email'"></span>
+                            </span>
+                            <span class="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700">
+                                <i class="fas fa-phone mr-1"></i><span x-text="selectedMemberChat?.phone || selectedMemberChat?.contact || 'N/A'"></span>
+                            </span>
+                        </div>
                     </div>
                 </div>
                 <div class="flex items-center space-x-1">
-                    <button class="p-2 bg-blue-100 hover:bg-blue-200 text-blue-600 rounded-full transition" title="Video Call" @click="alert('Video call feature coming soon!')">
+                    <button class="p-2 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-full transition disabled:opacity-60"
+                            title="Refresh Chat"
+                            :disabled="chatRefreshing"
+                            @click="refreshChatOnly()">
+                        <i class="fas fa-rotate-right text-xs" :class="chatRefreshing ? 'animate-spin' : ''"></i>
+                    </button>
+                    <button class="p-2 bg-blue-100 hover:bg-blue-200 text-blue-600 rounded-full transition" title="Video Call" @click="startVideoCall()">
                         <i class="fas fa-video text-xs"></i>
                     </button>
-                    <button class="p-2 bg-blue-100 hover:bg-blue-200 text-blue-600 rounded-full transition" title="Voice Call" @click="alert('Voice call feature coming soon!')">
+                    <button class="p-2 bg-blue-100 hover:bg-blue-200 text-blue-600 rounded-full transition" title="Voice Call" @click="startDirectCall()">
                         <i class="fas fa-phone text-xs"></i>
                     </button>
                 </div>
@@ -126,7 +151,23 @@
                         <div :class="msg.sender === 'me' ? 'flex justify-end' : 'flex justify-start'" class="animate-fade-in">
                             <div class="max-w-xs">
                                 <div :class="msg.sender === 'me' ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl rounded-tr-sm' : 'bg-white text-gray-800 rounded-2xl rounded-tl-sm shadow-lg'" class="p-3 relative">
-                                    <p class="text-xs leading-relaxed" x-text="msg.text"></p>
+                                    <template x-if="msg.attachment_url && isImageAttachment(msg)">
+                                        <button type="button" @click="openImagePreview(msg.attachment_url, msg.attachment_name || 'Image')" class="block mb-2">
+                                            <img :src="msg.attachment_url" alt="attachment" class="max-w-[220px] max-h-[220px] rounded-lg object-cover cursor-zoom-in">
+                                        </button>
+                                    </template>
+                                    <template x-if="msg.attachment_url && isAudioAttachment(msg)">
+                                        <div class="block mb-2 p-2 rounded-lg bg-black/10">
+                                            <audio controls :src="msg.attachment_url" class="w-[220px] max-w-full"></audio>
+                                        </div>
+                                    </template>
+                                    <template x-if="msg.attachment_url && !isAudioAttachment(msg) && !isImageAttachment(msg)">
+                                        <a :href="msg.attachment_url || '#'" target="_blank" class="block mb-2 p-2 rounded-lg text-xs bg-black/10 hover:bg-black/20 transition">
+                                            <i class="fas fa-paperclip mr-1"></i>
+                                            <span x-text="msg.attachment_name || 'Attachment'"></span>
+                                        </a>
+                                    </template>
+                                    <p x-show="msg.text" class="text-xs leading-relaxed" x-text="msg.text"></p>
                                     <div class="flex items-center justify-end space-x-1 mt-1">
                                         <span class="text-[9px] opacity-70" x-text="msg.time"></span>
                                         <template x-if="msg.sender === 'me' && msg.status">
@@ -158,13 +199,95 @@
                 </div>
             </div>
             <div x-show="selectedMemberChat" class="p-4 bg-white border-t border-gray-200">
-                <div class="flex items-center space-x-2">
-                    <input type="text" x-model="memberChatInput" @keydown.enter.prevent="sendMemberMessage" placeholder="Type a message..." class="flex-1 px-4 py-2.5 border border-gray-300 rounded-full text-sm focus:outline-none focus:border-blue-500 transition-all bg-gray-50 focus:bg-white">
-                    <button @click="sendMemberMessage" class="p-2.5 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-all">
-                        <i class="fas fa-paper-plane text-sm"></i>
+                <div x-show="selectedAttachment" class="mb-2 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 border border-blue-200 text-xs text-blue-700">
+                    <i class="fas fa-paperclip"></i>
+                    <span class="px-1.5 py-0.5 rounded bg-blue-100 text-blue-800" x-text="attachmentFilterLabel"></span>
+                    <span class="max-w-[220px] truncate" x-text="selectedAttachment?.name"></span>
+                    <button @click="clearAttachment()" class="text-blue-700 hover:text-blue-900">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div x-show="recordingAudio" class="mb-2 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-50 border border-red-200 text-xs text-red-700">
+                    <span class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+                    <span>Recording</span>
+                    <span x-text="formatRecordingTime()"></span>
+                    <button @click="cancelVoiceRecording()" class="text-red-700 hover:text-red-900">
+                        <i class="fas fa-stop"></i>
+                    </button>
+                </div>
+
+                <div x-show="showEmojiPicker" class="mb-2 p-2 rounded-xl border border-gray-200 bg-gray-50">
+                    <div class="grid grid-cols-8 gap-1">
+                        <template x-for="emoji in emojiList" :key="emoji">
+                            <button @click="insertEmoji(emoji)" class="p-1.5 text-base rounded hover:bg-white" x-text="emoji"></button>
+                        </template>
+                    </div>
+                </div>
+
+                <input type="file" x-ref="chatAttachmentInput" :accept="attachmentAccept" @change="handleAttachmentChange($event)" class="hidden">
+                <input type="file" x-ref="chatCameraPhotoInput" accept="image/*" capture="environment" @change="handleCameraPhotoChange($event)" class="hidden">
+                <input type="file" x-ref="chatCameraVideoInput" accept="video/*" capture="environment" @change="handleCameraVideoChange($event)" class="hidden">
+
+                <div class="flex items-center gap-2">
+                    <div class="flex-1 flex items-end gap-2 bg-gray-100 border border-gray-300 rounded-2xl px-3 py-2">
+                        <button @click="showEmojiPicker = !showEmojiPicker" class="text-gray-500 hover:text-gray-700">
+                            <i class="far fa-face-smile text-lg"></i>
+                        </button>
+                        <div class="relative" @click.away="showAttachmentMenu = false" @click.stop>
+                            <button @click.stop.prevent="toggleAttachmentMenu()" class="text-gray-500 hover:text-gray-700">
+                                <i class="fas fa-paperclip text-lg"></i>
+                            </button>
+                            <div x-show="showAttachmentMenu" @click.stop x-transition class="absolute bottom-10 left-0 w-56 bg-white border border-gray-200 rounded-xl shadow-xl p-2 z-30">
+                                <p class="text-[10px] uppercase tracking-wide text-gray-500 px-2 py-1">Attach As</p>
+                                <button @click="selectAttachmentType('image/*,.jpg,.jpeg,.png,.webp,.gif', 'Image')" class="w-full text-left px-2 py-1.5 text-xs rounded hover:bg-gray-100">Image (.jpg, .png, .webp)</button>
+                                <button @click="selectAttachmentType('video/*,.mp4,.webm,.mov,.avi,.mkv', 'Video')" class="w-full text-left px-2 py-1.5 text-xs rounded hover:bg-gray-100">Video (.mp4, .webm, .mov)</button>
+                                <button @click="selectAttachmentType('audio/*,.mp3,.wav,.ogg,.m4a,.aac,.webm', 'Audio')" class="w-full text-left px-2 py-1.5 text-xs rounded hover:bg-gray-100">Audio (.mp3, .wav, .m4a)</button>
+                                <button @click="selectAttachmentType('.pdf', 'PDF')" class="w-full text-left px-2 py-1.5 text-xs rounded hover:bg-gray-100">PDF (.pdf)</button>
+                                <button @click="selectAttachmentType('.doc,.docx', 'Word')" class="w-full text-left px-2 py-1.5 text-xs rounded hover:bg-gray-100">Word (.doc, .docx)</button>
+                                <button @click="selectAttachmentType('.xls,.xlsx,.csv', 'Spreadsheet')" class="w-full text-left px-2 py-1.5 text-xs rounded hover:bg-gray-100">Spreadsheet (.xls, .xlsx, .csv)</button>
+                                <button @click="selectAttachmentType('.ppt,.pptx', 'Presentation')" class="w-full text-left px-2 py-1.5 text-xs rounded hover:bg-gray-100">Presentation (.ppt, .pptx)</button>
+                                <button @click="selectAttachmentType('.txt,.rtf', 'Text')" class="w-full text-left px-2 py-1.5 text-xs rounded hover:bg-gray-100">Text (.txt, .rtf)</button>
+                                <button @click="selectAttachmentType('.zip,.rar,.7z,.tar,.gz', 'Archive')" class="w-full text-left px-2 py-1.5 text-xs rounded hover:bg-gray-100">Archive (.zip, .rar, .7z)</button>
+                                <button @click="selectAttachmentType('*/*', 'Any File')" class="w-full text-left px-2 py-1.5 text-xs rounded hover:bg-gray-100">Any File (all extensions)</button>
+                            </div>
+                        </div>
+                        <div class="relative" @click.away="showCameraMenu = false" @click.stop>
+                            <button @click.stop.prevent="toggleCameraMenu()" class="text-gray-500 hover:text-gray-700" title="Camera">
+                                <i class="fas fa-camera text-lg"></i>
+                            </button>
+                            <div x-show="showCameraMenu" @click.stop x-transition class="absolute bottom-10 left-0 w-44 bg-white border border-gray-200 rounded-xl shadow-xl p-2 z-30">
+                                <p class="text-[10px] uppercase tracking-wide text-gray-500 px-2 py-1">Camera</p>
+                                <button @click="openCameraPhotoCapture()" class="w-full text-left px-2 py-1.5 text-xs rounded hover:bg-gray-100">
+                                    <i class="fas fa-image mr-1"></i>Take Photo
+                                </button>
+                                <button @click="openCameraVideoCapture()" class="w-full text-left px-2 py-1.5 text-xs rounded hover:bg-gray-100">
+                                    <i class="fas fa-video mr-1"></i>Record Video
+                                </button>
+                            </div>
+                        </div>
+                        <textarea x-ref="messageInput"
+                                  x-model="memberChatInput"
+                                  @input="autoResizeMessageInput($event)"
+                                  @keydown.enter.prevent="handleComposerEnter($event)"
+                                  rows="1"
+                                  placeholder="Type a message"
+                                  class="flex-1 bg-transparent text-sm focus:outline-none resize-none overflow-y-auto max-h-32 min-h-[24px] leading-6 py-0.5"></textarea>
+                    </div>
+                    <button @click="canSendMemberMessage() ? sendMemberMessage() : startVoiceRecording()"
+                            class="w-11 h-11 rounded-full bg-green-500 hover:bg-green-600 text-white flex items-center justify-center transition-all">
+                        <i class="fas" :class="recordingAudio ? 'fa-stop' : (canSendMemberMessage() ? 'fa-paper-plane' : 'fa-microphone')"></i>
                     </button>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <div x-show="showImagePreview" x-transition.opacity class="fixed inset-0 z-[70] bg-black/85 flex items-center justify-center p-4" x-cloak @click.self="closeImagePreview()">
+        <button @click="closeImagePreview()" class="absolute top-4 right-4 text-white/90 hover:text-white text-2xl">
+            <i class="fas fa-times"></i>
+        </button>
+        <div class="max-w-full max-h-full overflow-auto rounded-lg">
+            <img :src="imagePreviewUrl" :alt="imagePreviewName" class="w-auto h-auto max-w-none max-h-none">
         </div>
     </div>
 </div>

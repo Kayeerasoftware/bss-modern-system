@@ -238,6 +238,10 @@ Route::get('/dashboard', function () {
 })->middleware('auth')->name('dashboard');
 
 // Debug route
+Route::get('/alpine-test', function() {
+    return view('alpine-test');
+});
+
 Route::get('/debug-members', function() {
     $currentUser = auth()->user();
     $currentMember = $currentUser ? $currentUser->member : null;
@@ -286,7 +290,14 @@ Route::get('/debug-members', function() {
 
 // Chat Routes
 Route::middleware('auth')->prefix('chat')->name('chat.')->group(function () {
+    Route::get('/me', [\App\Http\Controllers\ChatController::class, 'me'])->name('me');
     Route::post('/send', [\App\Http\Controllers\ChatController::class, 'sendMessage'])->name('send');
+    Route::get('/messages/{memberId}', [\App\Http\Controllers\ChatController::class, 'getMessagesWithMember'])->name('messages.with-member');
+    Route::get('/conversations', [\App\Http\Controllers\ChatController::class, 'getConversations'])->name('conversations.list');
+    Route::post('/mark-read/{memberId}', [\App\Http\Controllers\ChatController::class, 'markConversationAsRead'])->name('mark-read.member');
+    Route::get('/unread-count', [\App\Http\Controllers\ChatController::class, 'unreadCount'])->name('unread-count');
+
+    // Backward-compatible routes
     Route::get('/messages/{senderId}/{receiverId}', [\App\Http\Controllers\ChatController::class, 'getMessages'])->name('messages');
     Route::get('/conversations/{memberId}', [\App\Http\Controllers\ChatController::class, 'getConversations'])->name('conversations');
     Route::post('/mark-read', [\App\Http\Controllers\ChatController::class, 'markAsRead'])->name('mark-read');

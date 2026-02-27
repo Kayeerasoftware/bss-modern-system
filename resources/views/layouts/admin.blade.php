@@ -16,7 +16,7 @@
             darkMode: 'class'
         }
     </script>
-    @include('partials.alpine-init')
+    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
     <style>
         @keyframes slide-right {
             0% { width: 0%; }
@@ -43,6 +43,7 @@
     @stack('styles')
 </head>
 @php
+    $currentUser = auth()->user();
     $usersData = \App\Models\User::with('member')
         ->where('id', '!=', auth()->id())
         ->get()->map(function($user) {
@@ -54,25 +55,26 @@
                 'phone' => $user->member->contact ?? null,
                 'contact' => $user->member->contact ?? null,
                 'member_id' => $user->member->member_id ?? null,
-                'profile_picture' => $user->profile_picture ? asset('storage/' . $user->profile_picture) : null,
+                'profile_picture' => $user->profile_picture_url,
             ];
         });
 @endphp
-<body class="bg-gray-50 dark:bg-gray-900 transition-colors duration-300" 
-      x-data="(() => {
-          if (typeof window.adminPanel !== 'function' || typeof window.chatModule !== 'function') {
-              console.error('Alpine functions not loaded!');
-              return { sidebarOpen: false, sidebarCollapsed: false, showProfileModal: false };
-          }
-          return {
-              ...window.adminPanel(),
-              ...window.chatModule(),
-              currentUserId: {{ auth()->id() }},
-              members: {{ Js::from($usersData) }},
-              originalMembers: {{ Js::from($usersData) }}
-          };
-      })()" 
-      x-init="if (typeof initChat === 'function') { initChat(); filteredMembersChat = originalMembers; }">
+<body class="bg-gray-50 dark:bg-gray-900 transition-colors duration-300" x-data="{ 
+    ...adminPanel(),
+    ...chatModule(),
+    showProfileModal: false,
+    currentUserId: {{ auth()->id() }},
+    profilePicture: {{ Js::from($currentUser->profile_picture_url) }},
+    adminProfile: {
+        name: {{ Js::from($currentUser->name) }},
+        email: {{ Js::from($currentUser->email) }},
+        role: {{ Js::from(ucfirst($currentUser->role)) }},
+        phone: {{ Js::from($currentUser->phone ?? $currentUser->member?->contact ?? '+256 700 000 000') }},
+        location: {{ Js::from($currentUser->location ?? $currentUser->member?->location ?? 'Kampala, Uganda') }}
+    },
+    members: {{ Js::from($usersData) }},
+    originalMembers: {{ Js::from($usersData) }}
+}" x-init="initChat();">
     @include('components.loading-screen')
     @include('partials.navs.admin-topnav')
     @include('partials.navs.admin-sidenav')
@@ -92,7 +94,9 @@
     @stack('modals')
     @include('partials.admin.modals.member-chat')
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="{{ asset('js/chat.js') }}"></script>
     <script src="{{ asset('assets/js/admin/charts.js') }}"></script>
+    <script src="{{ asset('assets/js/main2.js') }}"></script>
     @stack('scripts')
 </body>
 </html>

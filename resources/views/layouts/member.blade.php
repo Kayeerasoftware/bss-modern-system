@@ -9,11 +9,26 @@
     
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="{{ asset('assets/css/components/nav.css') }}" rel="stylesheet">
+    <link href="{{ asset('assets/css/dark-mode.css') }}" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = { darkMode: 'class' }
     </script>
-    @include('partials.alpine-init')
+    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <script>
+        document.addEventListener('alpine:init', () => {
+            Alpine.store('darkMode', {
+                on: localStorage.getItem('darkMode') === 'true',
+                toggle() {
+                    this.on = !this.on;
+                    localStorage.setItem('darkMode', this.on);
+                    document.documentElement.classList.toggle('dark', this.on);
+                }
+            });
+
+            document.documentElement.classList.toggle('dark', Alpine.store('darkMode').on);
+        });
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     @stack('styles')
 </head>
@@ -29,35 +44,33 @@
                 'phone' => $user->member->contact ?? null,
                 'contact' => $user->member->contact ?? null,
                 'member_id' => $user->member->member_id ?? null,
-                'profile_picture' => $user->profile_picture ? asset('storage/' . $user->profile_picture) : null,
+                'profile_picture' => $user->profile_picture_url,
             ];
         });
 @endphp
-<body class="bg-gray-50" x-data="(() => {
-    if (typeof window.chatModule !== 'function') {
-        console.error('chatModule not loaded!');
-        return { sidebarOpen: false, sidebarCollapsed: false };
-    }
-    return {
-        ...window.chatModule(),
-        sidebarOpen: false,
-        sidebarCollapsed: false,
-        showProfileDropdown: false,
-        showLogoModal: false,
-        showClientModal: false,
-        showChatModal: false,
-        showMemberChatModal: false,
-        clientProfile: {
-            name: '{{ auth()->user()->name }}',
-            role: 'Client',
-            email: '{{ auth()->user()->email }}'
-        },
-        notificationStats: { unread: 0 },
-        members: {{ Js::from($usersData) }},
-        originalMembers: {{ Js::from($usersData) }},
-        profilePicture: '{{ auth()->user()->profile_picture ? asset("storage/" . auth()->user()->profile_picture) : "" }}'
-    };
-})()" x-init="if (typeof initChat === 'function') { initChat(); filteredMembersChat = originalMembers; }">
+@php($currentUser = auth()->user())
+<body class="bg-gray-50" x-data="{ 
+    ...chatModule(),
+    sidebarOpen: false,
+    sidebarCollapsed: false,
+    showProfileModal: false,
+    showProfileDropdown: false,
+    showLogoModal: false,
+    showClientModal: false,
+    showChatModal: false,
+    showMemberChatModal: false,
+    clientProfile: {
+        name: '{{ auth()->user()->name }}',
+        role: 'Client',
+        email: '{{ auth()->user()->email }}'
+    },
+    notificationStats: {
+        unread: 0
+    },
+    members: {{ Js::from($usersData) }},
+    originalMembers: {{ Js::from($usersData) }},
+    profilePicture: {{ Js::from($currentUser->profile_picture_url) }}
+}" x-init="initChat();">
     @include('partials.navs.client-topnav')
     @include('partials.navs.client-sidenav')
 
@@ -69,6 +82,7 @@
     
     @include('partials.admin.modals.member-chat')
     
+    <script src="{{ asset('js/chat.js') }}"></script>
     @stack('scripts')
 </body>
 </html>
