@@ -14,5 +14,3 @@ storage/debugbar
 *.zip
 *.sql
 public/storage
-public/uploads
-

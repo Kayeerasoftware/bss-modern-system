@@ -107,43 +107,47 @@ class Member extends Authenticatable
 
         $normalizedPath = ltrim($path, '/');
 
+        if (filter_var($normalizedPath, FILTER_VALIDATE_URL)) {
+            return $normalizedPath;
+        }
+
         if (str_starts_with($normalizedPath, 'public/')) {
             $normalizedPath = substr($normalizedPath, 7);
         }
 
-        if (str_starts_with($normalizedPath, 'storage/') || str_starts_with($normalizedPath, 'uploads/')) {
-            if (is_file(public_path($normalizedPath))) {
-                return asset($normalizedPath);
+        $trimmedPath = preg_replace('#^(storage|uploads)/#', '', $normalizedPath);
+        $candidates = [
+            $normalizedPath,
+            'uploads/' . $trimmedPath,
+            'storage/' . $trimmedPath,
+        ];
+
+        // Support both underscore and hyphen naming used by legacy + new uploads.
+        if (str_starts_with($trimmedPath, 'profile_pictures/')) {
+            $hyphenPath = 'profile-pictures/' . substr($trimmedPath, strlen('profile_pictures/'));
+            $candidates[] = 'uploads/' . $hyphenPath;
+            $candidates[] = 'storage/' . $hyphenPath;
+        } elseif (str_starts_with($trimmedPath, 'profile-pictures/')) {
+            $underscorePath = 'profile_pictures/' . substr($trimmedPath, strlen('profile-pictures/'));
+            $candidates[] = 'uploads/' . $underscorePath;
+            $candidates[] = 'storage/' . $underscorePath;
+        }
+
+        foreach (array_unique($candidates) as $candidate) {
+            if (is_file(public_path($candidate))) {
+                return asset($candidate);
             }
 
-            if (str_starts_with($normalizedPath, 'uploads/')) {
-                $storagePath = 'storage/' . substr($normalizedPath, 8);
-                if (is_file(public_path($storagePath))) {
-                    return asset($storagePath);
+            // File may exist on the public disk even if symlink is missing in dev.
+            if (str_starts_with($candidate, 'storage/')) {
+                $diskPath = storage_path('app/public/' . substr($candidate, strlen('storage/')));
+                if (is_file($diskPath)) {
+                    return asset($candidate);
                 }
             }
-
-            if (str_starts_with($normalizedPath, 'storage/')) {
-                $uploadsPath = 'uploads/' . substr($normalizedPath, 8);
-                if (is_file(public_path($uploadsPath))) {
-                    return asset($uploadsPath);
-                }
-            }
-
-            return asset($normalizedPath);
         }
 
-        $uploadsPath = 'uploads/' . $normalizedPath;
-        if (is_file(public_path($uploadsPath))) {
-            return asset($uploadsPath);
-        }
-
-        $storagePath = 'storage/' . $normalizedPath;
-        if (is_file(public_path($storagePath))) {
-            return asset($storagePath);
-        }
-
-        return asset('uploads/' . $normalizedPath);
+        return null;
     }
 
     public function sentMessages()
