@@ -173,12 +173,8 @@ Route::prefix('ceo')->name('ceo.')->middleware(['web', 'auth', 'role:ceo,admin']
     Route::get('/system-health', [SystemHealthController::class, 'index'])->name('system-health.index');
     
     // Bulk Operations
-    Route::get('/bulk-operations', function () {
-        return view('ceo.bulk-operations.index');
-    })->name('bulk-operations.index');
+    Route::view('/bulk-operations', 'ceo.bulk-operations.index')->name('bulk-operations.index');
     
     // Permissions
-    Route::get('/permissions', function () {
-        return view('ceo.permissions.index');
-    })->name('permissions.index');
+    Route::view('/permissions', 'ceo.permissions.index')->name('permissions.index');
 });

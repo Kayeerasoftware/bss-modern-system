@@ -11,4 +11,8 @@ if [[ -z "${APP_KEY:-}" ]]; then
   exit 1
 fi
 
-php artisan serve --host=0.0.0.0 --port="${PORT:-10000}"
+# Improve concurrency on PHP's built-in server in Render Linux runtime.
+export PHP_CLI_SERVER_WORKERS="${PHP_CLI_SERVER_WORKERS:-4}"
+
+# Use CLI opcache to reduce request bootstrap overhead.
+php -d opcache.enable_cli=1 artisan serve --host=0.0.0.0 --port="${PORT:-10000}"

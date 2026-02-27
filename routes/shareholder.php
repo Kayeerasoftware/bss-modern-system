@@ -77,7 +77,7 @@ Route::prefix('shareholder')->name('shareholder.')->middleware(['auth', 'role:sh
     Route::get('/transactions/{id}', [TransactionsController::class, 'show'])->name('transactions.show');
     Route::get('/financial', [FinancialController::class, 'index'])->name('financial');
     Route::get('/users', [UsersController::class, 'index'])->name('users');
-    Route::get('/settings', fn() => view('shareholder.settings'))->name('settings');
+    Route::view('/settings', 'shareholder.settings')->name('settings');
     Route::get('/notifications', [NotificationsController::class, 'index'])->name('notifications');
     Route::get('/notifications/index', [NotificationsController::class, 'index'])->name('notifications.index');
     Route::get('/notifications/{id}', [NotificationsController::class, 'show'])->name('notifications.show');

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Jobs\WriteAuditLog;
 use App\Models\System\AuditLog;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Http\UploadedFile;
@@ -19,12 +20,18 @@ class AuditLogService
     {
         try {
             $userName = self::resolveActorName($actor);
+            $sanitizedChanges = self::sanitizeChanges($changes);
+
+            if (config('audit.queue_enabled', true) && config('queue.default') !== 'sync') {
+                WriteAuditLog::dispatch($userName, $action, $details, $sanitizedChanges)->onQueue('default');
+                return;
+            }
 
             AuditLog::create([
                 'user' => $userName,
                 'action' => $action,
                 'details' => $details,
-                'changes' => self::sanitizeChanges($changes),
+                'changes' => $sanitizedChanges,
                 'timestamp' => now(),
             ]);
         } catch (Throwable $e) {

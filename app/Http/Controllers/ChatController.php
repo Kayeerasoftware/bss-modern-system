@@ -6,10 +6,30 @@ use App\Models\ChatMessage;
 use App\Models\Member;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 class ChatController extends Controller
 {
+    private function conversationCacheKey(string $memberId): string
+    {
+        return 'chat:conversations:'.$memberId;
+    }
+
+    private function unreadCacheKey(string $memberId): string
+    {
+        return 'chat:unread:'.$memberId;
+    }
+
+    private function invalidateChatCaches(array $memberIds): void
+    {
+        foreach (array_unique(array_filter($memberIds)) as $memberId) {
+            Cache::forget($this->conversationCacheKey((string) $memberId));
+            Cache::forget($this->unreadCacheKey((string) $memberId));
+        }
+    }
+
     protected function currentMemberId(): ?string
     {
         $user = Auth::user();
@@ -73,6 +93,8 @@ class ChatController extends Controller
             'is_read' => false
         ]);
 
+        $this->invalidateChatCaches([$currentMemberId, $request->receiver_id]);
+
         return response()->json([
             'success' => true,
             'message' => [
@@ -118,6 +140,8 @@ class ChatController extends Controller
             ->where('receiver_id', $currentMemberId)
             ->where('is_read', false)
             ->update(['is_read' => true]);
+
+        $this->invalidateChatCaches([$currentMemberId, $otherMemberId]);
 
         return response()->json([
             'success' => true,
@@ -171,33 +195,56 @@ class ChatController extends Controller
             return response()->json(['success' => false, 'message' => 'Unauthorized conversation access'], 403);
         }
 
-        $conversations = ChatMessage::with(['sender.user', 'receiver.user'])
-            ->where('sender_id', $currentMemberId)
-            ->orWhere('receiver_id', $currentMemberId)
-            ->orderBy('created_at', 'desc')
-            ->get()
-            ->groupBy(function ($msg) use ($currentMemberId) {
-                return $msg->sender_id === $currentMemberId ? $msg->receiver_id : $msg->sender_id;
-            })
-            ->map(function ($messages, $otherMemberId) use ($currentMemberId) {
-                $lastMessage = $messages->first();
-                $unreadCount = $messages->where('receiver_id', $currentMemberId)
-                    ->where('is_read', false)
-                    ->count();
+        $conversations = Cache::remember($this->conversationCacheKey($currentMemberId), now()->addSeconds(5), function () use ($currentMemberId) {
+            $conversationHeads = ChatMessage::query()
+                ->selectRaw('CASE WHEN sender_id = ? THEN receiver_id ELSE sender_id END as other_member_id, MAX(id) as last_id', [$currentMemberId])
+                ->where(function ($query) use ($currentMemberId) {
+                    $query->where('sender_id', $currentMemberId)
+                        ->orWhere('receiver_id', $currentMemberId);
+                })
+                ->groupBy('other_member_id')
+                ->orderByDesc(DB::raw('MAX(created_at)'))
+                ->get();
 
-                $member = Member::with('user')->where('member_id', $otherMemberId)->first();
+            if ($conversationHeads->isEmpty()) {
+                return collect();
+            }
+
+            $lastMessages = ChatMessage::query()
+                ->whereIn('id', $conversationHeads->pluck('last_id')->all())
+                ->get()
+                ->keyBy('id');
+
+            $unreadBySender = ChatMessage::query()
+                ->selectRaw('sender_id as other_member_id, COUNT(*) as unread_count')
+                ->where('receiver_id', $currentMemberId)
+                ->where('is_read', false)
+                ->groupBy('sender_id')
+                ->pluck('unread_count', 'other_member_id');
+
+            $members = Member::query()
+                ->with('user')
+                ->whereIn('member_id', $conversationHeads->pluck('other_member_id')->all())
+                ->get()
+                ->keyBy('member_id');
+
+            return $conversationHeads->map(function ($row) use ($lastMessages, $unreadBySender, $members) {
+                $otherMemberId = (string) $row->other_member_id;
+                $lastMessage = $lastMessages->get($row->last_id);
+                $member = $members->get($otherMemberId);
 
                 return [
                     'member_id' => $otherMemberId,
                     'full_name' => $member?->full_name ?? 'Unknown',
                     'role' => $member?->user?->role ?? 'client',
                     'profile_picture' => $member?->profile_picture_url,
-                    'last_message' => $lastMessage->message,
-                    'last_time' => $lastMessage->created_at->format('H:i'),
-                    'timestamp' => $lastMessage->created_at->timestamp * 1000,
-                    'unread' => $unreadCount
+                    'last_message' => $lastMessage?->message ?? '',
+                    'last_time' => $lastMessage?->created_at?->format('H:i'),
+                    'timestamp' => $lastMessage?->created_at ? $lastMessage->created_at->timestamp * 1000 : null,
+                    'unread' => (int) ($unreadBySender[$otherMemberId] ?? 0),
                 ];
             })->values();
+        });
 
         return response()->json(['success' => true, 'conversations' => $conversations]);
     }
@@ -229,6 +276,8 @@ class ChatController extends Controller
             ->where('is_read', false)
             ->update(['is_read' => true]);
 
+        $this->invalidateChatCaches([$currentMemberId, $otherMemberId]);
+
         return response()->json(['success' => true]);
     }
 
@@ -244,6 +293,8 @@ class ChatController extends Controller
             ->where('is_read', false)
             ->update(['is_read' => true]);
 
+        $this->invalidateChatCaches([$currentMemberId, $otherMemberId]);
+
         return response()->json(['success' => true]);
     }
 
@@ -254,9 +305,12 @@ class ChatController extends Controller
             return response()->json(['success' => false, 'message' => 'Member not found'], 404);
         }
 
-        $count = ChatMessage::where('receiver_id', $currentMemberId)
-            ->where('is_read', false)
-            ->count();
+        $count = Cache::remember($this->unreadCacheKey($currentMemberId), now()->addSeconds(5), function () use ($currentMemberId) {
+            return ChatMessage::query()
+                ->where('receiver_id', $currentMemberId)
+                ->where('is_read', false)
+                ->count();
+        });
 
         return response()->json(['success' => true, 'unread' => $count]);
     }

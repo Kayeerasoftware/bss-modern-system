@@ -177,12 +177,8 @@ Route::prefix('admin')->name('admin.')->middleware(['web', 'auth', 'role:admin,c
     Route::get('/system-health', [SystemHealthController::class, 'index'])->name('system-health.index');
     
     // Bulk Operations
-    Route::get('/bulk-operations', function () {
-        return view('admin.bulk-operations.index');
-    })->name('bulk-operations.index');
+    Route::view('/bulk-operations', 'admin.bulk-operations.index')->name('bulk-operations.index');
     
     // Permissions
-    Route::get('/permissions', function () {
-        return view('admin.permissions.index');
-    })->name('permissions.index');
+    Route::view('/permissions', 'admin.permissions.index')->name('permissions.index');
 });

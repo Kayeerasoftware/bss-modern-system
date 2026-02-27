@@ -1,11 +1,9 @@
 services:
   - type: web
     name: bss-system-web
-    env: php
+    env: docker
     plan: starter
-    buildCommand: "bash scripts/render-build.sh"
-    preDeployCommand: "bash -lc 'source scripts/render-prepare-cert.sh && php artisan migrate --force'"
-    startCommand: "bash scripts/render-start.sh"
+    dockerfilePath: ./Dockerfile
     healthCheckPath: /
     autoDeploy: true
     envVars:
@@ -19,6 +17,12 @@ services:
         value: error
       - key: DB_CONNECTION
         value: mysql
+      - key: DB_PERSISTENT
+        value: "true"
+      - key: DB_CONNECT_TIMEOUT
+        value: "5"
+      - key: DB_EMULATE_PREPARES
+        value: "false"
       - key: CACHE_STORE
         value: file
       - key: SESSION_DRIVER
@@ -27,6 +31,12 @@ services:
         value: database
       - key: FILESYSTEM_DISK
         value: uploads
+      - key: AUDIT_LOG_GET_REQUESTS
+        value: "false"
+      - key: AUDIT_QUEUE_ENABLED
+        value: "true"
+      - key: RUN_MIGRATIONS
+        value: "true"
 
   - type: worker
     name: bss-system-worker
@@ -46,6 +56,12 @@ services:
         value: error
       - key: DB_CONNECTION
         value: mysql
+      - key: DB_PERSISTENT
+        value: "true"
+      - key: DB_CONNECT_TIMEOUT
+        value: "5"
+      - key: DB_EMULATE_PREPARES
+        value: "false"
       - key: CACHE_STORE
         value: file
       - key: SESSION_DRIVER
@@ -54,3 +70,7 @@ services:
         value: database
       - key: FILESYSTEM_DISK
         value: uploads
+      - key: AUDIT_LOG_GET_REQUESTS
+        value: "false"
+      - key: AUDIT_QUEUE_ENABLED
+        value: "true"

@@ -14,33 +14,58 @@ class DashboardController extends Controller
     public function getData(Request $request)
     {
         $role = $request->get('role', 'client');
-        
-        // Get real data from database
-        $members = Member::all();
-        $totalSavings = Member::sum('savings');
-        $activeLoans = Loan::where('status', 'approved')->count();
-        $totalLoanAmount = Loan::where('status', 'approved')->sum('amount');
-        $recentTransactions = Transaction::with('member')->latest()->take(5)->get();
-        $projects = Project::all();
-        $pendingLoans = Loan::where('status', 'pending')->with('member')->get();
-        $loans = Loan::with('member')->get();
-        
-        // Calculate condolence fund based on member contributions
-        $condolenceFund = $totalSavings * 0.05; // 5% of total savings
-        
-        $data = [
-            'members' => $members,
-            'total_savings' => $totalSavings,
-            'totalSavings' => $totalSavings,
-            'active_loans' => $activeLoans,
-            'total_loan_amount' => $totalLoanAmount,
-            'totalLoans' => $totalLoanAmount,
-            'recent_transactions' => $recentTransactions,
-            'projects' => $projects,
-            'pending_loans' => $pendingLoans,
-            'loans' => $loans,
-            'condolenceFund' => $condolenceFund,
-        ];
+
+        $cacheKey = 'dashboard:get_data:v1:'.$role;
+
+        $data = Cache::remember($cacheKey, now()->addSeconds(30), static function () {
+            $members = Member::query()
+                ->select('id', 'member_id', 'full_name', 'email', 'role', 'status', 'savings', 'balance', 'savings_balance', 'created_at')
+                ->get();
+
+            $memberSummary = Member::query()
+                ->selectRaw('COALESCE(SUM(savings), 0) as total_savings')
+                ->first();
+
+            $loanSummary = Loan::query()
+                ->selectRaw('SUM(CASE WHEN status = "approved" THEN 1 ELSE 0 END) as active_loans, COALESCE(SUM(CASE WHEN status = "approved" THEN amount ELSE 0 END), 0) as total_loan_amount')
+                ->first();
+
+            $recentTransactions = Transaction::query()
+                ->with('member')
+                ->latest()
+                ->take(5)
+                ->get();
+
+            $projects = Project::query()
+                ->select('id', 'project_id', 'name', 'budget', 'timeline', 'status', 'progress', 'roi', 'created_at')
+                ->get();
+
+            $pendingLoans = Loan::query()
+                ->where('status', 'pending')
+                ->with('member')
+                ->get();
+
+            $loans = Loan::query()
+                ->with('member')
+                ->get();
+
+            $totalSavings = (float) ($memberSummary->total_savings ?? 0);
+            $totalLoanAmount = (float) ($loanSummary->total_loan_amount ?? 0);
+
+            return [
+                'members' => $members,
+                'total_savings' => $totalSavings,
+                'totalSavings' => $totalSavings,
+                'active_loans' => (int) ($loanSummary->active_loans ?? 0),
+                'total_loan_amount' => $totalLoanAmount,
+                'totalLoans' => $totalLoanAmount,
+                'recent_transactions' => $recentTransactions,
+                'projects' => $projects,
+                'pending_loans' => $pendingLoans,
+                'loans' => $loans,
+                'condolenceFund' => $totalSavings * 0.05,
+            ];
+        });
 
         return response()->json($data);
     }

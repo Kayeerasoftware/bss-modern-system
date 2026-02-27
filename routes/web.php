@@ -4,13 +4,8 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 
 // Public Routes
-Route::get('/', function () {
-    return view('welcome');
-})->name('welcome');
-
-Route::get('/learn-more', function () {
-    return view('learn-more');
-})->name('learn-more');
+Route::view('/', 'welcome')->name('welcome');
+Route::view('/learn-more', 'learn-more')->name('learn-more');
 
 // Authentication Routes
 Route::get('/login', function () { 
@@ -23,7 +18,12 @@ Route::get('/login', function () {
         'admin' => \App\Models\Setting::get('role_status_admin', 1),
     ];
     
-    $adminPhone = \App\Models\User::where('role', 'admin')->whereNotNull('phone')->first()->phone ?? null;
+    $adminPhone = \Illuminate\Support\Facades\Cache::remember('ui:admin_phone:v1', now()->addMinutes(5), function () {
+        return \App\Models\User::query()
+            ->where('role', 'admin')
+            ->whereNotNull('phone')
+            ->value('phone');
+    });
     
     return view('auth.login', compact('roleStatuses', 'adminPhone')); 
 })->name('login');
@@ -49,16 +49,19 @@ Route::get('/register', function () {
         'admin' => \App\Models\Setting::get('allow_registration_admin', 1),
     ];
     
-    $adminPhone = \App\Models\User::where('role', 'admin')->whereNotNull('phone')->first()->phone ?? null;
+    $adminPhone = \Illuminate\Support\Facades\Cache::remember('ui:admin_phone:v1', now()->addMinutes(5), function () {
+        return \App\Models\User::query()
+            ->where('role', 'admin')
+            ->whereNotNull('phone')
+            ->value('phone');
+    });
     
     return view('auth.register', compact('roleStatuses', 'registrationAllowed', 'adminPhone')); 
 })->name('register');
 
 Route::post('/register', [AuthController::class, 'register'])->name('register.post');
 
-Route::get('/forgot-password', function () { 
-    return view('auth.forgot-password'); 
-})->name('password.request');
+Route::view('/forgot-password', 'auth.forgot-password')->name('password.request');
 
 Route::post('/forgot-password', [AuthController::class, 'sendResetLink'])->name('password.email');
 
@@ -122,45 +125,79 @@ Route::post('/switch-role', function(\Illuminate\Http\Request $request) {
 // Unified Dashboard
 Route::get('/dashboard', function () {
     try {
-        // Calculate growth percentage
-        $currentYearTransactions = \App\Models\Transaction::whereYear('created_at', date('Y'))->sum('amount');
-        $lastYearTransactions = \App\Models\Transaction::whereYear('created_at', date('Y') - 1)->sum('amount');
-        $growthPercentage = $lastYearTransactions > 0 
-            ? (($currentYearTransactions - $lastYearTransactions) / $lastYearTransactions) * 100 
-            : 0;
-        
-        // Calculate member growth
-        $currentMonthMembers = \App\Models\Member::whereMonth('created_at', date('m'))->whereYear('created_at', date('Y'))->count();
-        $lastMonthMembers = \App\Models\Member::whereMonth('created_at', date('m') - 1)->whereYear('created_at', date('Y'))->count();
-        $memberGrowth = $lastMonthMembers > 0 
-            ? (($currentMonthMembers - $lastMonthMembers) / $lastMonthMembers) * 100 
-            : 0;
-        
-        // Calculate asset growth
-        $totalAssets = \App\Models\Member::sum('savings_balance') + \App\Models\Member::sum('balance');
-        $assetGrowth = 12.8; // Can be calculated from historical data if available
-        
-        // Count nearing completion projects
-        $nearingCompletion = \App\Models\Project::where('status', 'active')
-            ->where('progress', '>=', 80)
-            ->count();
-        
-        $stats = [
-            'totalMembers' => \App\Models\Member::count(),
-            'totalAssets' => $totalAssets,
-            'activeProjects' => \App\Models\Project::where('status', 'active')->count(),
-            'pendingLoans' => \App\Models\Loan::where('status', 'pending')->count(),
-            'memberGrowth' => number_format($memberGrowth, 1),
-            'assetGrowth' => number_format($assetGrowth, 1),
-            'nearingCompletion' => $nearingCompletion,
-            'totalSavings' => \App\Models\Member::sum('savings'),
-            'totalLoans' => \App\Models\Loan::where('status', 'approved')->count(),
-            'availableFunds' => \App\Models\Member::sum('balance'),
-            'activeInvestments' => \App\Models\Project::where('status', 'active')->count(),
-            'condolenceFund' => \App\Models\Member::sum('savings_balance') * 0.05,
-        ];
-        
-        $dashboards = [
+        $dashboardPayload = \Illuminate\Support\Facades\Cache::remember('ui:dashboard_payload:v2', now()->addSeconds(45), function () {
+            $currentYear = now()->year;
+            $currentMonthStart = now()->startOfMonth();
+            $previousMonthStart = now()->copy()->subMonthNoOverflow()->startOfMonth();
+            $previousMonthEnd = now()->copy()->subMonthNoOverflow()->endOfMonth();
+
+            $transactionByYear = \App\Models\Transaction::query()
+                ->where(function ($query) use ($currentYear) {
+                    $query->whereYear('created_at', $currentYear - 1)
+                        ->orWhereYear('created_at', $currentYear);
+                })
+                ->selectRaw('YEAR(created_at) as yr, COALESCE(SUM(amount),0) as total')
+                ->groupBy('yr')
+                ->pluck('total', 'yr');
+
+            $memberSummary = \App\Models\Member::query()
+                ->selectRaw('COUNT(*) as total_members, COALESCE(SUM(savings_balance),0) as savings_balance_total, COALESCE(SUM(balance),0) as balance_total, COALESCE(SUM(savings),0) as savings_total')
+                ->first();
+
+            $currentMonthMembers = \App\Models\Member::query()
+                ->where('created_at', '>=', $currentMonthStart)
+                ->count();
+            $lastMonthMembers = \App\Models\Member::query()
+                ->whereBetween('created_at', [$previousMonthStart, $previousMonthEnd])
+                ->count();
+
+            $projectSummary = \App\Models\Project::query()
+                ->selectRaw('SUM(CASE WHEN status = "active" THEN 1 ELSE 0 END) as active_projects, SUM(CASE WHEN status = "active" AND progress >= 80 THEN 1 ELSE 0 END) as nearing_completion, COALESCE(AVG(roi),0) as avg_roi')
+                ->first();
+
+            $loanSummary = \App\Models\Loan::query()
+                ->selectRaw('SUM(CASE WHEN status = "pending" THEN 1 ELSE 0 END) as pending_loans, SUM(CASE WHEN status = "approved" THEN 1 ELSE 0 END) as approved_loans')
+                ->first();
+
+            $userSummary = \App\Models\User::query()
+                ->selectRaw('COUNT(*) as total_users, SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END) as active_users')
+                ->first();
+
+            $todayTransactions = \App\Models\Transaction::query()
+                ->whereDate('created_at', today())
+                ->count();
+
+            $currentYearTransactions = (float) ($transactionByYear[$currentYear] ?? 0);
+            $lastYearTransactions = (float) ($transactionByYear[$currentYear - 1] ?? 0);
+            $growthPercentage = $lastYearTransactions > 0
+                ? (($currentYearTransactions - $lastYearTransactions) / $lastYearTransactions) * 100
+                : 0;
+
+            $memberGrowth = $lastMonthMembers > 0
+                ? (($currentMonthMembers - $lastMonthMembers) / $lastMonthMembers) * 100
+                : 0;
+
+            $totalAssets = (float) (($memberSummary->savings_balance_total ?? 0) + ($memberSummary->balance_total ?? 0));
+            $totalSavings = (float) ($memberSummary->savings_total ?? 0);
+            $activeProjects = (int) ($projectSummary->active_projects ?? 0);
+            $approvedLoans = (int) ($loanSummary->approved_loans ?? 0);
+
+            return [
+                'stats' => [
+                    'totalMembers' => (int) ($memberSummary->total_members ?? 0),
+                    'totalAssets' => $totalAssets,
+                    'activeProjects' => $activeProjects,
+                    'pendingLoans' => (int) ($loanSummary->pending_loans ?? 0),
+                    'memberGrowth' => number_format($memberGrowth, 1),
+                    'assetGrowth' => number_format(12.8, 1),
+                    'nearingCompletion' => (int) ($projectSummary->nearing_completion ?? 0),
+                    'totalSavings' => $totalSavings,
+                    'totalLoans' => $approvedLoans,
+                    'availableFunds' => (float) ($memberSummary->balance_total ?? 0),
+                    'activeInvestments' => $activeProjects,
+                    'condolenceFund' => (float) ($memberSummary->savings_balance_total ?? 0) * 0.05,
+                ],
+                'dashboards' => [
             'client' => [
                 'title' => 'Client Dashboard',
                 'subtitle' => 'Personal Financial Management',
@@ -168,7 +205,7 @@ Route::get('/dashboard', function () {
                 'gradientStart' => '#10b981',
                 'gradientEnd' => '#059669',
                 'color' => 'green',
-                'stat' => 'UGX ' . number_format(\App\Models\Member::avg('savings_balance') ?? 0),
+                'stat' => 'UGX ' . number_format((float) ($memberSummary->savings_balance_total ?? 0) / max((int) ($memberSummary->total_members ?? 1), 1)),
                 'statLabel' => 'Avg. Savings',
                 'features' => [
                     'Personal savings tracking',
@@ -185,7 +222,7 @@ Route::get('/dashboard', function () {
                 'gradientStart' => '#8b5cf6',
                 'gradientEnd' => '#7c3aed',
                 'color' => 'purple',
-                'stat' => number_format(\App\Models\Project::avg('roi') ?? 0, 1) . '%',
+                'stat' => number_format((float) ($projectSummary->avg_roi ?? 0), 1) . '%',
                 'statLabel' => 'Avg. ROI',
                 'features' => [
                     'Portfolio performance tracking',
@@ -202,7 +239,7 @@ Route::get('/dashboard', function () {
                 'gradientStart' => '#3b82f6',
                 'gradientEnd' => '#2563eb',
                 'color' => 'blue',
-                'stat' => \App\Models\Transaction::whereDate('created_at', today())->count(),
+                'stat' => $todayTransactions,
                 'statLabel' => 'Daily Transactions',
                 'features' => [
                     'Transaction processing & approval',
@@ -219,7 +256,7 @@ Route::get('/dashboard', function () {
                 'gradientStart' => '#6366f1',
                 'gradientEnd' => '#4f46e5',
                 'color' => 'indigo',
-                'stat' => \App\Models\Project::where('status', 'active')->count(),
+                'stat' => $activeProjects,
                 'statLabel' => 'Active Projects',
                 'features' => [
                     'Project progress tracking',
@@ -253,7 +290,7 @@ Route::get('/dashboard', function () {
                 'gradientStart' => '#ef4444',
                 'gradientEnd' => '#dc2626',
                 'color' => 'red',
-                'stat' => \App\Models\User::where('is_active', true)->count() . '/' . \App\Models\User::count(),
+                'stat' => (int) ($userSummary->active_users ?? 0) . '/' . (int) ($userSummary->total_users ?? 0),
                 'statLabel' => 'Active Users',
                 'features' => [
                     'User management & permissions',
@@ -263,7 +300,12 @@ Route::get('/dashboard', function () {
                 ],
                 'url' => '/admin/dashboard'
             ]
-        ];
+                ],
+            ];
+        });
+        
+        $stats = $dashboardPayload['stats'];
+        $dashboards = $dashboardPayload['dashboards'];
         
         return view('dashboard', compact('stats', 'dashboards'));
     } catch (\Exception $e) {
@@ -272,9 +314,7 @@ Route::get('/dashboard', function () {
 })->middleware('auth')->name('dashboard');
 
 // Debug route
-Route::get('/alpine-test', function() {
-    return view('alpine-test');
-});
+Route::view('/alpine-test', 'alpine-test');
 
 Route::get('/debug-members', function() {
     $currentUser = auth()->user();

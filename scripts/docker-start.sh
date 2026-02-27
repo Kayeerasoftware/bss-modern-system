@@ -15,15 +15,21 @@ if [[ -z "${APP_KEY:-}" ]]; then
   exit 1
 fi
 
+PORT="${PORT:-10000}"
+
+# Render requires binding to the provided PORT.
+sed -ri "s/^Listen 80$/Listen ${PORT}/" /etc/apache2/ports.conf
+sed -ri "s/<VirtualHost \*:80>/<VirtualHost *:${PORT}>/" /etc/apache2/sites-available/000-default.conf
+
 mkdir -p public/uploads storage/app/public storage/framework/{cache,sessions,views} storage/logs bootstrap/cache
 chown -R www-data:www-data storage bootstrap/cache public/uploads || true
 chmod -R ug+rwx storage bootstrap/cache public/uploads || true
 ln -sfn /var/www/html/storage/app/public /var/www/html/public/storage
 
 php artisan storage:link || true
-php artisan config:clear || true
-php artisan route:clear || true
-php artisan view:clear || true
+php artisan config:cache || true
+php artisan route:cache || true
+php artisan view:cache || true
 
 # Set RUN_MIGRATIONS=true in Render to auto-run migrations on container boot.
 if [[ "${RUN_MIGRATIONS:-false}" == "true" ]]; then

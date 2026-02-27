@@ -5,8 +5,8 @@ source scripts/render-prepare-cert.sh
 
 mkdir -p storage/framework/{cache,sessions,views} storage/logs bootstrap/cache public/uploads
 
-composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction --no-scripts
-composer dump-autoload --optimize --no-dev --no-interaction
+composer install --no-dev --prefer-dist --optimize-autoloader --classmap-authoritative --no-interaction --no-scripts
+composer dump-autoload --optimize --classmap-authoritative --no-dev --no-interaction
 php artisan package:discover --ansi
 
 php artisan storage:link || true

@@ -8,4 +8,4 @@ if [[ -z "${APP_KEY:-}" ]]; then
   exit 1
 fi
 
-php artisan queue:work --tries=3 --timeout=120 --sleep=2 --max-time=3600
+php -d opcache.enable_cli=1 artisan queue:work --queue=default --tries=3 --timeout=120 --sleep=1 --max-jobs=1000 --max-time=3600 --memory=256

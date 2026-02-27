@@ -52,6 +52,10 @@ class AuditLogMiddleware
             return false;
         }
 
+        if (!config('audit.log_get_requests', false)) {
+            return false;
+        }
+
         $routeName = (string) ($request->route()?->getName() ?? '');
         $path = strtolower($request->path());
 

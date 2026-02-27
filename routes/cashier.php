@@ -53,9 +53,7 @@ Route::prefix('cashier')->name('cashier.')->middleware(['auth', 'role:cashier,ad
     
     // Fundraising
     Route::prefix('fundraising')->name('fundraising.')->group(function () {
-        Route::get('/', function () { 
-            return view('cashier.fundraising.index'); 
-        })->name('index');
+        Route::view('/', 'cashier.fundraising.index')->name('index');
     });
     
     // Financial
@@ -134,9 +132,7 @@ Route::prefix('cashier')->name('cashier.')->middleware(['auth', 'role:cashier,ad
     
     // Settings
     Route::prefix('settings')->name('settings.')->group(function () {
-        Route::get('/', function () { 
-            return view('cashier.settings.index'); 
-        })->name('index');
+        Route::view('/', 'cashier.settings.index')->name('index');
     });
     
     // Profile

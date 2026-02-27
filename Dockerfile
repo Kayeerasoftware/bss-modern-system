@@ -21,13 +21,42 @@ RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
     zip \
     exif
 
+# Production PHP tuning.
+RUN { \
+    echo "opcache.enable=1"; \
+    echo "opcache.memory_consumption=192"; \
+    echo "opcache.interned_strings_buffer=16"; \
+    echo "opcache.max_accelerated_files=20000"; \
+    echo "opcache.revalidate_freq=0"; \
+    echo "opcache.validate_timestamps=0"; \
+    echo "realpath_cache_size=4096K"; \
+    echo "realpath_cache_ttl=600"; \
+  } > /usr/local/etc/php/conf.d/99-performance.ini
+
 # Apache settings for Laravel public/ directory.
 ENV APACHE_DOCUMENT_ROOT=/var/www/html/public
-RUN a2enmod rewrite headers \
+RUN a2enmod rewrite headers deflate expires \
     && sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' \
       /etc/apache2/sites-available/*.conf \
       /etc/apache2/apache2.conf \
       /etc/apache2/conf-available/*.conf
+
+# Compression + static asset caching.
+RUN printf '%s\n' \
+    '<IfModule mod_deflate.c>' \
+    '  AddOutputFilterByType DEFLATE text/plain text/html text/xml text/css application/javascript application/json image/svg+xml' \
+    '</IfModule>' \
+    '<IfModule mod_expires.c>' \
+    '  ExpiresActive On' \
+    '  ExpiresByType text/css "access plus 7 days"' \
+    '  ExpiresByType application/javascript "access plus 7 days"' \
+    '  ExpiresByType image/png "access plus 30 days"' \
+    '  ExpiresByType image/jpeg "access plus 30 days"' \
+    '  ExpiresByType image/svg+xml "access plus 30 days"' \
+    '  ExpiresByType font/woff2 "access plus 30 days"' \
+    '</IfModule>' \
+    > /etc/apache2/conf-available/performance.conf \
+    && a2enconf performance
 
 # Composer binary.
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
@@ -36,13 +65,13 @@ WORKDIR /var/www/html
 
 # Install PHP dependencies first for better Docker layer caching.
 COPY composer.json composer.lock ./
-RUN composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction --no-scripts
+RUN composer install --no-dev --prefer-dist --optimize-autoloader --classmap-authoritative --no-interaction --no-scripts
 
 # Copy application source.
 COPY . .
 
 # Run Laravel/Composer scripts only after full source exists.
-RUN composer dump-autoload --optimize --no-interaction \
+RUN composer dump-autoload --optimize --classmap-authoritative --no-interaction \
     && php artisan package:discover --ansi
 
 # Runtime write permissions.
