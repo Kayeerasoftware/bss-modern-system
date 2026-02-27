@@ -12,7 +12,7 @@
         <div class="lg:col-span-1">
             <div class="bg-white rounded-2xl shadow-xl p-6 border border-gray-100">
                 <div class="text-center">
-                    <img src="{{ $member->profile_picture ?? 'https://ui-avatars.com/api/?name='.$member->full_name }}" class="w-32 h-32 rounded-full mx-auto mb-4 border-4 border-blue-500">
+                    <img src="{{ $member->profile_picture_url }}" class="w-32 h-32 rounded-full mx-auto mb-4 border-4 border-blue-500 object-cover">
                     <h2 class="text-2xl font-bold text-gray-900 mb-1">{{ $member->full_name }}</h2>
                     <p class="text-gray-600 mb-4">{{ $member->member_id }}</p>
                     <div class="space-y-2 text-left">
