@@ -91,6 +91,18 @@ Render will run:
 - start web: `bash scripts/render-start.sh`
 - start worker: `bash scripts/render-worker.sh`
 
+## 6.1 Import production data (recommended)
+
+Use this corrected SQL dump for first-time data import:
+
+- `bss_system (1)-fixed.sql`
+
+Import it into your Aiven database before opening the app publicly.
+
+Notes:
+- It keeps your existing keys and foreign key links unchanged.
+- It includes safe table re-creation and foreign-key guard lines for reliable import.
+
 ## 7. Verify deployment
 
 1. Open web URL (`/`).
@@ -100,7 +112,15 @@ Render will run:
 5. Check Render logs for both services:
    - no DB SSL errors
    - no `APP_KEY` errors
-   - no migration errors
+- no migration errors
+
+Also run these in Render Shell for the web service:
+
+```bash
+php artisan about
+php artisan migrate:status
+php artisan tinker --execute="echo \App\Models\User::count();"
+```
 
 ## 8. Common fixes
 
@@ -135,4 +155,3 @@ If you don't use `render.yaml`:
 - Worker service:
   - Build command: `bash scripts/render-build.sh`
   - Start command: `bash scripts/render-worker.sh`
-
