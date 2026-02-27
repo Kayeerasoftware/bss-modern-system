@@ -64,7 +64,8 @@
                         <i class="fas fa-cog text-blue-600 text-xs w-3 text-center"></i> Settings
                     </a>
                     <div class="dropdown-divider h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent my-1"></div>
-                    <form action="http://127.0.0.1:8000/" method="GET" class="m-0">
+                    <form action="{{ route('logout') }}" method="POST" class="m-0">
+            @csrf
                         <button type="submit" class="dropdown-item flex items-center gap-2 px-3 py-2 text-gray-800 no-underline transition-all duration-200 bg-transparent border-0 w-full text-left cursor-pointer text-xs font-medium relative hover:bg-gradient-to-br hover:from-blue-50 hover:to-purple-50 hover:text-blue-600">
                             <i class="fas fa-sign-out-alt text-blue-600 text-xs w-3 text-center"></i> Logout
                         </button>

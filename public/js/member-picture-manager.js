@@ -1,1 +1,348 @@
-/**\n * Member Picture Management Component\n * Handles upload, preview, delete, and bulk operations for member profile pictures\n */\nclass MemberPictureManager {\n    constructor(options = {}) {\n        this.options = {\n            uploadUrl: '/admin/members/{id}/picture/upload',\n            deleteUrl: '/admin/members/{id}/picture',\n            bulkUploadUrl: '/admin/members/pictures/bulk-upload',\n            maxFileSize: 5 * 1024 * 1024, // 5MB\n            allowedTypes: ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'],\n            previewSelector: '#preview',\n            placeholderSelector: '#placeholder',\n            uploadButtonSelector: '#upload-btn',\n            deleteButtonSelector: '#delete-btn',\n            progressSelector: '#upload-progress',\n            ...options\n        };\n        \n        this.init();\n    }\n\n    init() {\n        this.setupEventListeners();\n        this.setupDragAndDrop();\n    }\n\n    setupEventListeners() {\n        // File input change\n        document.addEventListener('change', (e) => {\n            if (e.target.type === 'file' && e.target.accept.includes('image')) {\n                this.handleFileSelect(e);\n            }\n        });\n\n        // Upload button click\n        document.addEventListener('click', (e) => {\n            if (e.target.matches(this.options.uploadButtonSelector)) {\n                this.triggerFileSelect(e.target);\n            }\n        });\n\n        // Delete button click\n        document.addEventListener('click', (e) => {\n            if (e.target.matches(this.options.deleteButtonSelector)) {\n                this.deletePicture(e.target);\n            }\n        });\n    }\n\n    setupDragAndDrop() {\n        const dropZones = document.querySelectorAll('.picture-drop-zone');\n        \n        dropZones.forEach(zone => {\n            zone.addEventListener('dragover', this.handleDragOver.bind(this));\n            zone.addEventListener('dragleave', this.handleDragLeave.bind(this));\n            zone.addEventListener('drop', this.handleDrop.bind(this));\n        });\n    }\n\n    handleDragOver(e) {\n        e.preventDefault();\n        e.currentTarget.classList.add('drag-over');\n    }\n\n    handleDragLeave(e) {\n        e.preventDefault();\n        e.currentTarget.classList.remove('drag-over');\n    }\n\n    handleDrop(e) {\n        e.preventDefault();\n        e.currentTarget.classList.remove('drag-over');\n        \n        const files = Array.from(e.dataTransfer.files);\n        const imageFiles = files.filter(file => this.options.allowedTypes.includes(file.type));\n        \n        if (imageFiles.length > 0) {\n            this.processFiles(imageFiles, e.currentTarget);\n        } else {\n            this.showError('Please drop valid image files only.');\n        }\n    }\n\n    handleFileSelect(e) {\n        const files = Array.from(e.target.files);\n        this.processFiles(files, e.target.closest('.picture-container'));\n    }\n\n    processFiles(files, container) {\n        files.forEach(file => {\n            if (this.validateFile(file)) {\n                this.previewImage(file, container);\n                this.uploadImage(file, container);\n            }\n        });\n    }\n\n    validateFile(file) {\n        // Check file type\n        if (!this.options.allowedTypes.includes(file.type)) {\n            this.showError(`Invalid file type: ${file.type}. Allowed types: ${this.options.allowedTypes.join(', ')}`);\n            return false;\n        }\n\n        // Check file size\n        if (file.size > this.options.maxFileSize) {\n            this.showError(`File too large: ${(file.size / 1024 / 1024).toFixed(2)}MB. Maximum size: ${(this.options.maxFileSize / 1024 / 1024)}MB`);\n            return false;\n        }\n\n        return true;\n    }\n\n    previewImage(file, container) {\n        const reader = new FileReader();\n        const preview = container.querySelector(this.options.previewSelector);\n        const placeholder = container.querySelector(this.options.placeholderSelector);\n        \n        reader.onload = (e) => {\n            if (preview) {\n                preview.src = e.target.result;\n                preview.classList.remove('hidden');\n            }\n            if (placeholder) {\n                placeholder.classList.add('hidden');\n            }\n        };\n        \n        reader.readAsDataURL(file);\n    }\n\n    async uploadImage(file, container) {\n        const memberId = container.dataset.memberId;\n        if (!memberId) {\n            this.showError('Member ID not found');\n            return;\n        }\n\n        const formData = new FormData();\n        formData.append('profile_picture', file);\n        formData.append('_token', document.querySelector('meta[name=\"csrf-token\"]').content);\n\n        const progressBar = container.querySelector(this.options.progressSelector);\n        const uploadUrl = this.options.uploadUrl.replace('{id}', memberId);\n\n        try {\n            this.showProgress(progressBar, 0);\n            \n            const response = await fetch(uploadUrl, {\n                method: 'POST',\n                body: formData,\n                headers: {\n                    'X-Requested-With': 'XMLHttpRequest'\n                }\n            });\n\n            const result = await response.json();\n\n            if (result.success) {\n                this.showSuccess('Picture uploaded successfully!');\n                this.updatePictureInfo(container, result.picture_info);\n            } else {\n                this.showError(result.message || 'Upload failed');\n            }\n        } catch (error) {\n            this.showError('Upload failed: ' + error.message);\n        } finally {\n            this.hideProgress(progressBar);\n        }\n    }\n\n    async deletePicture(button) {\n        const container = button.closest('.picture-container');\n        const memberId = container.dataset.memberId;\n        \n        if (!memberId) {\n            this.showError('Member ID not found');\n            return;\n        }\n\n        if (!confirm('Are you sure you want to delete this picture?')) {\n            return;\n        }\n\n        const deleteUrl = this.options.deleteUrl.replace('{id}', memberId);\n\n        try {\n            const response = await fetch(deleteUrl, {\n                method: 'DELETE',\n                headers: {\n                    'X-Requested-With': 'XMLHttpRequest',\n                    'X-CSRF-TOKEN': document.querySelector('meta[name=\"csrf-token\"]').content\n                }\n            });\n\n            const result = await response.json();\n\n            if (result.success) {\n                this.showSuccess('Picture deleted successfully!');\n                this.resetPictureDisplay(container);\n            } else {\n                this.showError(result.message || 'Delete failed');\n            }\n        } catch (error) {\n            this.showError('Delete failed: ' + error.message);\n        }\n    }\n\n    async bulkUpload(files, memberIds) {\n        const formData = new FormData();\n        \n        files.forEach((file, index) => {\n            formData.append(`pictures[${index}]`, file);\n            formData.append(`member_ids[${index}]`, memberIds[index]);\n        });\n        \n        formData.append('_token', document.querySelector('meta[name=\"csrf-token\"]').content);\n\n        try {\n            const response = await fetch(this.options.bulkUploadUrl, {\n                method: 'POST',\n                body: formData,\n                headers: {\n                    'X-Requested-With': 'XMLHttpRequest'\n                }\n            });\n\n            const result = await response.json();\n\n            if (result.success) {\n                this.showSuccess(`Bulk upload completed! ${result.results.length} pictures processed.`);\n                return result.results;\n            } else {\n                this.showError(result.message || 'Bulk upload failed');\n            }\n        } catch (error) {\n            this.showError('Bulk upload failed: ' + error.message);\n        }\n\n        return null;\n    }\n\n    triggerFileSelect(button) {\n        const container = button.closest('.picture-container');\n        const fileInput = container.querySelector('input[type=\"file\"]');\n        if (fileInput) {\n            fileInput.click();\n        }\n    }\n\n    updatePictureInfo(container, pictureInfo) {\n        const preview = container.querySelector(this.options.previewSelector);\n        const placeholder = container.querySelector(this.options.placeholderSelector);\n        \n        if (pictureInfo.exists && preview) {\n            preview.src = pictureInfo.url;\n            preview.classList.remove('hidden');\n            if (placeholder) {\n                placeholder.classList.add('hidden');\n            }\n        }\n    }\n\n    resetPictureDisplay(container) {\n        const preview = container.querySelector(this.options.previewSelector);\n        const placeholder = container.querySelector(this.options.placeholderSelector);\n        const fileInput = container.querySelector('input[type=\"file\"]');\n        \n        if (preview) {\n            preview.src = '';\n            preview.classList.add('hidden');\n        }\n        if (placeholder) {\n            placeholder.classList.remove('hidden');\n        }\n        if (fileInput) {\n            fileInput.value = '';\n        }\n    }\n\n    showProgress(progressBar, percent) {\n        if (progressBar) {\n            progressBar.style.display = 'block';\n            progressBar.style.width = percent + '%';\n        }\n    }\n\n    hideProgress(progressBar) {\n        if (progressBar) {\n            progressBar.style.display = 'none';\n        }\n    }\n\n    showSuccess(message) {\n        this.showNotification(message, 'success');\n    }\n\n    showError(message) {\n        this.showNotification(message, 'error');\n    }\n\n    showNotification(message, type = 'info') {\n        // Create notification element\n        const notification = document.createElement('div');\n        notification.className = `notification notification-${type} fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg max-w-sm`;\n        notification.innerHTML = `\n            <div class=\"flex items-center\">\n                <i class=\"fas fa-${type === 'success' ? 'check-circle text-green-500' : type === 'error' ? 'exclamation-circle text-red-500' : 'info-circle text-blue-500'} mr-2\"></i>\n                <span class=\"text-sm font-medium\">${message}</span>\n                <button class=\"ml-auto text-gray-400 hover:text-gray-600\" onclick=\"this.parentElement.parentElement.remove()\">\n                    <i class=\"fas fa-times\"></i>\n                </button>\n            </div>\n        `;\n        \n        // Add styles based on type\n        if (type === 'success') {\n            notification.classList.add('bg-green-50', 'border', 'border-green-200', 'text-green-800');\n        } else if (type === 'error') {\n            notification.classList.add('bg-red-50', 'border', 'border-red-200', 'text-red-800');\n        } else {\n            notification.classList.add('bg-blue-50', 'border', 'border-blue-200', 'text-blue-800');\n        }\n        \n        document.body.appendChild(notification);\n        \n        // Auto remove after 5 seconds\n        setTimeout(() => {\n            if (notification.parentElement) {\n                notification.remove();\n            }\n        }, 5000);\n    }\n}\n\n// Initialize the picture manager when DOM is loaded\ndocument.addEventListener('DOMContentLoaded', () => {\n    window.memberPictureManager = new MemberPictureManager();\n});\n\n// Export for use in other scripts\nif (typeof module !== 'undefined' && module.exports) {\n    module.exports = MemberPictureManager;\n}
+/**
+ * Member Picture Management Component
+ * Handles upload, preview, delete, and bulk operations for member profile pictures
+ */
+class MemberPictureManager {
+    constructor(options = {}) {
+        this.options = {
+            uploadUrl: '/admin/members/{id}/picture/upload',
+            deleteUrl: '/admin/members/{id}/picture',
+            bulkUploadUrl: '/admin/members/pictures/bulk-upload',
+            maxFileSize: 5 * 1024 * 1024,
+            allowedTypes: ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'],
+            previewSelector: '#preview',
+            placeholderSelector: '#placeholder',
+            uploadButtonSelector: '#upload-btn',
+            deleteButtonSelector: '#delete-btn',
+            progressSelector: '#upload-progress',
+            ...options
+        };
+
+        this.init();
+    }
+
+    init() {
+        this.setupEventListeners();
+        this.setupDragAndDrop();
+    }
+
+    setupEventListeners() {
+        document.addEventListener('change', (e) => {
+            if (e.target.type === 'file' && e.target.accept.includes('image')) {
+                this.handleFileSelect(e);
+            }
+        });
+
+        document.addEventListener('click', (e) => {
+            const uploadButton = e.target.closest(this.options.uploadButtonSelector);
+            if (uploadButton) {
+                this.triggerFileSelect(uploadButton);
+            }
+        });
+
+        document.addEventListener('click', (e) => {
+            const deleteButton = e.target.closest(this.options.deleteButtonSelector);
+            if (deleteButton) {
+                this.deletePicture(deleteButton);
+            }
+        });
+    }
+
+    setupDragAndDrop() {
+        const dropZones = document.querySelectorAll('.picture-drop-zone');
+        dropZones.forEach(zone => {
+            zone.addEventListener('dragover', this.handleDragOver.bind(this));
+            zone.addEventListener('dragleave', this.handleDragLeave.bind(this));
+            zone.addEventListener('drop', this.handleDrop.bind(this));
+        });
+    }
+
+    handleDragOver(e) {
+        e.preventDefault();
+        e.currentTarget.classList.add('drag-over');
+    }
+
+    handleDragLeave(e) {
+        e.preventDefault();
+        e.currentTarget.classList.remove('drag-over');
+    }
+
+    handleDrop(e) {
+        e.preventDefault();
+        e.currentTarget.classList.remove('drag-over');
+
+        const files = Array.from(e.dataTransfer.files);
+        const imageFiles = files.filter(file => this.options.allowedTypes.includes(file.type));
+
+        if (imageFiles.length > 0) {
+            this.processFiles(imageFiles, e.currentTarget);
+        } else {
+            this.showError('Please drop valid image files only.');
+        }
+    }
+
+    handleFileSelect(e) {
+        const files = Array.from(e.target.files);
+        this.processFiles(files, e.target.closest('.picture-container'));
+    }
+
+    processFiles(files, container) {
+        if (!container) {
+            return;
+        }
+
+        files.forEach(file => {
+            if (this.validateFile(file)) {
+                this.previewImage(file, container);
+                this.uploadImage(file, container);
+            }
+        });
+    }
+
+    validateFile(file) {
+        if (!this.options.allowedTypes.includes(file.type)) {
+            this.showError(`Invalid file type: ${file.type}. Allowed types: ${this.options.allowedTypes.join(', ')}`);
+            return false;
+        }
+
+        if (file.size > this.options.maxFileSize) {
+            this.showError(`File too large: ${(file.size / 1024 / 1024).toFixed(2)}MB. Maximum size: ${(this.options.maxFileSize / 1024 / 1024)}MB`);
+            return false;
+        }
+
+        return true;
+    }
+
+    previewImage(file, container) {
+        const reader = new FileReader();
+        const preview = container.querySelector(this.options.previewSelector);
+        const placeholder = container.querySelector(this.options.placeholderSelector);
+
+        reader.onload = (e) => {
+            if (preview) {
+                preview.src = e.target.result;
+                preview.classList.remove('hidden');
+            }
+            if (placeholder) {
+                placeholder.classList.add('hidden');
+            }
+        };
+
+        reader.readAsDataURL(file);
+    }
+
+    async uploadImage(file, container) {
+        const memberId = container.dataset.memberId;
+        if (!memberId) {
+            // Create member page has no member id yet; persist on form submit.
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('profile_picture', file);
+        formData.append('_token', document.querySelector('meta[name="csrf-token"]').content);
+
+        const progressBar = container.querySelector(this.options.progressSelector);
+        const uploadUrl = this.options.uploadUrl.replace('{id}', memberId);
+
+        try {
+            this.showProgress(progressBar, 0);
+
+            const response = await fetch(uploadUrl, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                this.showSuccess('Picture uploaded successfully!');
+                this.updatePictureInfo(container, result.picture_info);
+            } else {
+                this.showError(result.message || 'Upload failed');
+            }
+        } catch (error) {
+            this.showError('Upload failed: ' + error.message);
+        } finally {
+            this.hideProgress(progressBar);
+        }
+    }
+
+    async deletePicture(button) {
+        const container = button.closest('.picture-container');
+        if (!container) {
+            return;
+        }
+
+        const memberId = container.dataset.memberId;
+        if (!memberId) {
+            this.showError('Member ID not found');
+            return;
+        }
+
+        if (!confirm('Are you sure you want to delete this picture?')) {
+            return;
+        }
+
+        const deleteUrl = this.options.deleteUrl.replace('{id}', memberId);
+
+        try {
+            const response = await fetch(deleteUrl, {
+                method: 'DELETE',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                }
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                this.showSuccess('Picture deleted successfully!');
+                this.resetPictureDisplay(container);
+            } else {
+                this.showError(result.message || 'Delete failed');
+            }
+        } catch (error) {
+            this.showError('Delete failed: ' + error.message);
+        }
+    }
+
+    async bulkUpload(files, memberIds) {
+        const formData = new FormData();
+
+        files.forEach((file, index) => {
+            formData.append(`pictures[${index}]`, file);
+            formData.append(`member_ids[${index}]`, memberIds[index]);
+        });
+
+        formData.append('_token', document.querySelector('meta[name="csrf-token"]').content);
+
+        try {
+            const response = await fetch(this.options.bulkUploadUrl, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                this.showSuccess(`Bulk upload completed! ${result.results.length} pictures processed.`);
+                return result.results;
+            }
+
+            this.showError(result.message || 'Bulk upload failed');
+        } catch (error) {
+            this.showError('Bulk upload failed: ' + error.message);
+        }
+
+        return null;
+    }
+
+    triggerFileSelect(button) {
+        const container = button.closest('.picture-container');
+        if (!container) {
+            return;
+        }
+
+        const fileInput = container.querySelector('input[type="file"]');
+        if (fileInput) {
+            fileInput.click();
+        }
+    }
+
+    updatePictureInfo(container, pictureInfo) {
+        const preview = container.querySelector(this.options.previewSelector);
+        const placeholder = container.querySelector(this.options.placeholderSelector);
+
+        if (pictureInfo.exists && preview) {
+            preview.src = pictureInfo.url;
+            preview.classList.remove('hidden');
+            if (placeholder) {
+                placeholder.classList.add('hidden');
+            }
+        }
+    }
+
+    resetPictureDisplay(container) {
+        const preview = container.querySelector(this.options.previewSelector);
+        const placeholder = container.querySelector(this.options.placeholderSelector);
+        const fileInput = container.querySelector('input[type="file"]');
+
+        if (preview) {
+            preview.src = '';
+            preview.classList.add('hidden');
+        }
+        if (placeholder) {
+            placeholder.classList.remove('hidden');
+        }
+        if (fileInput) {
+            fileInput.value = '';
+        }
+    }
+
+    showProgress(progressBar, percent) {
+        if (progressBar) {
+            progressBar.style.display = 'block';
+            progressBar.style.width = percent + '%';
+        }
+    }
+
+    hideProgress(progressBar) {
+        if (progressBar) {
+            progressBar.style.display = 'none';
+        }
+    }
+
+    showSuccess(message) {
+        this.showNotification(message, 'success');
+    }
+
+    showError(message) {
+        this.showNotification(message, 'error');
+    }
+
+    showNotification(message, type = 'info') {
+        const notification = document.createElement('div');
+        notification.className = `notification notification-${type} fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg max-w-sm`;
+        notification.innerHTML = `
+            <div class="flex items-center">
+                <i class="fas fa-${type === 'success' ? 'check-circle text-green-500' : type === 'error' ? 'exclamation-circle text-red-500' : 'info-circle text-blue-500'} mr-2"></i>
+                <span class="text-sm font-medium">${message}</span>
+                <button class="ml-auto text-gray-400 hover:text-gray-600" onclick="this.parentElement.parentElement.remove()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `;
+
+        if (type === 'success') {
+            notification.classList.add('bg-green-50', 'border', 'border-green-200', 'text-green-800');
+        } else if (type === 'error') {
+            notification.classList.add('bg-red-50', 'border', 'border-red-200', 'text-red-800');
+        } else {
+            notification.classList.add('bg-blue-50', 'border', 'border-blue-200', 'text-blue-800');
+        }
+
+        document.body.appendChild(notification);
+
+        setTimeout(() => {
+            if (notification.parentElement) {
+                notification.remove();
+            }
+        }, 5000);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    window.memberPictureManager = new MemberPictureManager();
+});
+
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = MemberPictureManager;
+}

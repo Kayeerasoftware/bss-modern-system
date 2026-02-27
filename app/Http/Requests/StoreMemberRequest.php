@@ -24,7 +24,7 @@ class StoreMemberRequest extends FormRequest
             'password' => 'required|min:6',
             'savings' => 'nullable|numeric|min:0',
             'balance' => 'nullable|numeric|min:0',
-            'profile_picture' => 'nullable',
+            'profile_picture' => 'nullable|image|mimes:jpeg,jpg,png,gif,webp|max:5120|dimensions:min_width=100,min_height=100,max_width=2000,max_height=2000',
         ];
     }
 

@@ -13,10 +13,18 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 use Illuminate\Http\JsonResponse;
 
 class MemberController extends Controller
 {
+    protected ImageService $imageService;
+
+    public function __construct(ImageService $imageService)
+    {
+        $this->imageService = $imageService;
+    }
+
     public function index(Request $request)
     {
         $query = Member::with('user');
@@ -139,6 +147,9 @@ class MemberController extends Controller
             if ($request->hasFile('profile_picture')) {
                 $file = $request->file('profile_picture');
                 if ($file->isValid()) {
+                    if (!File::exists(public_path('uploads/members'))) {
+                        File::makeDirectory(public_path('uploads/members'), 0755, true);
+                    }
                     $filename = uniqid() . '.' . $file->getClientOriginalExtension();
                     $file->move(public_path('uploads/members'), $filename);
                     $data['profile_picture'] = 'uploads/members/' . $filename;
@@ -202,6 +213,9 @@ class MemberController extends Controller
                 if ($file->isValid()) {
                     if ($member->profile_picture) {
                         @unlink(public_path($member->profile_picture));
+                    }
+                    if (!File::exists(public_path('uploads/members'))) {
+                        File::makeDirectory(public_path('uploads/members'), 0755, true);
                     }
                     $filename = uniqid() . '.' . $file->getClientOriginalExtension();
                     $file->move(public_path('uploads/members'), $filename);

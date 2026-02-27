@@ -119,11 +119,11 @@
             </div>
             <span class="font-medium text-xs">My Profile</span>
         </a>
-        <a href="{{ route('dashboard') }}" @click="showProfileDropdown = false" class="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-green-50 transition group">
+        <a href="{{ route('welcome') }}" @click="showProfileDropdown = false" class="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-green-50 transition group">
             <div class="w-7 h-7 rounded-lg bg-green-100 flex items-center justify-center group-hover:bg-green-200 transition">
                 <i class="fas fa-home text-green-600 text-xs"></i>
             </div>
-            <span class="font-medium text-xs">Go to Role Dashboard</span>
+            <span class="font-medium text-xs">Go Home</span>
         </a>
         <a href="{{ route('admin.system.settings') }}" @click="showProfileDropdown = false; activeLink = 'settings'" class="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-purple-50 transition group">
             <div class="w-7 h-7 rounded-lg bg-purple-100 flex items-center justify-center group-hover:bg-purple-200 transition">
@@ -147,7 +147,8 @@
     
     <!-- Logout -->
     <div class="border-t border-gray-100 p-1.5">
-        <form action="http://127.0.0.1:8000/" method="GET" class="m-0">
+        <form action="{{ route('logout') }}" method="POST" class="m-0">
+            @csrf
             <button type="submit" class="flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition w-full group">
                 <div class="w-7 h-7 rounded-lg bg-red-100 flex items-center justify-center group-hover:bg-red-200 transition">
                     <i class="fas fa-sign-out-alt text-red-600 text-xs"></i>

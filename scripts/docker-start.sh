@@ -26,6 +26,21 @@ chown -R www-data:www-data storage bootstrap/cache public/uploads || true
 chmod -R ug+rwx storage bootstrap/cache public/uploads || true
 ln -sfn /var/www/html/storage/app/public /var/www/html/public/storage
 
+# Persist uploads on Render disk when available.
+PERSISTENT_DISK_PATH="${PERSISTENT_DISK_PATH:-/var/data}"
+if [[ -d "${PERSISTENT_DISK_PATH}" ]]; then
+  mkdir -p "${PERSISTENT_DISK_PATH}/uploads" "${PERSISTENT_DISK_PATH}/storage-public"
+
+  rm -rf /var/www/html/public/uploads
+  ln -sfn "${PERSISTENT_DISK_PATH}/uploads" /var/www/html/public/uploads
+
+  rm -rf /var/www/html/storage/app/public
+  ln -sfn "${PERSISTENT_DISK_PATH}/storage-public" /var/www/html/storage/app/public
+
+  chown -R www-data:www-data "${PERSISTENT_DISK_PATH}/uploads" "${PERSISTENT_DISK_PATH}/storage-public" || true
+  chmod -R ug+rwx "${PERSISTENT_DISK_PATH}/uploads" "${PERSISTENT_DISK_PATH}/storage-public" || true
+fi
+
 php artisan storage:link || true
 php artisan config:cache || true
 php artisan route:cache || true

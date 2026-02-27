@@ -4,6 +4,10 @@ services:
     env: docker
     plan: starter
     dockerfilePath: ./Dockerfile
+    disk:
+      name: bss-media
+      mountPath: /var/data
+      sizeGB: 1
     healthCheckPath: /
     autoDeploy: true
     envVars:
@@ -31,6 +35,12 @@ services:
         value: database
       - key: FILESYSTEM_DISK
         value: uploads
+      - key: PERSISTENT_DISK_PATH
+        value: /var/data
+      - key: UPLOADS_ROOT
+        value: /var/data/uploads
+      - key: PUBLIC_DISK_ROOT
+        value: /var/data/storage-public
       - key: AUDIT_LOG_GET_REQUESTS
         value: "false"
       - key: AUDIT_QUEUE_ENABLED
