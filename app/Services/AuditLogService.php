@@ -64,9 +64,11 @@ class AuditLogService
         $normalized = [];
         foreach ($changes as $key => $value) {
             if ($value instanceof UploadedFile) {
+                // Do not call getSize()/path-based APIs here; temp upload files may already be moved/removed.
                 $normalized[$key] = [
                     'uploaded_file' => $value->getClientOriginalName(),
-                    'size' => $value->getSize(),
+                    'mime' => $value->getClientMimeType(),
+                    'client_size' => $value->getClientSize(),
                 ];
                 continue;
             }
@@ -88,4 +90,3 @@ class AuditLogService
         return Arr::only($normalized, array_slice(array_keys($normalized), 0, 50));
     }
 }
-
