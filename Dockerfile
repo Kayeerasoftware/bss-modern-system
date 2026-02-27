@@ -49,7 +49,9 @@ RUN composer dump-autoload --optimize --no-interaction \
 RUN chown -R www-data:www-data storage bootstrap/cache \
     && chmod -R ug+rwx storage bootstrap/cache
 
+RUN chmod +x scripts/docker-start.sh
+
 # Laravel app should receive APP_KEY, DB_* and other vars from Render env.
 EXPOSE 80
 
-CMD ["apache2-foreground"]
+CMD ["bash", "scripts/docker-start.sh"]
