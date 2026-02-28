@@ -34,20 +34,20 @@
 
     <div class="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3">
         <div class="bg-gradient-to-br from-green-500 to-green-600 rounded-lg p-2 md:p-3 text-white shadow-lg">
-            <p class="text-green-100 text-[10px] font-medium mb-0.5">Total Deposits</p>
-            <h3 class="text-xl font-bold">{{ number_format($transactions->where('type', 'deposit')->sum('amount'), 0) }}</h3>
+            <p class="text-green-100 text-[10px] font-medium mb-0.5">Completed Deposits</p>
+            <h3 class="text-xl font-bold">{{ number_format($summary['completed_deposits'] ?? 0, 0) }}</h3>
         </div>
         <div class="bg-gradient-to-br from-red-500 to-red-600 rounded-lg p-2 md:p-3 text-white shadow-lg">
-            <p class="text-red-100 text-[10px] font-medium mb-0.5">Total Withdrawals</p>
-            <h3 class="text-xl font-bold">{{ number_format($transactions->where('type', 'withdrawal')->sum('amount'), 0) }}</h3>
+            <p class="text-red-100 text-[10px] font-medium mb-0.5">Completed Withdrawals</p>
+            <h3 class="text-xl font-bold">{{ number_format($summary['completed_withdrawals'] ?? 0, 0) }}</h3>
         </div>
         <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-2 md:p-3 text-white shadow-lg">
-            <p class="text-blue-100 text-[10px] font-medium mb-0.5">Total Transfers</p>
-            <h3 class="text-xl font-bold">{{ number_format($transactions->where('type', 'transfer')->sum('amount'), 0) }}</h3>
+            <p class="text-blue-100 text-[10px] font-medium mb-0.5">Net Cash Flow</p>
+            <h3 class="text-xl font-bold">{{ number_format($summary['net_flow'] ?? 0, 0) }}</h3>
         </div>
         <div class="bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg p-2 md:p-3 text-white shadow-lg">
-            <p class="text-purple-100 text-[10px] font-medium mb-0.5">Total Transactions</p>
-            <h3 class="text-xl font-bold">{{ $transactions->total() }}</h3>
+            <p class="text-purple-100 text-[10px] font-medium mb-0.5">Transactions (Filtered)</p>
+            <h3 class="text-xl font-bold">{{ number_format($summary['total_transactions'] ?? 0) }}</h3>
         </div>
     </div>
 

@@ -38,44 +38,74 @@
 
     <!-- Key Stats -->
     <div class="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4 mb-4 md:mb-6">
-        <!-- My Savings -->
+        <!-- Net Savings -->
         <div class="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-3 md:p-4 text-white hover:shadow-2xl transition-all transform hover:scale-105">
             <div class="flex items-center justify-between mb-2">
                 <i class="fas fa-piggy-bank text-2xl md:text-3xl opacity-80"></i>
-                <span class="text-xs md:text-sm bg-white/20 px-2 py-1 rounded-full">Active</span>
+                <span class="text-xs md:text-sm bg-white/20 px-2 py-1 rounded-full">Deposits - Withdrawals</span>
             </div>
-            <p class="text-white/80 text-xs md:text-sm font-medium">My Savings</p>
+            <p class="text-white/80 text-xs md:text-sm font-medium">Net Savings</p>
             <h3 class="text-xl md:text-3xl font-bold">UGX {{ number_format($stats['mySavings']) }}</h3>
+            <p class="mt-1 text-[10px] md:text-xs text-white/80">
+                D: {{ number_format($stats['totalDeposits'] ?? 0) }} | W: {{ number_format($stats['totalWithdrawals'] ?? 0) }}
+            </p>
         </div>
 
-        <!-- My Balance -->
+        <!-- Available Balance -->
         <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-3 md:p-4 text-white hover:shadow-2xl transition-all transform hover:scale-105">
             <div class="flex items-center justify-between mb-2">
                 <i class="fas fa-wallet text-2xl md:text-3xl opacity-80"></i>
-                <span class="text-xs md:text-sm bg-white/20 px-2 py-1 rounded-full">Available</span>
+                <span class="text-xs md:text-sm bg-white/20 px-2 py-1 rounded-full">Synced</span>
             </div>
-            <p class="text-white/80 text-xs md:text-sm font-medium">My Balance</p>
+            <p class="text-white/80 text-xs md:text-sm font-medium">Available Balance</p>
             <h3 class="text-xl md:text-3xl font-bold">UGX {{ number_format($stats['myBalance']) }}</h3>
+            <p class="mt-1 text-[10px] md:text-xs text-white/80">
+                After Loans: UGX {{ number_format($stats['availableAfterLoans'] ?? 0) }}
+            </p>
         </div>
 
-        <!-- My Loans -->
+        <!-- Loan Outstanding -->
         <div class="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl shadow-lg p-3 md:p-4 text-white hover:shadow-2xl transition-all transform hover:scale-105">
             <div class="flex items-center justify-between mb-2">
                 <i class="fas fa-hand-holding-usd text-2xl md:text-3xl opacity-80"></i>
                 <span class="text-xs md:text-sm bg-white/20 px-2 py-1 rounded-full">{{ $stats['myLoanCount'] }}</span>
             </div>
-            <p class="text-white/80 text-xs md:text-sm font-medium">My Loans</p>
+            <p class="text-white/80 text-xs md:text-sm font-medium">Loan Outstanding</p>
             <h3 class="text-xl md:text-3xl font-bold">UGX {{ number_format($stats['myLoans']) }}</h3>
         </div>
 
-        <!-- Transactions -->
+        <!-- Completed Transactions -->
         <div class="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-lg p-3 md:p-4 text-white hover:shadow-2xl transition-all transform hover:scale-105">
             <div class="flex items-center justify-between mb-2">
                 <i class="fas fa-exchange-alt text-2xl md:text-3xl opacity-80"></i>
-                <span class="text-xs md:text-sm bg-white/20 px-2 py-1 rounded-full">Total</span>
+                <span class="text-xs md:text-sm bg-white/20 px-2 py-1 rounded-full">Completed</span>
             </div>
             <p class="text-white/80 text-xs md:text-sm font-medium">Transactions</p>
-            <h3 class="text-xl md:text-3xl font-bold">{{ $stats['totalTransactions'] }}</h3>
+            <h3 class="text-xl md:text-3xl font-bold">{{ $stats['completedTransactions'] ?? 0 }}</h3>
+            <p class="mt-1 text-[10px] md:text-xs text-white/80">
+                All Statuses: {{ number_format($stats['totalTransactions'] ?? 0) }}
+            </p>
+        </div>
+    </div>
+
+    <div class="mb-4 md:mb-6 rounded-xl border border-emerald-100 bg-white p-3 md:p-4 shadow-sm">
+        <p class="text-sm font-bold text-slate-800">How These Values Are Calculated</p>
+        <p class="mt-1 text-xs text-slate-600">
+            Net Savings = Completed Deposits - Completed Withdrawals. Available Balance = Net Savings - Transfers - Loan Payments. Loan Outstanding is remaining approved loan principal.
+        </p>
+        <div class="mt-2 grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+            <div class="rounded-lg bg-emerald-50 px-2 py-1.5 text-emerald-800">
+                Deposits: UGX {{ number_format($financialSummary['total_deposits'] ?? 0) }}
+            </div>
+            <div class="rounded-lg bg-rose-50 px-2 py-1.5 text-rose-800">
+                Withdrawals: UGX {{ number_format($financialSummary['total_withdrawals'] ?? 0) }}
+            </div>
+            <div class="rounded-lg bg-indigo-50 px-2 py-1.5 text-indigo-800">
+                Transfers: UGX {{ number_format($financialSummary['total_transfers'] ?? 0) }}
+            </div>
+            <div class="rounded-lg bg-amber-50 px-2 py-1.5 text-amber-800">
+                Loan Payments: UGX {{ number_format($financialSummary['total_loan_payments'] ?? 0) }}
+            </div>
         </div>
     </div>
 

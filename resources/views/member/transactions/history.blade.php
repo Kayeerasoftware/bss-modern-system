@@ -33,23 +33,23 @@
         <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-3 md:p-4 text-white">
             <i class="fas fa-list text-2xl mb-2 opacity-80"></i>
             <p class="text-white/80 text-xs font-medium">Total Transactions</p>
-            <h3 class="text-xl md:text-3xl font-bold">{{ $transactions->total() }}</h3>
+            <h3 class="text-xl md:text-3xl font-bold">{{ number_format($summary['total_transactions'] ?? 0) }}</h3>
         </div>
         <div class="bg-white rounded-xl shadow-lg p-3 md:p-4 border-l-4 border-green-500">
             <i class="fas fa-arrow-down text-2xl text-green-500 mb-2"></i>
-            <p class="text-gray-600 text-xs font-medium">Total Deposits</p>
-            <h3 class="text-xl md:text-3xl font-bold text-green-600">UGX {{ number_format($transactions->where('type', 'deposit')->sum('amount')) }}</h3>
+            <p class="text-gray-600 text-xs font-medium">Completed Deposits</p>
+            <h3 class="text-xl md:text-3xl font-bold text-green-600">UGX {{ number_format($summary['completed_deposits'] ?? 0) }}</h3>
         </div>
         <div class="bg-white rounded-xl shadow-lg p-3 md:p-4 border-l-4 border-red-500">
             <i class="fas fa-arrow-up text-2xl text-red-500 mb-2"></i>
-            <p class="text-gray-600 text-xs font-medium">Total Withdrawals</p>
-            <h3 class="text-xl md:text-3xl font-bold text-red-600">UGX {{ number_format($transactions->where('type', 'withdrawal')->sum('amount')) }}</h3>
+            <p class="text-gray-600 text-xs font-medium">Completed Withdrawals</p>
+            <h3 class="text-xl md:text-3xl font-bold text-red-600">UGX {{ number_format($summary['completed_withdrawals'] ?? 0) }}</h3>
         </div>
         <div class="bg-white rounded-xl shadow-lg p-3 md:p-4 border-l-4 border-purple-500">
             <i class="fas fa-balance-scale text-2xl text-purple-500 mb-2"></i>
             <p class="text-gray-600 text-xs font-medium">Net Flow</p>
             <h3 class="text-xl md:text-3xl font-bold text-purple-600">
-                UGX {{ number_format($transactions->where('type', 'deposit')->sum('amount') - $transactions->where('type', 'withdrawal')->sum('amount')) }}
+                UGX {{ number_format($summary['net_flow'] ?? 0) }}
             </h3>
         </div>
     </div>

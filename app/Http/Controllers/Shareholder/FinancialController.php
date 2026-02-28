@@ -9,6 +9,7 @@ use App\Models\Loan;
 use App\Models\Share;
 use App\Models\Dividend;
 use App\Models\Project;
+use App\Services\Financial\MemberFinancialSyncService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
@@ -23,17 +24,19 @@ class FinancialController extends Controller
         if (!$member) {
             return redirect()->back()->with('error', 'Member profile not found');
         }
-        
-        $deposits = Transaction::where('member_id', $member->member_id)->where('type', 'deposit')->sum('amount') ?: 0;
-        $withdrawals = Transaction::where('member_id', $member->member_id)->where('type', 'withdrawal')->sum('amount') ?: 0;
-        $loanPayments = Transaction::where('member_id', $member->member_id)->where('type', 'loan_payment')->sum('amount') ?: 0;
+
+        $financialSummary = app(MemberFinancialSyncService::class)->getMemberFinancialSummary($member);
+
+        $deposits = $financialSummary['total_deposits'] ?? 0;
+        $withdrawals = $financialSummary['total_withdrawals'] ?? 0;
+        $loanPayments = $financialSummary['total_loan_payments'] ?? 0;
         
         $totalRevenue = $deposits + $loanPayments;
         $totalExpenses = $withdrawals;
         $netProfit = $totalRevenue - $totalExpenses;
         
-        $totalAssets = $member->savings ?: 0;
-        $totalLiabilities = $member->loan ?: 0;
+        $totalAssets = $financialSummary['available_balance'] ?? 0;
+        $totalLiabilities = $financialSummary['loan_outstanding'] ?? 0;
         $totalEquity = $totalAssets - $totalLiabilities;
         
         $totalShares = Share::where('member_id', $member->id)->sum(DB::raw('shares_owned * share_value')) ?: 0;
@@ -167,7 +170,7 @@ class FinancialController extends Controller
             'monthlyRevenue', 'monthlyExpenses', 'quarterlyDividends',
             'profitMargin', 'roi', 'debtToEquity', 'currentRatio',
             'deposits', 'withdrawals', 'loanPayments', 'member',
-            'transactions', 'dividends', 'shares', 'loans'
+            'transactions', 'dividends', 'shares', 'loans', 'financialSummary'
         ));
     }
 }

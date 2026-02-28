@@ -40,9 +40,34 @@ class DepositController extends Controller
             $query->whereDate('created_at', '<=', $request->date_to);
         }
 
+        if ($request->filled('period')) {
+            $this->applyPeriodFilter($query, (string) $request->period);
+        }
+
         $deposits = $query->latest()->paginate(15)->appends($request->query());
+
+        $completedQuery = (clone $query)->where(function ($q): void {
+            $q->where('status', 'completed')
+                ->orWhereNull('status');
+        });
+
+        $summary = [
+            'total_deposits' => (float) (clone $completedQuery)->sum('amount'),
+            'this_month' => (float) (clone $completedQuery)
+                ->whereBetween('created_at', [now()->startOfMonth(), now()->endOfMonth()])
+                ->sum('amount'),
+            'average_deposit' => (float) ((clone $completedQuery)->avg('amount') ?? 0),
+            'total_count' => (int) (clone $query)->count(),
+            'completed_count' => (int) (clone $query)
+                ->where(function ($q): void {
+                    $q->where('status', 'completed')
+                        ->orWhereNull('status');
+                })
+                ->count(),
+            'pending_count' => (int) (clone $query)->where('status', 'pending')->count(),
+        ];
         
-        return view('member.deposits.index', compact('deposits', 'member'));
+        return view('member.deposits.index', compact('deposits', 'member', 'summary'));
     }
 
     public function create()
@@ -79,6 +104,26 @@ class DepositController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             return back()->withErrors(['error' => 'Failed to submit deposit request'])->withInput();
+        }
+    }
+
+    private function applyPeriodFilter($query, string $period): void
+    {
+        switch ($period) {
+            case 'today':
+                $query->whereDate('created_at', now()->toDateString());
+                break;
+            case 'week':
+                $query->whereBetween('created_at', [now()->startOfWeek(), now()->endOfWeek()]);
+                break;
+            case 'month':
+                $query->whereBetween('created_at', [now()->startOfMonth(), now()->endOfMonth()]);
+                break;
+            case 'year':
+                $query->whereBetween('created_at', [now()->startOfYear(), now()->endOfYear()]);
+                break;
+            default:
+                break;
         }
     }
 }

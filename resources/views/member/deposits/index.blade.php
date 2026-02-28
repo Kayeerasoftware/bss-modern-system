@@ -32,23 +32,23 @@
     <div class="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4 mb-4 md:mb-6">
         <div class="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-3 md:p-4 text-white">
             <i class="fas fa-coins text-2xl mb-2 opacity-80"></i>
-            <p class="text-white/80 text-xs font-medium">Total Deposits</p>
-            <h3 class="text-xl md:text-3xl font-bold">UGX {{ number_format($deposits->sum('amount')) }}</h3>
+            <p class="text-white/80 text-xs font-medium">Completed Deposits</p>
+            <h3 class="text-xl md:text-3xl font-bold">UGX {{ number_format($summary['total_deposits'] ?? 0) }}</h3>
         </div>
         <div class="bg-white rounded-xl shadow-lg p-3 md:p-4 border-l-4 border-blue-500">
             <i class="fas fa-calendar-alt text-2xl text-blue-500 mb-2"></i>
             <p class="text-gray-600 text-xs font-medium">This Month</p>
-            <h3 class="text-xl md:text-3xl font-bold text-gray-900">UGX {{ number_format($deposits->where('created_at', '>=', now()->startOfMonth())->sum('amount')) }}</h3>
+            <h3 class="text-xl md:text-3xl font-bold text-gray-900">UGX {{ number_format($summary['this_month'] ?? 0) }}</h3>
         </div>
         <div class="bg-white rounded-xl shadow-lg p-3 md:p-4 border-l-4 border-purple-500">
             <i class="fas fa-chart-bar text-2xl text-purple-500 mb-2"></i>
-            <p class="text-gray-600 text-xs font-medium">Average Deposit</p>
-            <h3 class="text-xl md:text-3xl font-bold text-gray-900">UGX {{ $deposits->count() > 0 ? number_format($deposits->avg('amount')) : 0 }}</h3>
+            <p class="text-gray-600 text-xs font-medium">Avg. Completed</p>
+            <h3 class="text-xl md:text-3xl font-bold text-gray-900">UGX {{ number_format($summary['average_deposit'] ?? 0) }}</h3>
         </div>
         <div class="bg-white rounded-xl shadow-lg p-3 md:p-4 border-l-4 border-yellow-500">
             <i class="fas fa-list text-2xl text-yellow-500 mb-2"></i>
-            <p class="text-gray-600 text-xs font-medium">Total Count</p>
-            <h3 class="text-xl md:text-3xl font-bold text-gray-900">{{ $deposits->total() }}</h3>
+            <p class="text-gray-600 text-xs font-medium">Records (Filtered)</p>
+            <h3 class="text-xl md:text-3xl font-bold text-gray-900">{{ number_format($summary['total_count'] ?? 0) }}</h3>
         </div>
     </div>
 

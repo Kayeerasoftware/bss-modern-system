@@ -37,10 +37,24 @@ class TransactionController extends Controller
         if ($request->date_to) {
             $query->whereDate('created_at', '<=', $request->date_to);
         }
+
+        $completedQuery = (clone $query)->where(function ($q): void {
+            $q->where('status', 'completed')
+                ->orWhereNull('status');
+        });
+
+        $summary = [
+            'total_transactions' => (int) (clone $query)->count(),
+            'completed_deposits' => (float) (clone $completedQuery)->where('type', 'deposit')->sum('amount'),
+            'completed_withdrawals' => (float) (clone $completedQuery)->where('type', 'withdrawal')->sum('amount'),
+            'completed_transfers' => (float) (clone $completedQuery)->where('type', 'transfer')->sum('amount'),
+            'pending_count' => (int) (clone $query)->where('status', 'pending')->count(),
+        ];
+        $summary['net_flow'] = $summary['completed_deposits'] - $summary['completed_withdrawals'] - $summary['completed_transfers'];
         
         $transactions = $query->latest()->paginate(20)->appends($request->query());
         
-        return view('member.transactions.history', compact('transactions', 'member'));
+        return view('member.transactions.history', compact('transactions', 'member', 'summary'));
     }
 
     public function statement()

@@ -32,23 +32,23 @@
     <div class="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4 mb-4 md:mb-6">
         <div class="bg-gradient-to-br from-red-500 to-red-600 rounded-xl shadow-lg p-3 md:p-4 text-white">
             <i class="fas fa-money-bill-wave text-2xl mb-2 opacity-80"></i>
-            <p class="text-white/80 text-xs font-medium">Total Withdrawn</p>
-            <h3 class="text-xl md:text-3xl font-bold">UGX {{ number_format($withdrawals->sum('amount')) }}</h3>
+            <p class="text-white/80 text-xs font-medium">Completed Withdrawn</p>
+            <h3 class="text-xl md:text-3xl font-bold">UGX {{ number_format($summary['total_withdrawn'] ?? 0) }}</h3>
         </div>
         <div class="bg-white rounded-xl shadow-lg p-3 md:p-4 border-l-4 border-blue-500">
             <i class="fas fa-calendar-alt text-2xl text-blue-500 mb-2"></i>
             <p class="text-gray-600 text-xs font-medium">This Month</p>
-            <h3 class="text-xl md:text-3xl font-bold text-gray-900">UGX {{ number_format($withdrawals->where('created_at', '>=', now()->startOfMonth())->sum('amount')) }}</h3>
+            <h3 class="text-xl md:text-3xl font-bold text-gray-900">UGX {{ number_format($summary['this_month'] ?? 0) }}</h3>
         </div>
         <div class="bg-white rounded-xl shadow-lg p-3 md:p-4 border-l-4 border-yellow-500">
             <i class="fas fa-clock text-2xl text-yellow-500 mb-2"></i>
             <p class="text-gray-600 text-xs font-medium">Pending</p>
-            <h3 class="text-xl md:text-3xl font-bold text-gray-900">{{ $withdrawals->where('status', 'pending')->count() }}</h3>
+            <h3 class="text-xl md:text-3xl font-bold text-gray-900">{{ number_format($summary['pending_count'] ?? 0) }}</h3>
         </div>
         <div class="bg-white rounded-xl shadow-lg p-3 md:p-4 border-l-4 border-green-500">
             <i class="fas fa-check-circle text-2xl text-green-500 mb-2"></i>
             <p class="text-gray-600 text-xs font-medium">Completed</p>
-            <h3 class="text-xl md:text-3xl font-bold text-gray-900">{{ $withdrawals->where('status', 'completed')->count() }}</h3>
+            <h3 class="text-xl md:text-3xl font-bold text-gray-900">{{ number_format($summary['completed_count'] ?? 0) }}</h3>
         </div>
     </div>
 

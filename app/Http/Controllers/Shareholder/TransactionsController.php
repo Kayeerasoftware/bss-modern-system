@@ -17,7 +17,15 @@ class TransactionsController extends Controller
         if (!$member) {
             $transactions = collect();
             $transactions = new \Illuminate\Pagination\LengthAwarePaginator([], 0, 20);
-            return view('shareholder.transactions', compact('transactions'));
+            $summary = [
+                'total_transactions' => 0,
+                'completed_deposits' => 0,
+                'completed_withdrawals' => 0,
+                'completed_transfers' => 0,
+                'pending_count' => 0,
+                'net_flow' => 0,
+            ];
+            return view('shareholder.transactions', compact('transactions', 'summary'));
         }
         
         $query = Transaction::with('member')->where('member_id', $member->member_id);
@@ -41,9 +49,23 @@ class TransactionsController extends Controller
             $query->whereDate('created_at', '<=', $request->date_to);
         }
 
+        $completedQuery = (clone $query)->where(function ($q): void {
+            $q->where('status', 'completed')
+                ->orWhereNull('status');
+        });
+
+        $summary = [
+            'total_transactions' => (int) (clone $query)->count(),
+            'completed_deposits' => (float) (clone $completedQuery)->where('type', 'deposit')->sum('amount'),
+            'completed_withdrawals' => (float) (clone $completedQuery)->where('type', 'withdrawal')->sum('amount'),
+            'completed_transfers' => (float) (clone $completedQuery)->where('type', 'transfer')->sum('amount'),
+            'pending_count' => (int) (clone $query)->where('status', 'pending')->count(),
+        ];
+        $summary['net_flow'] = $summary['completed_deposits'] - $summary['completed_withdrawals'] - $summary['completed_transfers'];
+
         $transactions = $query->latest('created_at')->paginate(20);
 
-        return view('shareholder.transactions', compact('transactions'));
+        return view('shareholder.transactions', compact('transactions', 'summary'));
     }
 
     public function create()

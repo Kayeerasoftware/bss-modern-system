@@ -33,17 +33,17 @@
 
     <!-- Savings Overview Cards -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 mb-4 md:mb-6">
-        <!-- Total Savings -->
+        <!-- Net Savings Balance -->
         <div class="bg-gradient-to-br from-green-500 to-green-600 rounded-2xl shadow-xl p-4 md:p-6 text-white">
             <div class="flex items-center justify-between mb-3">
                 <i class="fas fa-piggy-bank text-3xl md:text-4xl opacity-80"></i>
-                <span class="text-xs md:text-sm bg-white/20 px-3 py-1 rounded-full font-semibold">Total</span>
+                <span class="text-xs md:text-sm bg-white/20 px-3 py-1 rounded-full font-semibold">Deposits - Withdrawals</span>
             </div>
-            <p class="text-white/80 text-sm md:text-base font-medium mb-1">Total Savings</p>
-            <h3 class="text-2xl md:text-4xl font-bold mb-2">UGX {{ number_format($member->savings ?? 0) }}</h3>
+            <p class="text-white/80 text-sm md:text-base font-medium mb-1">Net Savings Balance</p>
+            <h3 class="text-2xl md:text-4xl font-bold mb-2">UGX {{ number_format($financialSummary['net_savings'] ?? 0) }}</h3>
             <p class="text-white/70 text-xs md:text-sm">
                 <i class="fas fa-chart-line mr-1"></i>
-                Growing steadily
+                Available: UGX {{ number_format($financialSummary['available_balance'] ?? 0) }}
             </p>
         </div>
 
@@ -55,10 +55,10 @@
             </div>
             <p class="text-gray-600 text-sm md:text-base font-medium mb-1">Monthly Deposits</p>
             <h3 class="text-2xl md:text-4xl font-bold text-gray-900 mb-2">
-                UGX {{ number_format($savingsHistory->where('created_at', '>=', now()->startOfMonth())->sum('amount')) }}
+                UGX {{ number_format($summary['monthly_deposits'] ?? 0) }}
             </h3>
             <p class="text-gray-500 text-xs md:text-sm">
-                {{ $savingsHistory->where('created_at', '>=', now()->startOfMonth())->count() }} transactions
+                {{ number_format($summary['monthly_count'] ?? 0) }} completed transactions
             </p>
         </div>
 
@@ -70,10 +70,10 @@
             </div>
             <p class="text-gray-600 text-sm md:text-base font-medium mb-1">Avg. Deposit</p>
             <h3 class="text-2xl md:text-4xl font-bold text-gray-900 mb-2">
-                UGX {{ $savingsHistory->count() > 0 ? number_format($savingsHistory->avg('amount')) : 0 }}
+                UGX {{ number_format($summary['average_deposit'] ?? 0) }}
             </h3>
             <p class="text-gray-500 text-xs md:text-sm">
-                Per transaction
+                Completed: {{ number_format($summary['completed_count'] ?? 0) }} | Pending: {{ number_format($summary['pending_count'] ?? 0) }}
             </p>
         </div>
     </div>

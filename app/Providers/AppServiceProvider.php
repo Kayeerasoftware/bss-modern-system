@@ -9,9 +9,14 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Event;
 use App\Models\User;
 use App\Models\Member;
+use App\Models\Loan;
+use App\Models\Transaction;
+use App\Models\Financial\Transaction as FinancialTransaction;
 use App\Observers\UserObserver;
 use App\Observers\MemberObserver;
 use App\Observers\GlobalAuditObserver;
+use App\Observers\MemberFinancialLoanObserver;
+use App\Observers\MemberFinancialTransactionObserver;
 use App\Services\UserMemberSyncService;
 
 class AppServiceProvider extends ServiceProvider
@@ -46,6 +51,9 @@ class AppServiceProvider extends ServiceProvider
         // Register observers for user-member synchronization
         User::observe(UserObserver::class);
         Member::observe(MemberObserver::class);
+        Loan::observe(MemberFinancialLoanObserver::class);
+        Transaction::observe(MemberFinancialTransactionObserver::class);
+        FinancialTransaction::observe(MemberFinancialTransactionObserver::class);
 
         // Auto-heal missing user/member links only when explicitly enabled.
         if ($this->app->isProduction()

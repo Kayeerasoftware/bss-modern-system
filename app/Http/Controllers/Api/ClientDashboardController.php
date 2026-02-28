@@ -9,9 +9,9 @@ use App\Models\Loan;
 use App\Models\Share;
 use App\Models\Dividend;
 use App\Models\SavingsHistory;
+use App\Services\Financial\MemberFinancialSyncService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
 class ClientDashboardController extends Controller
@@ -107,24 +107,20 @@ class ClientDashboardController extends Controller
                 ], 404);
             }
 
-            $totalDeposits = Transaction::where('member_id', $member->member_id)
-                ->where('type', 'deposit')
-                ->sum('amount');
-            $totalWithdrawals = Transaction::where('member_id', $member->member_id)
-                ->where('type', 'withdrawal')
-                ->sum('amount');
-            $loanOutstanding = Loan::where('member_id', $member->member_id)
-                ->whereIn('status', ['approved', 'active'])
-                ->sum(DB::raw('COALESCE(amount,0) - COALESCE(paid_amount,0)'));
+            $summary = app(MemberFinancialSyncService::class)->getMemberFinancialSummary($member);
 
             return response()->json([
                 'success' => true,
                 'member_id' => $member->member_id,
-                'balance' => (float) ($member->balance ?? ($totalDeposits - $totalWithdrawals)),
-                'savings' => (float) ($member->savings ?? 0),
-                'savings_balance' => (float) ($member->savings_balance ?? 0),
-                'loan_outstanding' => (float) max($loanOutstanding, 0),
-                'available_funds' => (float) (($member->balance ?? ($totalDeposits - $totalWithdrawals)) - max($loanOutstanding, 0)),
+                'balance' => (float) $summary['available_balance'],
+                'savings' => (float) $summary['net_savings'],
+                'savings_balance' => (float) $summary['net_savings'],
+                'loan_outstanding' => (float) $summary['loan_outstanding'],
+                'available_funds' => (float) $summary['available_after_loans'],
+                'total_deposits' => (float) $summary['total_deposits'],
+                'total_withdrawals' => (float) $summary['total_withdrawals'],
+                'total_transfers' => (float) $summary['total_transfers'],
+                'total_loan_payments' => (float) $summary['total_loan_payments'],
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -248,7 +244,8 @@ class ClientDashboardController extends Controller
             ]);
 
             $amount = (float) $request->input('amount');
-            $availableBalance = (float) ($member->balance ?? 0);
+            $summary = app(MemberFinancialSyncService::class)->getMemberFinancialSummary($member);
+            $availableBalance = (float) ($summary['available_balance'] ?? 0);
             if ($amount > $availableBalance) {
                 return response()->json([
                     'success' => false,
@@ -282,35 +279,23 @@ class ClientDashboardController extends Controller
      */
     private function getPersonalData($member)
     {
-        // Calculate total savings from transactions
-        $totalSavings = Transaction::where('member_id', $member->member_id)
-            ->where('type', 'deposit')
-            ->sum('amount');
-
-        // Calculate total withdrawals
-        $totalWithdrawals = Transaction::where('member_id', $member->member_id)
-            ->where('type', 'withdrawal')
-            ->sum('amount');
-
-        // Calculate current balance
-        $currentBalance = $totalSavings - $totalWithdrawals;
-
-        // Get active loans
-        $activeLoan = Loan::where('member_id', $member->member_id)
-            ->where('status', 'approved')
-            ->sum('amount');
+        $summary = app(MemberFinancialSyncService::class)->getMemberFinancialSummary($member);
 
         // Calculate monthly deposits (last 30 days)
         $monthlyDeposits = Transaction::where('member_id', $member->member_id)
             ->where('type', 'deposit')
+            ->where(function ($query): void {
+                $query->where('status', 'completed')
+                    ->orWhereNull('status');
+            })
             ->where('created_at', '>=', Carbon::now()->subDays(30))
             ->sum('amount');
 
         return [
-            'savings' => $totalSavings,
-            'activeLoan' => $activeLoan,
+            'savings' => (float) $summary['net_savings'],
+            'activeLoan' => (float) $summary['loan_outstanding'],
             'monthlyDeposits' => $monthlyDeposits,
-            'balance' => $currentBalance
+            'balance' => (float) $summary['available_balance'],
         ];
     }
 
@@ -538,12 +523,12 @@ class ClientDashboardController extends Controller
     {
         try {
             $request->validate([
-                'member_id' => 'required|string',
+                'member_id' => 'nullable|string',
                 'amount' => 'required|numeric|min:1000',
                 'description' => 'nullable|string|max:255'
             ]);
 
-            $member = Member::where('member_id', $request->member_id)->first();
+            $member = $this->resolveMember($request);
 
             if (!$member) {
                 return response()->json([
@@ -558,17 +543,18 @@ class ClientDashboardController extends Controller
             $transaction->amount = $request->amount;
             $transaction->type = 'deposit';
             $transaction->description = $request->description ?? 'Manual deposit';
+            $transaction->status = 'completed';
+            $transaction->processed_by = Auth::id();
             $transaction->save();
 
-            // Update member savings
-            $member->savings += $request->amount;
-            $member->save();
+            $summary = app(MemberFinancialSyncService::class)->syncMember($member);
 
             return response()->json([
                 'success' => true,
                 'message' => 'Deposit successful',
                 'transaction' => $transaction,
-                'new_balance' => $member->savings
+                'new_balance' => $summary['available_balance'],
+                'new_savings' => $summary['net_savings'],
             ]);
 
         } catch (\Exception $e) {

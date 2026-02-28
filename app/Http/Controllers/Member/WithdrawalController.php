@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Member;
 use App\Http\Controllers\Controller;
 use App\Models\Transaction;
 use App\Models\Member;
+use App\Services\Financial\MemberFinancialSyncService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -40,9 +41,33 @@ class WithdrawalController extends Controller
             $query->whereDate('created_at', '<=', $request->date_to);
         }
 
+        if ($request->filled('period')) {
+            $this->applyPeriodFilter($query, (string) $request->period);
+        }
+
         $withdrawals = $query->latest()->paginate(15)->appends($request->query());
+
+        $completedQuery = (clone $query)->where(function ($q): void {
+            $q->where('status', 'completed')
+                ->orWhereNull('status');
+        });
+
+        $summary = [
+            'total_withdrawn' => (float) (clone $completedQuery)->sum('amount'),
+            'this_month' => (float) (clone $completedQuery)
+                ->whereBetween('created_at', [now()->startOfMonth(), now()->endOfMonth()])
+                ->sum('amount'),
+            'pending_count' => (int) (clone $query)->where('status', 'pending')->count(),
+            'completed_count' => (int) (clone $query)
+                ->where(function ($q): void {
+                    $q->where('status', 'completed')
+                        ->orWhereNull('status');
+                })
+                ->count(),
+            'total_count' => (int) (clone $query)->count(),
+        ];
         
-        return view('member.withdrawals.index', compact('withdrawals', 'member'));
+        return view('member.withdrawals.index', compact('withdrawals', 'member', 'summary'));
     }
 
     public function create()
@@ -64,7 +89,8 @@ class WithdrawalController extends Controller
         $user = Auth::user();
         $member = $user->member ?? Member::where('email', $user->email)->first();
 
-        if ($request->amount > $member->balance) {
+        $financialSummary = app(MemberFinancialSyncService::class)->getMemberFinancialSummary($member);
+        if ($request->amount > ($financialSummary['available_balance'] ?? 0)) {
             return back()->withErrors(['amount' => 'Insufficient balance'])->withInput();
         }
 
@@ -83,6 +109,26 @@ class WithdrawalController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             return back()->withErrors(['error' => 'Failed to submit withdrawal request'])->withInput();
+        }
+    }
+
+    private function applyPeriodFilter($query, string $period): void
+    {
+        switch ($period) {
+            case 'today':
+                $query->whereDate('created_at', now()->toDateString());
+                break;
+            case 'week':
+                $query->whereBetween('created_at', [now()->startOfWeek(), now()->endOfWeek()]);
+                break;
+            case 'month':
+                $query->whereBetween('created_at', [now()->startOfMonth(), now()->endOfMonth()]);
+                break;
+            case 'year':
+                $query->whereBetween('created_at', [now()->startOfYear(), now()->endOfYear()]);
+                break;
+            default:
+                break;
         }
     }
 }
