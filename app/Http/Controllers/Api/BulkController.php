@@ -5,10 +5,26 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Member;
+use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 
 class BulkController extends Controller
 {
+    private function generateMemberId(): string
+    {
+        $lastMember = Member::withTrashed()
+            ->where('member_id', 'like', 'BSS-C15-%')
+            ->orderBy('member_id', 'desc')
+            ->first();
+
+        $nextNumber = 1;
+        if ($lastMember && preg_match('/BSS-C15-(\d+)/', (string) $lastMember->member_id, $matches)) {
+            $nextNumber = ((int) $matches[1]) + 1;
+        }
+
+        return 'BSS-C15-' . str_pad((string) $nextNumber, 4, '0', STR_PAD_LEFT);
+    }
+
     public function importMembers(Request $request)
     {
         try {
@@ -43,23 +59,37 @@ class BulkController extends Controller
                     continue;
                 }
                 
-                // Auto-generate member_id
-                $memberCount = Member::count();
-                $memberId = 'BSS' . str_pad($memberCount + 1, 3, '0', STR_PAD_LEFT);
+                $role = strtolower(trim((string) ($data['role'] ?? 'client')));
+                if (!in_array($role, ['admin', 'client', 'cashier', 'td', 'ceo', 'shareholder'], true)) {
+                    $role = 'client';
+                }
                 
+                $user = User::create([
+                    'name' => $data['full_name'],
+                    'email' => $data['email'],
+                    'password' => Hash::make('password123'),
+                    'role' => $role,
+                    'status' => 'active',
+                    'is_active' => true,
+                    'phone' => $data['contact'] ?? null,
+                    'location' => $data['location'] ?? null,
+                ]);
+
                 Member::create([
-                    'member_id' => $memberId,
+                    'member_id' => $this->generateMemberId(),
                     'full_name' => $data['full_name'],
                     'email' => $data['email'],
                     'contact' => $data['contact'],
                     'location' => $data['location'] ?? '',
                     'occupation' => $data['occupation'] ?? '',
-                    'role' => $data['role'],
+                    'role' => $role,
                     'savings' => $data['savings'] ?? 0,
                     'loan' => 0,
                     'balance' => $data['savings'] ?? 0,
-                    'savings_balance' => 0,
-                    'password' => Hash::make('password123')
+                    'savings_balance' => $data['savings'] ?? 0,
+                    'status' => 'active',
+                    'password' => $user->password,
+                    'user_id' => $user->id,
                 ]);
                 
                 $imported++;

@@ -7,6 +7,7 @@ use App\Models\Loan;
 use App\Models\Transaction;
 use App\Models\Project;
 use App\Models\Notification;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Cache;
@@ -70,6 +71,17 @@ class AdminController extends Controller
 
     public function createMember(Request $request)
     {
+        $user = User::create([
+            'name' => $request->full_name,
+            'email' => $request->email,
+            'password' => Hash::make($request->password ?? 'password123'),
+            'role' => $request->role ?? 'client',
+            'status' => 'active',
+            'is_active' => true,
+            'phone' => $request->contact,
+            'location' => $request->location,
+        ]);
+
         $member = Member::create([
             'member_id' => $request->member_id,
             'full_name' => $request->full_name,
@@ -80,7 +92,8 @@ class AdminController extends Controller
             'role' => $request->role,
             'savings' => $request->savings ?? 0,
             'loan' => 0,
-            'password' => Hash::make($request->password ?? 'password123')
+            'password' => $user->password,
+            'user_id' => $user->id,
         ]);
 
         $this->clearAdminApiCaches();

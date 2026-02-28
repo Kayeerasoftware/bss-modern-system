@@ -7,10 +7,8 @@ use App\Models\Member;
 use App\Models\User;
 use App\Services\ProfilePictureStorageService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
 
 class MemberController extends Controller
@@ -51,7 +49,8 @@ class MemberController extends Controller
                 'contact' => 'required|string|max:20',
                 'location' => 'required|string|max:255',
                 'occupation' => 'required|string|max:255',
-                'role' => 'required|in:client,shareholder,cashier,td,ceo'
+                'role' => 'required|in:client,shareholder,cashier,td,ceo,admin',
+                'password' => 'nullable|string|min:6',
             ]);
 
             if ($validator->fails()) {
@@ -63,6 +62,17 @@ class MemberController extends Controller
             }
 
             // Create member
+            $user = User::create([
+                'name' => $request->full_name,
+                'email' => $request->email,
+                'password' => Hash::make($request->input('password', 'password123')),
+                'role' => $request->role,
+                'status' => 'active',
+                'is_active' => true,
+                'phone' => $request->contact,
+                'location' => $request->location,
+            ]);
+
             $member = new Member();
             $member->full_name = $request->full_name;
             $member->email = $request->email;
@@ -72,18 +82,9 @@ class MemberController extends Controller
             $member->role = $request->role;
             $member->status = 'active';
             $member->member_id = $this->generateMemberId();
+            $member->password = $user->password;
+            $member->user_id = $user->id;
             $member->save();
-
-            // Create user account if role requires it
-            if (in_array($request->role, ['cashier', 'td', 'ceo'])) {
-                $user = new User();
-                $user->name = $request->full_name;
-                $user->email = $request->email;
-                $user->password = Hash::make('default123'); // Default password
-                $user->role = $request->role;
-                $user->status = 'active';
-                $user->save();
-            }
 
             return response()->json([
                 'success' => true,
@@ -110,11 +111,11 @@ class MemberController extends Controller
             // Validate request
             $validator = Validator::make($request->all(), [
                 'full_name' => 'required|string|max:255',
-                'email' => 'required|email|unique:members,email,' . $id . '|unique:users,email,' . $id,
+                'email' => 'required|email|unique:members,email,' . $id . '|unique:users,email,' . ($member->user_id ?? 0),
                 'contact' => 'required|string|max:20',
                 'location' => 'required|string|max:255',
                 'occupation' => 'required|string|max:255',
-                'role' => 'required|in:client,shareholder,cashier,td,ceo'
+                'role' => 'required|in:client,shareholder,cashier,td,ceo,admin'
             ]);
 
             if ($validator->fails()) {
@@ -132,16 +133,6 @@ class MemberController extends Controller
             $member->location = $request->location;
             $member->occupation = $request->occupation;
             $member->role = $request->role;
-
-            // Update user account if role requires it
-            if (in_array($request->role, ['cashier', 'td', 'ceo'])) {
-                $user = User::where('email', $request->email)->first();
-                if ($user) {
-                    $user->name = $request->full_name;
-                    $user->role = $request->role;
-                    $user->save();
-                }
-            }
 
             $member->save();
 
@@ -221,12 +212,6 @@ class MemberController extends Controller
                     'success' => false,
                     'message' => 'Cannot delete member with active loans or transactions'
                 ], 400);
-            }
-
-            // Delete associated user account
-            $user = User::where('email', $member->email)->first();
-            if ($user) {
-                $user->delete();
             }
 
             $member->delete();
@@ -313,10 +298,16 @@ class MemberController extends Controller
      */
     private function generateMemberId()
     {
-        $prefix = 'MEM';
-        $year = date('y');
-        $count = Member::count() + 1;
-        $sequence = str_pad($count, 4, '0', STR_PAD_LEFT);
-        return $prefix . $year . $sequence;
+        $lastMember = Member::withTrashed()
+            ->where('member_id', 'like', 'BSS-C15-%')
+            ->orderBy('member_id', 'desc')
+            ->first();
+
+        $nextNumber = 1;
+        if ($lastMember && preg_match('/BSS-C15-(\d+)/', (string) $lastMember->member_id, $matches)) {
+            $nextNumber = ((int) $matches[1]) + 1;
+        }
+
+        return 'BSS-C15-' . str_pad((string) $nextNumber, 4, '0', STR_PAD_LEFT);
     }
 }

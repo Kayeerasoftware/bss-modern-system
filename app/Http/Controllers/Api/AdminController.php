@@ -11,9 +11,25 @@ use App\Models\Transaction;
 use App\Models\Project;
 use App\Models\User;
 use App\Services\ProfilePictureStorageService;
+use Illuminate\Support\Facades\Hash;
 
 class AdminController extends Controller
 {
+    private function generateMemberId(): string
+    {
+        $lastMember = Member::withTrashed()
+            ->where('member_id', 'like', 'BSS-C15-%')
+            ->orderBy('member_id', 'desc')
+            ->first();
+
+        $nextNumber = 1;
+        if ($lastMember && preg_match('/BSS-C15-(\d+)/', (string) $lastMember->member_id, $matches)) {
+            $nextNumber = ((int) $matches[1]) + 1;
+        }
+
+        return 'BSS-C15-' . str_pad((string) $nextNumber, 4, '0', STR_PAD_LEFT);
+    }
+
     public function dashboard()
     {
         // Get all months
@@ -428,8 +444,8 @@ class AdminController extends Controller
             'is_active' => true
         ]);
         
-        $member = Member::create([
-            'member_id' => 'BSS' . str_pad(Member::count() + 1, 3, '0', STR_PAD_LEFT),
+        Member::create([
+            'member_id' => $this->generateMemberId(),
             'full_name' => $request->name,
             'email' => $request->email,
             'location' => $request->location ?? 'N/A',
@@ -587,14 +603,32 @@ class AdminController extends Controller
         $imported = 0;
         foreach ($csv as $row) {
             if (count($row) >= 6) {
+                $email = trim((string) $row[2]);
+                if (Member::where('email', $email)->exists()) {
+                    continue;
+                }
+                $role = in_array($row[4] ?? 'client', ['admin', 'client', 'cashier', 'td', 'ceo', 'shareholder'], true) ? $row[4] : 'client';
+                $user = User::create([
+                    'name' => $row[1],
+                    'email' => $email,
+                    'password' => Hash::make('password123'),
+                    'role' => $role,
+                    'status' => 'active',
+                    'is_active' => true,
+                    'phone' => $row[3] ?? null,
+                ]);
                 Member::create([
-                    'member_id' => $row[0],
+                    'member_id' => !empty($row[0]) ? $row[0] : $this->generateMemberId(),
                     'full_name' => $row[1],
-                    'email' => $row[2],
-                    'contact' => $row[3],
-                    'role' => $row[4],
-                    'savings' => $row[5],
-                    'balance' => $row[5]
+                    'email' => $email,
+                    'contact' => $row[3] ?? null,
+                    'role' => $role,
+                    'savings' => (float) ($row[5] ?? 0),
+                    'balance' => (float) ($row[5] ?? 0),
+                    'savings_balance' => (float) ($row[5] ?? 0),
+                    'status' => 'active',
+                    'password' => $user->password,
+                    'user_id' => $user->id,
                 ]);
                 $imported++;
             }

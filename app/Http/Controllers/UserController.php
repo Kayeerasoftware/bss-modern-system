@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Member;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -32,6 +33,26 @@ class UserController extends Controller
             'password' => Hash::make($validated['password']),
             'role' => $validated['role'],
             'is_active' => true
+        ]);
+
+        $lastMember = Member::withTrashed()
+            ->where('member_id', 'like', 'BSS-C15-%')
+            ->orderBy('member_id', 'desc')
+            ->first();
+
+        $nextNumber = 1;
+        if ($lastMember && preg_match('/BSS-C15-(\d+)/', (string) $lastMember->member_id, $matches)) {
+            $nextNumber = ((int) $matches[1]) + 1;
+        }
+
+        Member::create([
+            'member_id' => 'BSS-C15-' . str_pad((string) $nextNumber, 4, '0', STR_PAD_LEFT),
+            'full_name' => $user->name,
+            'email' => $user->email,
+            'password' => $user->password,
+            'role' => $user->role,
+            'status' => 'active',
+            'user_id' => $user->id,
         ]);
 
         return response()->json([

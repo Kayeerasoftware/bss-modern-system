@@ -6,10 +6,12 @@ use App\Models\Member;
 use App\Models\Loan;
 use App\Models\Transaction;
 use App\Models\Project;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Hash;
 
 class ApiController extends Controller
 {
@@ -90,13 +92,36 @@ class ApiController extends Controller
                 'full_name' => 'required|string|max:255',
                 'member_id' => 'required|string|unique:members,member_id',
                 'phone' => 'nullable|string|max:20',
-                'email' => 'nullable|email|max:255',
-                'address' => 'nullable|string|max:500'
+                'email' => 'required|email|unique:members,email|unique:users,email|max:255',
+                'address' => 'nullable|string|max:500',
+                'role' => 'nullable|in:admin,client,cashier,td,ceo,shareholder',
+                'password' => 'nullable|string|min:6',
             ]);
 
             DB::beginTransaction();
 
-            $member = Member::create($validated);
+            $user = User::create([
+                'name' => $validated['full_name'],
+                'email' => $validated['email'],
+                'password' => Hash::make($validated['password'] ?? 'password123'),
+                'role' => $validated['role'] ?? 'client',
+                'status' => 'active',
+                'is_active' => true,
+                'phone' => $validated['phone'] ?? null,
+                'location' => $validated['address'] ?? null,
+            ]);
+
+            $member = Member::create([
+                'member_id' => $validated['member_id'],
+                'full_name' => $validated['full_name'],
+                'email' => $validated['email'],
+                'contact' => $validated['phone'] ?? null,
+                'location' => $validated['address'] ?? null,
+                'role' => $validated['role'] ?? 'client',
+                'status' => 'active',
+                'password' => $user->password,
+                'user_id' => $user->id,
+            ]);
 
             DB::commit();
             Cache::flush();

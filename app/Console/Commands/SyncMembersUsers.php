@@ -5,7 +5,6 @@ namespace App\Console\Commands;
 use Illuminate\Console\Command;
 use App\Models\Member;
 use App\Models\User;
-use Illuminate\Support\Facades\Hash;
 
 class SyncMembersUsers extends Command
 {
@@ -59,8 +58,61 @@ class SyncMembersUsers extends Command
             $this->info("Created member for user: {$user->name}");
         }
 
+        // Reconcile linked pairs (use most recently updated record as source of truth)
+        $reconciled = 0;
+        Member::with('user')->get()->each(function (Member $member) use (&$reconciled) {
+            if (!$member->user) {
+                return;
+            }
+
+            $user = $member->user;
+            $memberIsNewer = ($member->updated_at?->timestamp ?? 0) >= ($user->updated_at?->timestamp ?? 0);
+
+            if ($memberIsNewer) {
+                $user->fill([
+                    'name' => $member->full_name,
+                    'email' => $member->email,
+                    'role' => $member->role ?: $user->role,
+                    'status' => $member->status ?: ($user->is_active ? 'active' : 'inactive'),
+                    'is_active' => ($member->status ?? 'active') === 'active',
+                    'phone' => $member->contact,
+                    'location' => $member->location,
+                    'profile_picture' => $member->profile_picture,
+                ]);
+                if (!empty($member->password)) {
+                    $user->password = $member->password;
+                }
+                if ($user->isDirty()) {
+                    $user->saveQuietly();
+                    $reconciled++;
+                }
+                return;
+            }
+
+            $member->fill([
+                'full_name' => $user->name,
+                'email' => $user->email,
+                'role' => $user->role ?: $member->role,
+                'status' => $user->is_active ? 'active' : 'inactive',
+                'contact' => $user->phone,
+                'location' => $user->location,
+                'profile_picture' => $user->profile_picture,
+            ]);
+            if (!empty($user->password)) {
+                $member->password = $user->password;
+            }
+            if ((int) $member->user_id !== (int) $user->id) {
+                $member->user_id = $user->id;
+            }
+            if ($member->isDirty()) {
+                $member->saveQuietly();
+                $reconciled++;
+            }
+        });
+
         $this->info('Sync completed!');
         $this->info('Total Members: ' . Member::count());
         $this->info('Total Users: ' . User::count());
+        $this->info('Reconciled linked records: ' . $reconciled);
     }
 }

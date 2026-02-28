@@ -9,6 +9,7 @@ use App\Models\Transaction;
 use App\Models\Project;
 use App\Models\Share;
 use App\Models\SavingsHistory;
+use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 
 class CrudController extends Controller
@@ -34,7 +35,7 @@ class CrudController extends Controller
         try {
             $validated = $request->validate([
                 'full_name' => 'required|string|max:255',
-                'email' => 'required|email|unique:members',
+                'email' => 'required|email|unique:members|unique:users,email',
                 'location' => 'required|string|max:255',
                 'occupation' => 'required|string|max:255',
                 'contact' => 'required|string|max:20',
@@ -51,6 +52,17 @@ class CrudController extends Controller
                 $memberId = 'BSS' . str_pad($maxNum + 1, 3, '0', STR_PAD_LEFT);
             }
 
+            $user = User::create([
+                'name' => $validated['full_name'],
+                'email' => $validated['email'],
+                'password' => Hash::make('password123'),
+                'role' => $validated['role'],
+                'status' => 'active',
+                'is_active' => true,
+                'phone' => $validated['contact'],
+                'location' => $validated['location'],
+            ]);
+
             $member = Member::create([
                 'member_id' => $memberId,
                 'full_name' => $validated['full_name'],
@@ -63,7 +75,8 @@ class CrudController extends Controller
                 'loan' => 0,
                 'balance' => 0,
                 'savings_balance' => 0,
-                'password' => Hash::make('password123')
+                'password' => $user->password,
+                'user_id' => $user->id,
             ]);
 
             return response()->json(['success' => true, 'member' => $member]);

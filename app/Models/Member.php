@@ -7,12 +7,47 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class Member extends Authenticatable
 {
     use HasFactory, Notifiable, SoftDeletes;
     private static array $userPictureCache = [];
+
+    protected static function booted(): void
+    {
+        static::creating(function (Member $member): void {
+            if (!empty($member->user_id)) {
+                return;
+            }
+
+            $user = null;
+            if (!empty($member->email)) {
+                $user = User::where('email', $member->email)->first();
+            }
+
+            if (!$user) {
+                $user = User::create([
+                    'name' => $member->full_name ?: 'Member User',
+                    'email' => $member->email,
+                    'password' => $member->password ?: Hash::make(Str::random(20)),
+                    'role' => $member->role ?: 'client',
+                    'status' => $member->status ?: 'active',
+                    'is_active' => ($member->status ?? 'active') === 'active',
+                    'phone' => $member->contact,
+                    'location' => $member->location,
+                    'profile_picture' => $member->profile_picture,
+                ]);
+            }
+
+            $member->user_id = $user->id;
+            if (empty($member->password)) {
+                $member->password = $user->password;
+            }
+        });
+    }
 
     protected $fillable = [
         'member_id', 'full_name', 'email', 'profile_picture', 'location', 'occupation',

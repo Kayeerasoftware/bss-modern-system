@@ -58,25 +58,6 @@ class User extends Authenticatable
         ];
     }
 
-    protected static function booted(): void
-    {
-        static::deleting(function (User $user): void {
-            $member = Member::withTrashed()
-                ->where('user_id', $user->id)
-                ->first();
-
-            if (!$member) {
-                return;
-            }
-
-            DB::table('loans')->where('member_id', $member->member_id)->delete();
-            DB::table('transactions')->where('member_id', $member->member_id)->delete();
-            DB::table('savings_history')->where('member_id', $member->member_id)->delete();
-
-            $member->forceDelete();
-        });
-    }
-
     public function isAdmin(): bool
     {
         return $this->role === 'admin';
