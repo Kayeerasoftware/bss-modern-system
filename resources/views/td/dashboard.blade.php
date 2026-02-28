@@ -181,7 +181,7 @@
             </div>
             <div class="space-y-3">
                 @forelse($recentMembers as $member)
-                <div class="flex items-center space-x-3 p-3 hover:bg-purple-50 rounded-lg transition cursor-pointer">
+                <a href="{{ route('td.members.show', $member->id) }}" class="flex items-center space-x-3 p-3 hover:bg-purple-50 rounded-lg transition cursor-pointer">
                     @if($member->profile_picture_url)
                         <img src="{{ $member->profile_picture_url }}" class="w-12 h-12 rounded-full object-cover ring-2 ring-purple-500 ring-offset-2" alt="{{ $member->full_name }}">
                     @else
@@ -194,7 +194,7 @@
                         <p class="text-xs text-gray-500">{{ $member->member_id }} • {{ $member->created_at->diffForHumans() }}</p>
                     </div>
                     <i class="fas fa-chevron-right text-gray-400"></i>
-                </div>
+                </a>
                 @empty
                 <p class="text-gray-500 text-sm text-center py-8">No recent members</p>
                 @endforelse

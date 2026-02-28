@@ -67,7 +67,7 @@ class DashboardController extends Controller
 
         $recentMembers = Cache::remember('admin_dashboard:recent_members:v1', now()->addSeconds(30), static function () {
             return Member::query()
-                ->select('id', 'member_id', 'full_name', 'profile_picture', 'created_at')
+                ->select('id', 'user_id', 'member_id', 'full_name', 'profile_picture', 'created_at')
                 ->latest()
                 ->take(5)
                 ->get();
