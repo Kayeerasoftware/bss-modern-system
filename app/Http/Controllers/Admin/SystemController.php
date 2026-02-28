@@ -102,28 +102,44 @@ class SystemController extends Controller
         $action = strtolower((string) $log->action);
 
         $user = User::query()
-            ->where('name', $log->user)
+            ->with('member:id,user_id,contact,location')
+            ->where(function ($q) use ($log) {
+                $q->where('name', $log->user)
+                    ->orWhere('email', $log->user);
+            })
             ->latest('id')
-            ->first(['name', 'email', 'phone', 'role', 'profile_picture']);
+            ->first(['id', 'name', 'email', 'phone', 'role', 'profile_picture', 'location']);
 
         $payloadChanges = Arr::get($changes, 'payload', []);
         $queryChanges = Arr::get($changes, 'query', []);
         $changeItems = $this->buildChangeItems($payloadChanges, $queryChanges);
+
+        $resolvedEmail = $user?->email
+            ?? (is_array($payloadChanges) ? (string) ($payloadChanges['email'] ?? '') : '')
+            ?? '';
+        $resolvedPhone = $user?->phone
+            ?? $user?->member?->contact
+            ?? (is_array($payloadChanges) ? (string) ($payloadChanges['phone'] ?? ($payloadChanges['contact'] ?? '')) : '')
+            ?? '';
+        $resolvedLocation = $user?->location
+            ?? $user?->member?->location
+            ?? (is_array($payloadChanges) ? (string) ($payloadChanges['location'] ?? '') : '')
+            ?? '';
 
         return [
             'id' => (string) $log->id,
             'timestamp' => optional($log->created_at)->format('Y-m-d H:i:s') ?? (string) $log->timestamp,
             'user' => (string) $log->user,
             'userRole' => $user?->role ? ucfirst((string) $user->role) : 'System User',
-            'userEmail' => $user?->email ?? 'N/A',
-            'userPhone' => $user?->phone ?? 'N/A',
+            'userEmail' => $resolvedEmail !== '' ? $resolvedEmail : 'N/A',
+            'userPhone' => $resolvedPhone !== '' ? $resolvedPhone : 'N/A',
             'userPhoto' => $user?->profile_picture_url ?? ('https://ui-avatars.com/api/?name=' . urlencode((string) $log->user) . '&background=3b82f6&color=fff'),
             'action' => ucfirst((string) $log->action),
             'module' => $this->resolveModule($changes),
             'details' => (string) $log->details,
             'description' => $this->buildDescription((string) $log->details, $payloadChanges, $queryChanges, $statusCode),
             'ip' => (string) ($changes['ip'] ?? 'N/A'),
-            'location' => 'N/A',
+            'location' => $resolvedLocation !== '' ? $resolvedLocation : 'N/A',
             'userAgent' => (string) ($changes['user_agent'] ?? 'N/A'),
             'browser' => $this->browserFromUserAgent((string) ($changes['user_agent'] ?? '')),
             'device' => $this->deviceFromUserAgent((string) ($changes['user_agent'] ?? '')),
@@ -220,24 +236,49 @@ class SystemController extends Controller
 
     private function buildDescription(string $details, $payload, $query, int $statusCode): string
     {
-        $description = $details;
-        $parts = [];
+        $parts = [$details];
 
         if (is_array($payload) && $payload !== []) {
-            $parts[] = 'Payload fields changed: ' . implode(', ', array_keys($payload));
+            $parts[] = 'Submitted data: ' . $this->summarizeKeyValues($payload);
         }
+
         if (is_array($query) && $query !== []) {
-            $parts[] = 'Query params: ' . implode(', ', array_keys($query));
+            $parts[] = 'Applied filters/params: ' . $this->summarizeKeyValues($query);
         }
+
         if ($statusCode > 0) {
-            $parts[] = 'HTTP status: ' . $statusCode;
+            $parts[] = 'Result: HTTP ' . $statusCode . ' (' . $this->resolveStatusMeta($statusCode)[0] . ')';
         }
 
-        if ($parts !== []) {
-            $description .= ' | ' . implode(' | ', $parts);
+        return implode(' | ', array_filter($parts));
+    }
+
+    private function summarizeKeyValues(array $data): string
+    {
+        $items = [];
+        foreach ($data as $key => $value) {
+            if (is_array($value)) {
+                $displayValue = json_encode($value, JSON_UNESCAPED_UNICODE);
+            } elseif (is_bool($value)) {
+                $displayValue = $value ? 'true' : 'false';
+            } elseif ($value === null || $value === '') {
+                $displayValue = 'null';
+            } else {
+                $displayValue = (string) $value;
+            }
+
+            if (mb_strlen($displayValue) > 60) {
+                $displayValue = mb_substr($displayValue, 0, 57) . '...';
+            }
+
+            $items[] = $key . '=' . $displayValue;
         }
 
-        return $description;
+        if ($items === []) {
+            return 'none';
+        }
+
+        return implode(', ', array_slice($items, 0, 8));
     }
 
     private function browserFromUserAgent(string $ua): string
