@@ -17,15 +17,41 @@ use Carbon\Carbon;
 class ClientDashboardController extends Controller
 {
     /**
+     * Resolve member from authenticated user or request payload.
+     */
+    private function resolveMember(Request $request): ?Member
+    {
+        $user = Auth::user();
+
+        if ($user) {
+            $member = $user->member
+                ?? Member::where('user_id', $user->id)->first()
+                ?? Member::whereRaw('LOWER(email) = ?', [strtolower((string) $user->email)])->first();
+
+            if ($member) {
+                if (empty($member->user_id)) {
+                    $member->forceFill(['user_id' => $user->id])->saveQuietly();
+                }
+
+                return $member;
+            }
+        }
+
+        $memberId = (string) $request->input('member_id', '');
+        if ($memberId !== '') {
+            return Member::where('member_id', $memberId)->first();
+        }
+
+        return null;
+    }
+
+    /**
      * Get client dashboard data
      */
     public function getClientData(Request $request)
     {
         try {
-            // Get member data - assuming we're using member_id from auth or request
-            $memberId = $request->input('member_id', 'MEM240001'); // Default test member
-
-            $member = Member::where('member_id', $memberId)->first();
+            $member = $this->resolveMember($request);
 
             if (!$member) {
                 return response()->json([
@@ -63,6 +89,190 @@ class ClientDashboardController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Error loading dashboard data: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get member balance summary.
+     */
+    public function getBalance(Request $request)
+    {
+        try {
+            $member = $this->resolveMember($request);
+            if (!$member) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Member not found'
+                ], 404);
+            }
+
+            $totalDeposits = Transaction::where('member_id', $member->member_id)
+                ->where('type', 'deposit')
+                ->sum('amount');
+            $totalWithdrawals = Transaction::where('member_id', $member->member_id)
+                ->where('type', 'withdrawal')
+                ->sum('amount');
+            $loanOutstanding = Loan::where('member_id', $member->member_id)
+                ->whereIn('status', ['approved', 'active'])
+                ->sum(DB::raw('COALESCE(amount,0) - COALESCE(paid_amount,0)'));
+
+            return response()->json([
+                'success' => true,
+                'member_id' => $member->member_id,
+                'balance' => (float) ($member->balance ?? ($totalDeposits - $totalWithdrawals)),
+                'savings' => (float) ($member->savings ?? 0),
+                'savings_balance' => (float) ($member->savings_balance ?? 0),
+                'loan_outstanding' => (float) max($loanOutstanding, 0),
+                'available_funds' => (float) (($member->balance ?? ($totalDeposits - $totalWithdrawals)) - max($loanOutstanding, 0)),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error loading balance: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get member transactions.
+     */
+    public function getTransactions(Request $request)
+    {
+        try {
+            $member = $this->resolveMember($request);
+            if (!$member) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Member not found'
+                ], 404);
+            }
+
+            $query = Transaction::where('member_id', $member->member_id);
+
+            if ($request->filled('type')) {
+                $query->where('type', $request->input('type'));
+            }
+            if ($request->filled('date_from')) {
+                $query->whereDate('created_at', '>=', $request->input('date_from'));
+            }
+            if ($request->filled('date_to')) {
+                $query->whereDate('created_at', '<=', $request->input('date_to'));
+            }
+
+            $perPage = (int) $request->input('per_page', 20);
+            $transactions = $query->latest()->paginate(max(1, min($perPage, 100)));
+
+            return response()->json([
+                'success' => true,
+                'member_id' => $member->member_id,
+                'transactions' => $transactions,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error loading transactions: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get member loans.
+     */
+    public function getLoans(Request $request)
+    {
+        try {
+            $member = $this->resolveMember($request);
+            if (!$member) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Member not found'
+                ], 404);
+            }
+
+            $loans = Loan::where('member_id', $member->member_id)
+                ->latest()
+                ->get()
+                ->map(function ($loan) {
+                    $paid = (float) ($loan->paid_amount ?? 0);
+                    $amount = (float) ($loan->amount ?? 0);
+                    return [
+                        'id' => $loan->id,
+                        'loan_id' => $loan->loan_id,
+                        'status' => $loan->status,
+                        'amount' => $amount,
+                        'paid_amount' => $paid,
+                        'outstanding' => max($amount - $paid, 0),
+                        'interest_rate' => (float) ($loan->interest_rate ?? 0),
+                        'duration' => $loan->duration ?? $loan->repayment_months,
+                        'created_at' => $loan->created_at,
+                    ];
+                });
+
+            return response()->json([
+                'success' => true,
+                'member_id' => $member->member_id,
+                'loans' => $loans,
+                'summary' => [
+                    'total' => $loans->count(),
+                    'approved' => $loans->where('status', 'approved')->count(),
+                    'pending' => $loans->where('status', 'pending')->count(),
+                    'rejected' => $loans->where('status', 'rejected')->count(),
+                ],
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error loading loans: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Submit withdrawal request.
+     */
+    public function requestWithdrawal(Request $request)
+    {
+        try {
+            $member = $this->resolveMember($request);
+            if (!$member) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Member not found'
+                ], 404);
+            }
+
+            $request->validate([
+                'amount' => 'required|numeric|min:1000',
+                'description' => 'nullable|string|max:255',
+            ]);
+
+            $amount = (float) $request->input('amount');
+            $availableBalance = (float) ($member->balance ?? 0);
+            if ($amount > $availableBalance) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Insufficient balance'
+                ], 422);
+            }
+
+            $transaction = Transaction::create([
+                'member_id' => $member->member_id,
+                'amount' => $amount,
+                'type' => 'withdrawal',
+                'description' => $request->input('description', 'Withdrawal request'),
+                'status' => 'pending',
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Withdrawal request submitted successfully',
+                'transaction' => $transaction,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error processing withdrawal request: ' . $e->getMessage()
             ], 500);
         }
     }
@@ -375,7 +585,15 @@ class ClientDashboardController extends Controller
     public function getSavingsHistory(Request $request)
     {
         try {
-            $memberId = $request->input('member_id', 'MEM240001');
+            $member = $this->resolveMember($request);
+            if (!$member) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Member not found'
+                ], 404);
+            }
+
+            $memberId = $member->member_id;
             $months = $request->input('months', 6);
 
             $history = [];
@@ -424,7 +642,14 @@ class ClientDashboardController extends Controller
     public function getTransactionDistribution(Request $request)
     {
         try {
-            $memberId = $request->input('member_id', 'MEM240001');
+            $member = $this->resolveMember($request);
+            if (!$member) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Member not found'
+                ], 404);
+            }
+            $memberId = $member->member_id;
 
             $deposits = Transaction::where('member_id', $memberId)
                 ->where('type', 'deposit')
@@ -472,7 +697,14 @@ class ClientDashboardController extends Controller
     public function getSpendingCategories(Request $request)
     {
         try {
-            $memberId = $request->input('member_id', 'MEM240001');
+            $member = $this->resolveMember($request);
+            if (!$member) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Member not found'
+                ], 404);
+            }
+            $memberId = $member->member_id;
 
             // Mock spending categories based on transaction patterns
             $totalDeposits = Transaction::where('member_id', $memberId)
