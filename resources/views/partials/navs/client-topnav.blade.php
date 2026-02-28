@@ -119,11 +119,11 @@
             </div>
             <span class="font-medium text-xs">My Profile</span>
         </a>
-        <a href="{{ route('welcome') }}" @click="showProfileDropdown = false" class="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-green-50 transition group">
+        <a href="{{ route('dashboard') }}" @click="showProfileDropdown = false" class="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-green-50 transition group">
             <div class="w-7 h-7 rounded-lg bg-green-100 flex items-center justify-center group-hover:bg-green-200 transition">
                 <i class="fas fa-home text-green-600 text-xs"></i>
             </div>
-            <span class="font-medium text-xs">Go Home</span>
+            <span class="font-medium text-xs">Go to Role Dashboard</span>
         </a>
         <a href="{{ route('member.settings.index') }}" @click="showProfileDropdown = false" class="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-pink-50 transition group">
             <div class="w-7 h-7 rounded-lg bg-pink-100 flex items-center justify-center group-hover:bg-pink-200 transition">

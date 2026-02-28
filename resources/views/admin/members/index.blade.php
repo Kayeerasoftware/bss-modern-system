@@ -18,6 +18,12 @@
                 </div>
             </div>
             <div class="flex gap-1.5 md:gap-2 w-full md:w-auto">
+                <a href="{{ route('admin.members.index', array_merge(request()->except('page', 'trash'), ['trash' => 'active'])) }}" class="flex-1 md:flex-none px-3 md:px-5 py-2 md:py-2.5 rounded-lg md:rounded-xl transition-all duration-300 text-xs md:text-sm font-bold flex items-center justify-center gap-1 md:gap-2 transform hover:scale-105 {{ ($trashFilter ?? 'active') === 'active' ? 'bg-gradient-to-r from-emerald-600 to-green-600 text-white' : 'bg-white text-gray-700 border border-gray-200' }}">
+                    <i class="fas fa-list"></i><span>Active</span>
+                </a>
+                <a href="{{ route('admin.members.index', array_merge(request()->except('page', 'trash'), ['trash' => 'only'])) }}" class="flex-1 md:flex-none px-3 md:px-5 py-2 md:py-2.5 rounded-lg md:rounded-xl transition-all duration-300 text-xs md:text-sm font-bold flex items-center justify-center gap-1 md:gap-2 transform hover:scale-105 {{ ($trashFilter ?? 'active') === 'only' ? 'bg-gradient-to-r from-amber-600 to-orange-600 text-white' : 'bg-white text-gray-700 border border-gray-200' }}">
+                    <i class="fas fa-trash-restore"></i><span>Trash</span>
+                </a>
                 <a href="{{ route('admin.members.pictures.bulk-upload-form') }}" class="flex-1 md:flex-none px-3 md:px-5 py-2 md:py-2.5 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg md:rounded-xl hover:shadow-xl transition-all duration-300 text-xs md:text-sm font-bold flex items-center justify-center gap-1 md:gap-2 transform hover:scale-105">
                     <i class="fas fa-images"></i><span class="hidden sm:inline">Bulk Pictures</span><span class="sm:hidden">Pictures</span>
                 </a>
@@ -109,6 +115,7 @@
     <!-- Advanced Search and Filters -->
     <div class="bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 rounded-2xl shadow-lg border border-blue-100 overflow-hidden mb-4">
         <form method="GET" action="{{ route('admin.members.index') }}" x-data="{ showAdvanced: false }">
+            <input type="hidden" name="trash" value="{{ $trashFilter ?? 'active' }}">
             <div class="bg-white/60 backdrop-blur-sm p-3">
                 <!-- Basic Search Section -->
                 <div class="bg-white/80 rounded-xl p-2.5 border border-blue-100">

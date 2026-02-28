@@ -27,7 +27,14 @@ class MemberController extends Controller
 
     public function index(Request $request)
     {
+        $trashFilter = (string) $request->get('trash', 'active');
         $query = Member::with('user');
+
+        if ($trashFilter === 'only') {
+            $query->onlyTrashed();
+        } elseif ($trashFilter === 'with') {
+            $query->withTrashed();
+        }
 
         if ($request->search) {
             $query->where(function($q) use ($request) {
@@ -89,13 +96,13 @@ class MemberController extends Controller
             $query->latest();
         }
 
-        $members = $query->paginate(15);
+        $members = $query->paginate(15)->appends($request->query());
         
         if ($request->ajax()) {
-            return view('admin.members.partials.table', compact('members'))->render();
+            return view('admin.members.partials.table', compact('members', 'trashFilter'))->render();
         }
         
-        return view('admin.members.index', compact('members'));
+        return view('admin.members.index', compact('members', 'trashFilter'));
     }
 
     public function create()
@@ -258,19 +265,33 @@ class MemberController extends Controller
     public function destroy($id)
     {
         $member = Member::findOrFail($id);
-        
-        if ($member->profile_picture) {
-            @unlink(public_path($member->profile_picture));
-        }
 
-        // Delete associated user
+        // Soft-delete member to allow recovery.
+        $member->delete();
+
+        // Deactivate associated user while member is in trash.
         if ($member->user) {
-            $member->user->delete();
-        } else {
-            $member->delete();
+            $member->user->update(['is_active' => false]);
         }
 
-        return redirect()->route('admin.members.index')->with('success', 'Member deleted successfully');
+        return redirect()->route('admin.members.index')->with('success', 'Member moved to trash successfully');
+    }
+
+    public function restore($id)
+    {
+        $member = Member::withTrashed()->findOrFail($id);
+
+        if (!$member->trashed()) {
+            return redirect()->route('admin.members.index')->with('error', 'Member is not deleted.');
+        }
+
+        $member->restore();
+
+        if ($member->user) {
+            $member->user->update(['is_active' => true]);
+        }
+
+        return redirect()->route('admin.members.index', ['trash' => 'only'])->with('success', 'Member restored successfully');
     }
 
     public function viewBioData($id)
