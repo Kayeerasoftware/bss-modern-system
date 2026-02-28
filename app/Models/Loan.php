@@ -149,19 +149,20 @@ class Loan extends Model
 
     public function setAmountPaidAttribute($value): void
     {
-        $normalized = max((float) $value, 0);
-        if (self::hasPaidAmountColumn()) {
-            $this->attributes['paid_amount'] = $normalized;
-            return;
-        }
+        $this->setPaidTrackingValue($value);
+    }
 
-        if (self::hasAmountPaidColumn()) {
-            $this->attributes['amount_paid'] = $normalized;
-        }
+    public function setPaidAmountAttribute($value): void
+    {
+        $this->setPaidTrackingValue($value);
     }
 
     public function getAmountPaidAttribute(): float
     {
+        if (array_key_exists('amount_paid', $this->attributes)) {
+            return (float) ($this->attributes['amount_paid'] ?? 0);
+        }
+
         return (float) ($this->attributes['paid_amount'] ?? 0);
     }
 
@@ -269,6 +270,20 @@ class Loan extends Model
     {
         if (self::hasApprovedAtColumn()) {
             $this->attributes['approved_at'] = $value;
+        }
+    }
+
+    protected function setPaidTrackingValue($value): void
+    {
+        $normalized = max((float) $value, 0);
+
+        if (self::hasPaidAmountColumn()) {
+            $this->attributes['paid_amount'] = $normalized;
+            return;
+        }
+
+        if (self::hasAmountPaidColumn()) {
+            $this->attributes['amount_paid'] = $normalized;
         }
     }
 }

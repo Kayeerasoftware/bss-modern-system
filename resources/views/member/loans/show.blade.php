@@ -93,7 +93,7 @@
                             <div>
                                 <p class="text-xs text-gray-600 font-semibold">Status</p>
                                 <span class="px-3 py-1 text-xs font-semibold rounded-full {{ $loan->status == 'approved' ? 'bg-green-100 text-green-800' : ($loan->status == 'pending' ? 'bg-yellow-100 text-yellow-800' : 'bg-blue-100 text-blue-800') }}">
-                                    {{ ucfirst($loan->status) }}
+                                    {{ $loan->status_label }}
                                 </span>
                             </div>
                         </div>
@@ -114,7 +114,7 @@
                     </div>
                     <div class="flex justify-between items-center mt-2 text-sm text-gray-600">
                         <span>Paid: UGX {{ number_format($loan->paid_amount ?? 0) }}</span>
-                        <span>Remaining: UGX {{ number_format($loan->amount - ($loan->paid_amount ?? 0)) }}</span>
+                        <span>Remaining: UGX {{ number_format($loan->remaining_balance) }}</span>
                     </div>
                 </div>
             </div>

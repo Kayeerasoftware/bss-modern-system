@@ -97,7 +97,11 @@ class LoanController extends Controller
 
             // Calculate monthly payment
             $monthlyRate = $loan->interest_rate / 12 / 100;
-            $monthlyPayment = $loan->amount * $monthlyRate / (1 - pow(1 + $monthlyRate, -$loan->repayment_months));
+            if ($monthlyRate > 0) {
+                $monthlyPayment = $loan->amount * $monthlyRate / (1 - pow(1 + $monthlyRate, -$loan->repayment_months));
+            } else {
+                $monthlyPayment = $loan->amount / max((int) $loan->repayment_months, 1);
+            }
             $loan->monthly_payment = round($monthlyPayment, 2);
             $loan->save();
 
@@ -176,7 +180,11 @@ class LoanController extends Controller
             // Recalculate monthly payment if approved
             if ($loan->status === 'approved') {
                 $monthlyRate = $loan->interest_rate / 12 / 100;
-                $monthlyPayment = $loan->amount * $monthlyRate / (1 - pow(1 + $monthlyRate, -$loan->repayment_months));
+                if ($monthlyRate > 0) {
+                    $monthlyPayment = $loan->amount * $monthlyRate / (1 - pow(1 + $monthlyRate, -$loan->repayment_months));
+                } else {
+                    $monthlyPayment = $loan->amount / max((int) $loan->repayment_months, 1);
+                }
                 $loan->monthly_payment = round($monthlyPayment, 2);
             }
 

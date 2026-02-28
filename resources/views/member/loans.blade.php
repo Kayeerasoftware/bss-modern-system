@@ -17,10 +17,10 @@
                 </div>
             </div>
             <div class="flex gap-2">
-                <a href="{{ route('shareholder.loans.applications') }}" class="px-3 md:px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-xl hover:shadow-lg transition-all text-xs md:text-sm font-semibold">
+                <a href="{{ route('member.loans.my-loans') }}" class="px-3 md:px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-xl hover:shadow-lg transition-all text-xs md:text-sm font-semibold">
                     <i class="fas fa-list mr-1 md:mr-2"></i>Applications
                 </a>
-                <a href="{{ route('shareholder.loans.apply') }}" class="px-3 md:px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl hover:shadow-lg transition-all text-xs md:text-sm font-semibold">
+                <a href="{{ route('member.loans.apply') }}" class="px-3 md:px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl hover:shadow-lg transition-all text-xs md:text-sm font-semibold">
                     <i class="fas fa-plus mr-1 md:mr-2"></i>Apply for Loan
                 </a>
             </div>
@@ -53,7 +53,7 @@
 
     <!-- Advanced Search and Filters -->
     <div class="bg-gradient-to-br from-purple-50 via-pink-50 to-purple-50 rounded-2xl shadow-lg border border-purple-100 overflow-hidden mb-6">
-        <form method="GET" action="{{ route('shareholder.loans') }}" x-data="{ showAdvanced: false }">
+        <form method="GET" action="{{ route('member.loans.my-loans') }}" x-data="{ showAdvanced: false }">
             <div class="bg-white/60 backdrop-blur-sm p-3">
                 <!-- Basic Search Section -->
                 <div class="bg-white/80 rounded-xl p-2.5 md:p-3 border border-purple-100">
@@ -68,7 +68,7 @@
                                 <option value="">All Status</option>
                                 <option value="pending" {{ request('status') == 'pending' ? 'selected' : '' }}>Pending</option>
                                 <option value="approved" {{ request('status') == 'approved' ? 'selected' : '' }}>Approved</option>
-                                <option value="completed" {{ request('status') == 'completed' ? 'selected' : '' }}>Completed</option>
+                                <option value="repaid" {{ request('status') == 'repaid' ? 'selected' : '' }}>Repaid</option>
                                 <option value="rejected" {{ request('status') == 'rejected' ? 'selected' : '' }}>Rejected</option>
                             </select>
                         </div>
@@ -92,7 +92,7 @@
                             <button type="submit" class="flex-1 px-2 py-1.5 text-xs bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:shadow-lg transition-all duration-300 font-semibold">
                                 <i class="fas fa-search mr-1"></i>Search
                             </button>
-                            <a href="{{ route('shareholder.loans') }}" class="px-2 py-1.5 text-xs bg-gradient-to-r from-gray-100 to-gray-200 text-gray-700 rounded-lg hover:shadow-md transition-all duration-300 font-semibold">
+                            <a href="{{ route('member.loans.my-loans') }}" class="px-2 py-1.5 text-xs bg-gradient-to-r from-gray-100 to-gray-200 text-gray-700 rounded-lg hover:shadow-md transition-all duration-300 font-semibold">
                                 <i class="fas fa-redo"></i>
                             </a>
                         </div>
@@ -161,13 +161,14 @@
                                 $statusColors = [
                                     'pending' => 'bg-yellow-100 text-yellow-800 border-yellow-200',
                                     'approved' => 'bg-green-100 text-green-800 border-green-200',
-                                    'completed' => 'bg-blue-100 text-blue-800 border-blue-200',
+                                    'repaid' => 'bg-blue-100 text-blue-800 border-blue-200',
                                     'rejected' => 'bg-red-100 text-red-800 border-red-200',
                                 ];
-                                $colorClass = $statusColors[$loan->status] ?? 'bg-gray-100 text-gray-800 border-gray-200';
+                                $statusKey = ($loan->status === 'approved' && $loan->remaining_balance <= 0) ? 'repaid' : $loan->status;
+                                $colorClass = $statusColors[$statusKey] ?? 'bg-gray-100 text-gray-800 border-gray-200';
                             @endphp
                             <span class="px-3 py-1.5 text-xs font-semibold rounded-full border {{ $colorClass }}">
-                                {{ ucfirst($loan->status) }}
+                                {{ $loan->status_label }}
                             </span>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap ">
@@ -180,7 +181,7 @@
                             <p class="text-xs text-gray-500 mt-1">{{ number_format($progress, 1) }}% paid</p>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-center">
-                            <a href="{{ route('shareholder.loans.show', $loan->id) }}" class="p-2 bg-purple-100 text-purple-600 rounded-lg hover:bg-purple-200 transition-all duration-200 group inline-block" title="View Loan">
+                            <a href="{{ route('member.loans.show', $loan->id) }}" class="p-2 bg-purple-100 text-purple-600 rounded-lg hover:bg-purple-200 transition-all duration-200 group inline-block" title="View Loan">
                                 <i class="fas fa-eye group-hover:scale-110 transition-transform"></i>
                             </a>
                         </td>
