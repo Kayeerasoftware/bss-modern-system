@@ -117,11 +117,15 @@ class MembersController extends Controller
             }
         }
 
+        $statsBaseQuery = clone $query;
         $stats = [
-            'total' => Member::count(),
-            'active' => Member::count(),
-            'shareholders' => Member::whereHas('user', fn($q) => $q->where('role', 'shareholder'))->count(),
-            'newThisMonth' => Member::whereMonth('created_at', now()->month)->count(),
+            'total' => (clone $statsBaseQuery)->count(),
+            'active' => (clone $statsBaseQuery)->where('status', 'active')->count(),
+            'shareholders' => (clone $statsBaseQuery)->where(function ($q) {
+                $q->where('role', 'shareholder')
+                    ->orWhereHas('user', fn($u) => $u->where('role', 'shareholder'));
+            })->count(),
+            'newThisMonth' => (clone $statsBaseQuery)->where('created_at', '>=', now()->startOfMonth())->count(),
         ];
 
         return view('shareholder.members', compact('members', 'stats'));

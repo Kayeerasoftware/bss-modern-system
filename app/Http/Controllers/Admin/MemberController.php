@@ -96,13 +96,21 @@ class MemberController extends Controller
             $query->latest();
         }
 
+        $statsBaseQuery = clone $query;
+        $memberStats = [
+            'totalMembers' => (clone $statsBaseQuery)->count(),
+            'activeMembers' => (clone $statsBaseQuery)->where('status', 'active')->count(),
+            'totalSavings' => (float) ((clone $statsBaseQuery)->sum('savings')),
+            'newThisMonth' => (clone $statsBaseQuery)->where('created_at', '>=', now()->startOfMonth())->count(),
+        ];
+
         $members = $query->paginate(15)->appends($request->query());
         
         if ($request->ajax()) {
             return view('admin.members.partials.table', compact('members', 'trashFilter'))->render();
         }
         
-        return view('admin.members.index', compact('members', 'trashFilter'));
+        return view('admin.members.index', compact('members', 'trashFilter', 'memberStats'));
     }
 
     public function create()

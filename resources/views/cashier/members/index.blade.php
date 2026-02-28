@@ -25,19 +25,19 @@
     <div class="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3">
         <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-2 md:p-3 text-white shadow-lg">
             <p class="text-blue-100 text-[10px] font-medium mb-0.5">Total Members</p>
-            <h3 class="text-xl font-bold">{{ $members->total() }}</h3>
+            <h3 class="text-xl font-bold">{{ $memberStats['totalMembers'] ?? $members->total() }}</h3>
         </div>
         <div class="bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-lg p-2 md:p-3 text-white shadow-lg">
             <p class="text-cyan-100 text-[10px] font-medium mb-0.5">Active Members</p>
-            <h3 class="text-xl font-bold">{{ $members->where('status', 'active')->count() }}</h3>
+            <h3 class="text-xl font-bold">{{ $memberStats['activeMembers'] ?? $members->where('status', 'active')->count() }}</h3>
         </div>
         <div class="bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg p-2 md:p-3 text-white shadow-lg">
             <p class="text-purple-100 text-[10px] font-medium mb-0.5">Total Balance</p>
-            <h3 class="text-xl font-bold">{{ number_format($members->sum('balance')/1000000, 1) }}M</h3>
+            <h3 class="text-xl font-bold">{{ number_format((($memberStats['totalBalance'] ?? $members->sum('balance'))/1000000), 1) }}M</h3>
         </div>
         <div class="bg-gradient-to-br from-green-500 to-green-600 rounded-lg p-2 md:p-3 text-white shadow-lg">
             <p class="text-green-100 text-[10px] font-medium mb-0.5">New This Month</p>
-            <h3 class="text-xl font-bold">{{ $members->where('created_at', '>=', now()->startOfMonth())->count() }}</h3>
+            <h3 class="text-xl font-bold">{{ $memberStats['newThisMonth'] ?? $members->where('created_at', '>=', now()->startOfMonth())->count() }}</h3>
         </div>
     </div>
 

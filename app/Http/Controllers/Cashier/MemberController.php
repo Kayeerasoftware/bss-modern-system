@@ -30,8 +30,16 @@ class MemberController extends Controller
             $query->where('status', $request->status);
         }
 
+        $statsBaseQuery = clone $query;
+        $memberStats = [
+            'totalMembers' => (clone $statsBaseQuery)->count(),
+            'activeMembers' => (clone $statsBaseQuery)->where('status', 'active')->count(),
+            'totalBalance' => (float) ((clone $statsBaseQuery)->sum('balance')),
+            'newThisMonth' => (clone $statsBaseQuery)->where('created_at', '>=', now()->startOfMonth())->count(),
+        ];
+
         $members = $query->latest()->paginate(20)->appends($request->query());
-        return view('cashier.members.index', compact('members'));
+        return view('cashier.members.index', compact('members', 'memberStats'));
     }
 
     public function show($id)
