@@ -86,7 +86,7 @@
                     <div class="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50 p-2">
                         <div>
                         <p class="text-xs font-semibold text-slate-800">${fmtNumber(item.shares_owned)} units</p>
-                        <p class="text-[11px] text-slate-500">Price ${fmtCurrency(item.share_value)} • ${escapeHtml((item.purchase_date || item.created_at || '').toString().slice(0, 10))}</p>
+                        <p class="text-[11px] text-slate-500">Price ${fmtCurrency(item.share_value)} | ${escapeHtml((item.purchase_date || item.created_at || '').toString().slice(0, 10))}</p>
                     </div>
                     <p class="text-xs font-bold text-cyan-700">${fmtCurrency(shareValue)}</p>
                 </div>
@@ -99,7 +99,7 @@
                 <div class="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50 p-2">
                     <div>
                         <p class="text-xs font-semibold text-slate-800">${escapeHtml((item.type || 'transaction').replace('_', ' ').toUpperCase())}</p>
-                        <p class="text-[11px] text-slate-500">${escapeHtml((item.created_at || '').toString().slice(0, 10))} • ${escapeHtml((item.status || 'completed').toUpperCase())}</p>
+                        <p class="text-[11px] text-slate-500">${escapeHtml((item.created_at || '').toString().slice(0, 10))} | ${escapeHtml((item.status || 'completed').toUpperCase())}</p>
                     </div>
                     <p class="text-xs font-bold text-indigo-700">${fmtCurrency(item.amount)}</p>
                 </div>
@@ -109,12 +109,12 @@
         const opportunityRows = [
             ...(data.recent.opportunities || []).map((item) => ({
                 title: item.title,
-                subtitle: `Opportunity • ${String(item.risk_level || 'n/a').toUpperCase()} risk`,
+                subtitle: `Opportunity | ${String(item.risk_level || 'n/a').toUpperCase()} risk`,
                 metric: `${fmtNumber(item.expected_roi, 1)}% ROI`,
             })),
             ...(data.recent.projects || []).slice(0, 3).map((item) => ({
                 title: item.name,
-                subtitle: `Project • ${String(item.status || 'n/a').toUpperCase()} • ${fmtNumber(item.progress, 0)}%`,
+                subtitle: `Project | ${String(item.status || 'n/a').toUpperCase()} | ${fmtNumber(item.progress, 0)}%`,
                 metric: `${fmtNumber(item.roi, 1)}% ROI`,
             })),
         ];

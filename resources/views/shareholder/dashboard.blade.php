@@ -44,7 +44,8 @@
     @include('shareholder.partials.stats-cards')
     @include('shareholder.partials.charts')
 
-    <div class="mt-6 grid grid-cols-1 gap-4 xl:grid-cols-2">
+    <div x-data="{ showAllMobileActivity: false }" class="mt-6 space-y-3">
+    <div class="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
             <div class="mb-3 flex items-center justify-between">
                 <h3 class="text-sm font-bold text-slate-800 md:text-base">Recent Dividend Activity</h3>
@@ -61,7 +62,7 @@
             <div id="recentSharesWrap" class="space-y-2"></div>
         </div>
 
-        <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div class="hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:block" :class="showAllMobileActivity ? '!block' : 'hidden md:block'">
             <div class="mb-3 flex items-center justify-between">
                 <h3 class="text-sm font-bold text-slate-800 md:text-base">Recent Transactions</h3>
                 <a href="{{ route('shareholder.transactions') }}" class="text-xs font-semibold text-cyan-700 hover:underline">Open Transactions</a>
@@ -69,12 +70,21 @@
             <div id="recentTransactionsWrap" class="space-y-2"></div>
         </div>
 
-        <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div class="hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:block" :class="showAllMobileActivity ? '!block' : 'hidden md:block'">
             <div class="mb-3 flex items-center justify-between">
                 <h3 class="text-sm font-bold text-slate-800 md:text-base">Active Opportunities & Project Watch</h3>
                 <a href="{{ route('shareholder.projects.index') }}" class="text-xs font-semibold text-cyan-700 hover:underline">Open Projects</a>
             </div>
             <div id="opportunitiesWrap" class="space-y-2"></div>
+        </div>
+    </div>
+        <div class="md:hidden">
+            <button
+                type="button"
+                @click="showAllMobileActivity = !showAllMobileActivity"
+                class="w-full rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 shadow-sm"
+                x-text="showAllMobileActivity ? 'Show fewer activity panels' : 'Show all activity panels'">
+            </button>
         </div>
     </div>
 </div>
