@@ -127,6 +127,35 @@
                 </div>
             </div>
 
+            <div class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-12">
+                <div class="md:col-span-3">
+                    <label class="mb-1 block text-[11px] font-bold uppercase tracking-wide text-slate-500">Time From</label>
+                    <input
+                        x-model="filters.timeFrom"
+                        type="datetime-local"
+                        class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-200"
+                    >
+                </div>
+                <div class="md:col-span-3">
+                    <label class="mb-1 block text-[11px] font-bold uppercase tracking-wide text-slate-500">Time To</label>
+                    <input
+                        x-model="filters.timeTo"
+                        type="datetime-local"
+                        class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-200"
+                    >
+                </div>
+                <div class="md:col-span-6">
+                    <label class="mb-1 block text-[11px] font-bold uppercase tracking-wide text-slate-500">Quick Time Filter</label>
+                    <div class="flex flex-wrap gap-2">
+                        <button @click="applyTimePreset('1h')" type="button" class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100">Last 1 Hour</button>
+                        <button @click="applyTimePreset('6h')" type="button" class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100">Last 6 Hours</button>
+                        <button @click="applyTimePreset('24h')" type="button" class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100">Last 24 Hours</button>
+                        <button @click="applyTimePreset('7d')" type="button" class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100">Last 7 Days</button>
+                        <button @click="applyTimePreset('clear')" type="button" class="rounded-lg border border-rose-300 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-50">Clear Time</button>
+                    </div>
+                </div>
+            </div>
+
             <div class="mt-3 flex flex-wrap items-center justify-between gap-2">
                 <div class="flex flex-wrap items-center gap-2">
                     <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
@@ -144,6 +173,9 @@
                     <template x-if="filters.status">
                         <span class="rounded-full bg-rose-100 px-3 py-1 text-xs font-semibold text-rose-700" x-text="'Status: ' + filters.status"></span>
                     </template>
+                    <template x-if="filters.timeFrom || filters.timeTo">
+                        <span class="rounded-full bg-violet-100 px-3 py-1 text-xs font-semibold text-violet-700" x-text="'Time: ' + (filters.timeFrom || '...') + ' to ' + (filters.timeTo || '...')"></span>
+                    </template>
                 </div>
                 <button @click="clearFilters()" class="rounded-xl border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100">
                     <i class="fas fa-rotate-left mr-1"></i>Clear Filters
@@ -151,46 +183,89 @@
             </div>
         </div>
 
-        <div class="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+        <div class="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-lg">
             <div class="overflow-x-auto">
-                <table class="min-w-full text-sm">
-                    <thead class="bg-slate-50">
-                        <tr class="text-left text-xs font-bold uppercase tracking-wide text-slate-600">
-                            <th class="px-4 py-3">Time</th>
-                            <th class="px-4 py-3">User</th>
-                            <th class="px-4 py-3">Action</th>
-                            <th class="px-4 py-3">Module</th>
-                            <th class="px-4 py-3">Description</th>
-                            <th class="px-4 py-3">Status</th>
-                            <th class="px-4 py-3 text-center">View</th>
+                <table class="min-w-full divide-y-0 text-sm">
+                    <thead class="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600">
+                        <tr class="border-b-2 border-white/20 text-left text-xs font-bold uppercase tracking-wide text-white">
+                            <th class="px-5 py-3 border-r border-white/20">
+                                <div class="flex items-center gap-2">
+                                    <i class="fas fa-clock text-[10px]"></i>
+                                    <span>Time</span>
+                                </div>
+                            </th>
+                            <th class="px-5 py-3 border-r border-white/20">
+                                <div class="flex items-center gap-2">
+                                    <i class="fas fa-user text-[10px]"></i>
+                                    <span>User</span>
+                                </div>
+                            </th>
+                            <th class="px-5 py-3 border-r border-white/20">
+                                <div class="flex items-center gap-2">
+                                    <i class="fas fa-bolt text-[10px]"></i>
+                                    <span>Action</span>
+                                </div>
+                            </th>
+                            <th class="px-5 py-3 border-r border-white/20">
+                                <div class="flex items-center gap-2">
+                                    <i class="fas fa-layer-group text-[10px]"></i>
+                                    <span>Module</span>
+                                </div>
+                            </th>
+                            <th class="px-5 py-3 border-r border-white/20">
+                                <div class="flex items-center gap-2">
+                                    <i class="fas fa-file-lines text-[10px]"></i>
+                                    <span>Description</span>
+                                </div>
+                            </th>
+                            <th class="px-5 py-3 border-r border-white/20">
+                                <div class="flex items-center gap-2">
+                                    <i class="fas fa-shield-check text-[10px]"></i>
+                                    <span>Status</span>
+                                </div>
+                            </th>
+                            <th class="px-5 py-3 text-center">
+                                <div class="flex items-center justify-center gap-2">
+                                    <i class="fas fa-eye text-[10px]"></i>
+                                    <span>Actions</span>
+                                </div>
+                            </th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-slate-100">
+                    <tbody class="bg-white">
                         <template x-for="(log, index) in filteredLogs" :key="log.id + '-' + index">
-                            <tr class="transition hover:bg-amber-50/30">
-                                <td class="whitespace-nowrap px-4 py-3 text-xs font-semibold text-slate-700" x-text="log.timestamp"></td>
-                                <td class="px-4 py-3">
-                                    <div class="flex items-center gap-2">
-                                        <img :src="log.userPhoto" alt="" class="h-8 w-8 rounded-full border border-slate-200 object-cover">
+                            <tr
+                                class="transition-all duration-200 border-l-4 border-blue-400 hover:bg-gradient-to-r hover:from-purple-50 hover:to-pink-50"
+                                :class="index % 2 === 0 ? 'bg-white' : 'bg-blue-50/40'"
+                            >
+                                <td class="whitespace-nowrap px-5 py-3 text-xs font-semibold text-slate-700 border-r border-gray-200">
+                                    <div class="flex flex-col">
+                                        <span x-text="log.timestamp"></span>
+                                        <span class="text-[10px] text-slate-500" x-text="'IP: ' + (log.ip || 'N/A')"></span>
+                                    </div>
+                                </td>
+                                <td class="px-5 py-3 border-r border-gray-200">
+                                    <div class="flex items-center gap-3">
+                                        <img :src="log.userPhoto" alt="" class="h-10 w-10 rounded-full border-2 border-blue-200 object-cover ring-2 ring-white shadow-sm">
                                         <div>
-                                            <p class="text-sm font-semibold text-slate-800" x-text="log.user"></p>
-                                            <p class="text-xs text-slate-500" x-text="log.userRole"></p>
+                                            <p class="text-sm font-semibold text-slate-800 leading-tight" x-text="log.user"></p>
+                                            <p class="text-[11px] text-slate-500 leading-tight" x-text="log.userRole"></p>
                                         </div>
                                     </div>
                                 </td>
-                                <td class="px-4 py-3">
-                                    <span class="rounded-full px-2.5 py-1 text-xs font-semibold" :class="log.actionBadge" x-text="log.action"></span>
+                                <td class="px-5 py-3 border-r border-gray-200">
+                                    <span class="rounded-full px-2.5 py-1 text-[11px] font-semibold" :class="log.actionBadge" x-text="log.action"></span>
                                 </td>
-                                <td class="whitespace-nowrap px-4 py-3 text-xs font-semibold text-slate-700" x-text="log.module"></td>
-                                <td class="max-w-md px-4 py-3 text-xs text-slate-600">
+                                <td class="whitespace-nowrap px-5 py-3 text-xs font-semibold text-slate-700 border-r border-gray-200" x-text="log.module"></td>
+                                <td class="max-w-md px-5 py-3 text-xs text-slate-600 border-r border-gray-200">
                                     <p class="truncate" x-text="log.description || log.details"></p>
                                 </td>
-                                <td class="px-4 py-3">
-                                    <span class="rounded-full px-2.5 py-1 text-xs font-semibold" :class="log.statusClass || 'bg-slate-100 text-slate-700'" x-text="statusText(log)"></span>
+                                <td class="px-5 py-3 border-r border-gray-200">
+                                    <span class="rounded-full px-2.5 py-1 text-[11px] font-semibold" :class="log.statusClass || 'bg-slate-100 text-slate-700'" x-text="statusText(log)"></span>
                                 </td>
-                                <td class="px-4 py-3 text-center">
-                                    <button @click="openDetails(log)" class="rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-200">
-                                        <i class="fas fa-eye mr-1"></i>Details
+                                <td class="px-5 py-3 text-center">
+                                    <button @click="openDetails(log)" class="inline-flex items-center rounded-lg bg-blue-100 px-2.5 py-1.5 text-xs font-semibold text-blue-700 transition-all duration-200 hover:bg-blue-200 hover:scale-105">
+                                        <i class="fas fa-eye mr-1"></i>View
                                     </button>
                                 </td>
                             </tr>
@@ -208,7 +283,7 @@
             </div>
         </div>
 
-        <div class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs text-slate-600 shadow-sm">
+        <div class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-gradient-to-r from-gray-50 to-gray-100 px-4 py-3 text-xs text-slate-600 shadow-sm">
             <p>Server page: {{ $logs->firstItem() ?? 0 }} - {{ $logs->lastItem() ?? 0 }} of {{ $logs->total() }}</p>
             <div>{{ $logs->links() }}</div>
         </div>
@@ -334,6 +409,8 @@ function auditLogManager(initialLogs) {
             action: @js(strtolower((string) request('action', ''))),
             user: @js((string) request('user', '')),
             status: '',
+            timeFrom: '',
+            timeTo: '',
             sort: @js((string) request('sort', 'newest') ?: 'newest'),
         },
         stats: { total: 0, today: 0, week: 0, critical: 0 },
@@ -348,6 +425,7 @@ function auditLogManager(initialLogs) {
             if (this.filters.action) count++;
             if (this.filters.user) count++;
             if (this.filters.status) count++;
+            if (this.filters.timeFrom || this.filters.timeTo) count++;
             return count;
         },
 
@@ -356,12 +434,15 @@ function auditLogManager(initialLogs) {
             const action = (this.filters.action || '').toLowerCase().trim();
             const user = (this.filters.user || '').toLowerCase().trim();
             const status = (this.filters.status || '').toLowerCase().trim();
+            const timeFromTs = this.filters.timeFrom ? Date.parse(this.filters.timeFrom) : null;
+            const timeToTs = this.filters.timeTo ? Date.parse(this.filters.timeTo) : null;
 
             let rows = this.logs.filter((log) => {
                 const actionValue = String(log.action || '').toLowerCase();
                 const userValue = String(log.user || '').toLowerCase();
                 const statusValue = String(log.status || '').toLowerCase();
                 const statusCode = Number(log.statusCode || 0);
+                const logTs = this.ts(log);
                 const haystack = [
                     log.timestamp,
                     log.user,
@@ -382,6 +463,9 @@ function auditLogManager(initialLogs) {
                     if (status === 'warning' && !(statusCode >= 300 && statusCode < 400 || statusValue.includes('redirect'))) return false;
                     if (status === 'failed' && !(statusCode >= 400 || statusValue.includes('fail'))) return false;
                 }
+
+                if (timeFromTs !== null && !Number.isNaN(timeFromTs) && logTs < timeFromTs) return false;
+                if (timeToTs !== null && !Number.isNaN(timeToTs) && logTs > timeToTs) return false;
 
                 return true;
             });
@@ -415,7 +499,33 @@ function auditLogManager(initialLogs) {
             this.filters.action = '';
             this.filters.user = '';
             this.filters.status = '';
+            this.filters.timeFrom = '';
+            this.filters.timeTo = '';
             this.filters.sort = 'newest';
+        },
+
+        toLocalInputValue(date) {
+            const pad = (n) => String(n).padStart(2, '0');
+            return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+        },
+
+        applyTimePreset(preset) {
+            const now = new Date();
+            const from = new Date(now);
+
+            if (preset === 'clear') {
+                this.filters.timeFrom = '';
+                this.filters.timeTo = '';
+                return;
+            }
+
+            if (preset === '1h') from.setHours(now.getHours() - 1);
+            if (preset === '6h') from.setHours(now.getHours() - 6);
+            if (preset === '24h') from.setHours(now.getHours() - 24);
+            if (preset === '7d') from.setDate(now.getDate() - 7);
+
+            this.filters.timeFrom = this.toLocalInputValue(from);
+            this.filters.timeTo = this.toLocalInputValue(now);
         },
 
         openDetails(log) {
