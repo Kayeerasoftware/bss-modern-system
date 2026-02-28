@@ -4,9 +4,9 @@ namespace App\Http\Controllers\Shareholder;
 
 use App\Http\Controllers\Controller;
 use App\Models\BioData;
+use App\Services\ProfilePictureStorageService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Storage;
 
 class ProfileController extends Controller
 {
@@ -22,8 +22,7 @@ class ProfileController extends Controller
         // Handle profile picture upload
         if ($request->hasFile('profile_picture')) {
             $file = $request->file('profile_picture');
-            $filename = time() . '_' . $user->id . '.' . $file->getClientOriginalExtension();
-            $path = $file->storeAs('profile_pictures', $filename, 'public');
+            $path = ProfilePictureStorageService::storeProfilePicture($file, $user->profile_picture);
             $user->update(['profile_picture' => $path]);
         }
         
@@ -65,11 +64,7 @@ class ProfileController extends Controller
                 return response()->json(['success' => false, 'message' => 'Invalid file'], 400);
             }
 
-            if ($user->profile_picture && Storage::disk('public')->exists($user->profile_picture)) {
-                Storage::disk('public')->delete($user->profile_picture);
-            }
-
-            $path = $file->store('profile_pictures', 'public');
+            $path = ProfilePictureStorageService::storeProfilePicture($file, $user->profile_picture);
             if (!$path) {
                 return response()->json(['success' => false, 'message' => 'Failed to store file'], 500);
             }

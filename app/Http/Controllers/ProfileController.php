@@ -3,8 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Member;
+use App\Services\ProfilePictureStorageService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 
 class ProfileController extends Controller
 {
@@ -19,13 +19,10 @@ class ProfileController extends Controller
             $member = Member::where('member_id', $request->member_id)->firstOrFail();
 
             if ($request->hasFile('profile_picture')) {
-                // Delete old picture if exists
-                if ($member->profile_picture && Storage::disk('public')->exists($member->profile_picture)) {
-                    Storage::disk('public')->delete($member->profile_picture);
-                }
-
-                // Store new picture
-                $path = $request->file('profile_picture')->store('profile_pictures', 'public');
+                $path = ProfilePictureStorageService::storeProfilePicture(
+                    $request->file('profile_picture'),
+                    $member->profile_picture
+                );
                 $member->profile_picture = $path;
                 $member->save();
 
@@ -37,7 +34,7 @@ class ProfileController extends Controller
                 return response()->json([
                     'success' => true,
                     'message' => 'Profile picture updated successfully',
-                    'profile_picture_url' => '/storage/' . $path
+                    'profile_picture_url' => $member->fresh()->profile_picture_url
                 ]);
             }
 
@@ -56,7 +53,7 @@ class ProfileController extends Controller
         
         if ($member && $member->profile_picture) {
             return response()->json([
-                'profile_picture_url' => '/storage/' . $member->profile_picture
+                'profile_picture_url' => $member->profile_picture_url
             ]);
         }
 

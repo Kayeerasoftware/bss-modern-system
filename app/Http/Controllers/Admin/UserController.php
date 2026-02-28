@@ -5,8 +5,8 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\Member;
+use App\Services\ProfilePictureStorageService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 
 class UserController extends Controller
 {
@@ -66,7 +66,9 @@ class UserController extends Controller
         }
 
         if ($request->hasFile('profile_picture')) {
-            $validated['profile_picture'] = $request->file('profile_picture')->store('profile_pictures', 'public');
+            $validated['profile_picture'] = ProfilePictureStorageService::storeProfilePicture(
+                $request->file('profile_picture')
+            );
         }
 
         $validated['password'] = bcrypt($validated['password']);
@@ -149,10 +151,10 @@ class UserController extends Controller
         }
 
         if ($request->hasFile('profile_picture')) {
-            if ($user->profile_picture && Storage::disk('public')->exists($user->profile_picture)) {
-                Storage::disk('public')->delete($user->profile_picture);
-            }
-            $validated['profile_picture'] = $request->file('profile_picture')->store('profile_pictures', 'public');
+            $validated['profile_picture'] = ProfilePictureStorageService::storeProfilePicture(
+                $request->file('profile_picture'),
+                $user->profile_picture
+            );
         }
 
         if ($request->filled('password')) {

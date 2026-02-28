@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Member;
 use App\Models\User;
+use App\Services\ProfilePictureStorageService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 
@@ -59,7 +60,7 @@ class MemberController extends Controller
 
         // Handle profile picture upload
         if ($request->hasFile('profile_picture')) {
-            $path = $request->file('profile_picture')->store('profile_pictures', 'public');
+            $path = ProfilePictureStorageService::storeProfilePicture($request->file('profile_picture'));
             $validated['profile_picture'] = $path;
         }
 

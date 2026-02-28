@@ -6,13 +6,13 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Storage;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use App\Models\System\AuditLog;
 use App\Models\Member;
 use App\Models\Transaction;
 use App\Models\Loan;
+use App\Services\ProfilePictureStorageService;
 
 class ProfileController extends Controller
 {
@@ -103,11 +103,7 @@ class ProfileController extends Controller
                 return response()->json(['success' => false, 'message' => 'Invalid file'], 400);
             }
             
-            if ($user->profile_picture && Storage::disk('public')->exists($user->profile_picture)) {
-                Storage::disk('public')->delete($user->profile_picture);
-            }
-            
-            $path = $file->store('profile_pictures', 'public');
+            $path = ProfilePictureStorageService::storeProfilePicture($file, $user->profile_picture);
             
             if (!$path) {
                 return response()->json(['success' => false, 'message' => 'Failed to store file'], 500);
@@ -122,7 +118,7 @@ class ProfileController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Profile picture updated successfully',
-                'profile_picture_url' => asset('storage/' . $path)
+                'profile_picture_url' => $user->fresh()->profile_picture_url
             ]);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);

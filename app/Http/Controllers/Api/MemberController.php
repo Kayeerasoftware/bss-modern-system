@@ -5,6 +5,7 @@ namespace App\Http\Controllers\API;
 use App\Http\Controllers\Controller;
 use App\Models\Member;
 use App\Models\User;
+use App\Services\ProfilePictureStorageService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -179,8 +180,7 @@ class MemberController extends Controller
 
             if ($request->hasFile('profile_picture')) {
                 $file = $request->file('profile_picture');
-                $filename = 'member_' . $id . '_' . time() . '.' . $file->getClientOriginalExtension();
-                $path = $file->storeAs('profile_pictures', $filename, 'public');
+                $path = ProfilePictureStorageService::storeProfilePicture($file, $member->profile_picture, 'bss/profile_pictures/members');
                 $member->profile_picture = $path;
                 $member->save();
 

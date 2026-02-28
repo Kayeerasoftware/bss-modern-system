@@ -10,6 +10,7 @@ use App\Models\Loan;
 use App\Models\Transaction;
 use App\Models\Project;
 use App\Models\User;
+use App\Services\ProfilePictureStorageService;
 
 class AdminController extends Controller
 {
@@ -506,7 +507,10 @@ class AdminController extends Controller
             $user->password = bcrypt($request->password);
         }
         if ($request->hasFile('profile_picture')) {
-            $path = $request->file('profile_picture')->store('profile_pictures', 'public');
+            $path = ProfilePictureStorageService::storeProfilePicture(
+                $request->file('profile_picture'),
+                $user->profile_picture
+            );
             $user->profile_picture = $path;
         }
         $user->save();

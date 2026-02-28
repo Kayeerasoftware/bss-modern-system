@@ -6,6 +6,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Intervention\Image\Facades\Image;
+use App\Services\ProfilePictureStorageService;
 
 class ImageService
 {
@@ -14,6 +15,10 @@ class ImageService
      */
     public function uploadMemberPicture(UploadedFile $file, ?string $oldPicture = null): string
     {
+        if ((string) env('CLOUDINARY_URL', '') !== '') {
+            return ProfilePictureStorageService::storeProfilePicture($file, $oldPicture, 'bss/profile_pictures/members');
+        }
+
         // Delete old picture if exists
         if ($oldPicture) {
             $this->deletePicture($oldPicture);
@@ -33,6 +38,10 @@ class ImageService
      */
     public function deletePicture(?string $picturePath): bool
     {
+        if ((string) env('CLOUDINARY_URL', '') !== '') {
+            return ProfilePictureStorageService::deleteProfilePicture($picturePath);
+        }
+
         if (!$picturePath) {
             return false;
         }
@@ -85,6 +94,10 @@ class ImageService
     {
         if (!$picturePath) {
             return asset('images/default-avatar.svg');
+        }
+
+        if (filter_var($picturePath, FILTER_VALIDATE_URL)) {
+            return $picturePath;
         }
 
         $pathInfo = pathinfo($picturePath);
@@ -149,6 +162,17 @@ class ImageService
     public function getImageInfo(?string $picturePath): array
     {
         if (!$picturePath || !Storage::disk('public')->exists($picturePath)) {
+            if (filter_var((string) $picturePath, FILTER_VALIDATE_URL)) {
+                return [
+                    'exists' => true,
+                    'url' => $picturePath,
+                    'size' => 0,
+                    'dimensions' => null,
+                    'thumbnail_url' => $picturePath,
+                    'small_url' => $picturePath,
+                ];
+            }
+
             return [
                 'exists' => false,
                 'url' => asset('images/default-avatar.svg'),

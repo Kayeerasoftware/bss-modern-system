@@ -9,6 +9,7 @@ use App\Models\BioData;
 use App\Http\Requests\StoreMemberRequest;
 use App\Http\Requests\UpdateMemberRequest;
 use App\Services\ImageService;
+use App\Services\ProfilePictureStorageService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
@@ -159,7 +160,9 @@ class MemberController extends Controller
 
             if ($request->hasFile('profile_picture')) {
                 if ($request->file('profile_picture')->isValid()) {
-                    $data['profile_picture'] = $request->file('profile_picture')->store('profile_pictures', 'public');
+                    $data['profile_picture'] = ProfilePictureStorageService::storeProfilePicture(
+                        $request->file('profile_picture')
+                    );
                 }
             }
 
@@ -226,10 +229,10 @@ class MemberController extends Controller
 
             if ($request->hasFile('profile_picture')) {
                 if ($request->file('profile_picture')->isValid()) {
-                    if ($member->profile_picture) {
-                        Storage::disk('public')->delete($member->profile_picture);
-                    }
-                    $data['profile_picture'] = $request->file('profile_picture')->store('profile_pictures', 'public');
+                    $data['profile_picture'] = ProfilePictureStorageService::storeProfilePicture(
+                        $request->file('profile_picture'),
+                        $member->profile_picture
+                    );
                 }
             }
 
