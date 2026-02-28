@@ -78,7 +78,8 @@ class LoansController extends Controller
             'pending' => Loan::where('member_id', $member->member_id)->where('status', 'pending')->count(),
             'completed' => Loan::where('member_id', $member->member_id)
                 ->where('status', 'approved')
-                ->whereRaw('(COALESCE(amount, 0) + COALESCE(interest, 0) + COALESCE(processing_fee, 0)) <= COALESCE(paid_amount, 0)')
+                ->get()
+                ->filter(static fn (Loan $loan) => $loan->remaining_balance <= 0)
                 ->count(),
         ];
 

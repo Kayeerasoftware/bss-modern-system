@@ -6,10 +6,15 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Schema;
 
 class Loan extends Model
 {
     use HasFactory, SoftDeletes;
+
+    protected static ?bool $hasPaidAmountColumnCache = null;
+    protected static ?bool $hasAmountPaidColumnCache = null;
+    protected static ?bool $hasApprovedAtColumnCache = null;
 
     public const STATUS_PENDING = 'pending';
     public const STATUS_APPROVED = 'approved';
@@ -92,8 +97,13 @@ class Loan extends Model
         }
 
         if ($status === 'repaid') {
+            if (!self::hasPaymentTrackingColumn()) {
+                return $query->whereRaw('1 = 0');
+            }
+
+            $paidColumn = self::paymentTrackingColumn();
             return $query->where('status', self::STATUS_APPROVED)
-                ->whereRaw('(COALESCE(amount, 0) + COALESCE(interest, 0) + COALESCE(processing_fee, 0)) <= COALESCE(paid_amount, 0)');
+                ->whereRaw('(COALESCE(amount, 0) + COALESCE(interest, 0) + COALESCE(processing_fee, 0)) <= COALESCE(' . $paidColumn . ', 0)');
         }
 
         return $query->whereIn('status', self::mapStatusForQuery($status));
@@ -139,7 +149,15 @@ class Loan extends Model
 
     public function setAmountPaidAttribute($value): void
     {
-        $this->attributes['paid_amount'] = max((float) $value, 0);
+        $normalized = max((float) $value, 0);
+        if (self::hasPaidAmountColumn()) {
+            $this->attributes['paid_amount'] = $normalized;
+            return;
+        }
+
+        if (self::hasAmountPaidColumn()) {
+            $this->attributes['amount_paid'] = $normalized;
+        }
     }
 
     public function getAmountPaidAttribute(): float
@@ -159,7 +177,9 @@ class Loan extends Model
 
     public function setApprovedDateAttribute($value): void
     {
-        $this->attributes['approved_at'] = $value;
+        if (self::hasApprovedAtColumn()) {
+            $this->attributes['approved_at'] = $value;
+        }
     }
 
     public function getApprovedDateAttribute()
@@ -179,7 +199,11 @@ class Loan extends Model
 
     public function getPaidAmountAttribute(): float
     {
-        return (float) ($this->attributes['paid_amount'] ?? 0);
+        if (array_key_exists('paid_amount', $this->attributes)) {
+            return (float) ($this->attributes['paid_amount'] ?? 0);
+        }
+
+        return (float) ($this->attributes['amount_paid'] ?? 0);
     }
 
     public function getRemainingBalanceAttribute(): float
@@ -202,5 +226,49 @@ class Loan extends Model
         }
 
         return Str::title((string) $this->status);
+    }
+
+    public static function hasPaidAmountColumn(): bool
+    {
+        if (self::$hasPaidAmountColumnCache === null) {
+            self::$hasPaidAmountColumnCache = Schema::hasColumn('loans', 'paid_amount');
+        }
+
+        return self::$hasPaidAmountColumnCache;
+    }
+
+    public static function hasAmountPaidColumn(): bool
+    {
+        if (self::$hasAmountPaidColumnCache === null) {
+            self::$hasAmountPaidColumnCache = Schema::hasColumn('loans', 'amount_paid');
+        }
+
+        return self::$hasAmountPaidColumnCache;
+    }
+
+    public static function hasPaymentTrackingColumn(): bool
+    {
+        return self::hasPaidAmountColumn() || self::hasAmountPaidColumn();
+    }
+
+    public static function paymentTrackingColumn(): string
+    {
+        return self::hasPaidAmountColumn() ? 'paid_amount' : 'amount_paid';
+    }
+
+    public static function hasApprovedAtColumn(): bool
+    {
+        if (self::$hasApprovedAtColumnCache === null) {
+            self::$hasApprovedAtColumnCache = Schema::hasColumn('loans', 'approved_at');
+        }
+
+        return self::$hasApprovedAtColumnCache;
+    }
+
+    public function setApprovedAtAttribute($value): void
+    {
+        if (self::hasApprovedAtColumn()) {
+            $this->attributes['approved_at'] = $value;
+        }
     }
 }

@@ -191,13 +191,23 @@ class AnalyticsController extends Controller
             ];
         }
 
+        if (!Loan::hasPaymentTrackingColumn()) {
+            return [
+                'on_time' => 0,
+                'late' => 0,
+                'defaulted' => Loan::where('status', 'rejected')->count(),
+            ];
+        }
+
+        $paidColumn = Loan::paymentTrackingColumn();
+
         // Simplified analysis - in real implementation, you'd track payment dates
         $onTime = Loan::where('status', 'approved')
-            ->where('paid_amount', '>', 0)
+            ->where($paidColumn, '>', 0)
             ->count();
         
         $late = Loan::where('status', 'approved')
-            ->where('paid_amount', 0)
+            ->where($paidColumn, 0)
             ->where('created_at', '<', Carbon::now()->subMonths(1))
             ->count();
         
