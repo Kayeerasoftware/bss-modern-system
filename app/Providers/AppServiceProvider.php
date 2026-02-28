@@ -47,32 +47,36 @@ class AppServiceProvider extends ServiceProvider
         User::observe(UserObserver::class);
         Member::observe(MemberObserver::class);
 
-        // Auto-heal missing user/member links in production without manual intervention.
-        if ($this->app->isProduction() && !$this->app->runningInConsole()) {
+        // Auto-heal missing user/member links only when explicitly enabled.
+        if ($this->app->isProduction()
+            && !$this->app->runningInConsole()
+            && filter_var(env('USER_MEMBER_AUTO_HEAL_ON_REQUEST', false), FILTER_VALIDATE_BOOL)) {
             app(UserMemberSyncService::class)->reconcileIfNeeded();
         }
 
-        // Capture model-level create/update/delete changes for full audit history.
-        Event::listen('eloquent.created: *', function (string $eventName, array $data): void {
-            $model = $data[0] ?? null;
-            if ($model instanceof Model) {
-                GlobalAuditObserver::created($model);
-            }
-        });
+        if (config('audit.model_events_enabled', false)) {
+            // Capture model-level create/update/delete changes for full audit history.
+            Event::listen('eloquent.created: *', function (string $eventName, array $data): void {
+                $model = $data[0] ?? null;
+                if ($model instanceof Model) {
+                    GlobalAuditObserver::created($model);
+                }
+            });
 
-        Event::listen('eloquent.updated: *', function (string $eventName, array $data): void {
-            $model = $data[0] ?? null;
-            if ($model instanceof Model) {
-                GlobalAuditObserver::updated($model);
-            }
-        });
+            Event::listen('eloquent.updated: *', function (string $eventName, array $data): void {
+                $model = $data[0] ?? null;
+                if ($model instanceof Model) {
+                    GlobalAuditObserver::updated($model);
+                }
+            });
 
-        Event::listen('eloquent.deleted: *', function (string $eventName, array $data): void {
-            $model = $data[0] ?? null;
-            if ($model instanceof Model) {
-                GlobalAuditObserver::deleted($model);
-            }
-        });
+            Event::listen('eloquent.deleted: *', function (string $eventName, array $data): void {
+                $model = $data[0] ?? null;
+                if ($model instanceof Model) {
+                    GlobalAuditObserver::deleted($model);
+                }
+            });
+        }
         
         // Share isCEO variable with all views
         view()->composer('*', function ($view) {
