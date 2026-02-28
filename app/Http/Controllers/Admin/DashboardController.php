@@ -18,12 +18,13 @@ class DashboardController extends Controller
 {
     public function index()
     {
-        $stats = Cache::remember('admin_dashboard:stats:v1', now()->addSeconds(60), function () {
+        $stats = Cache::remember('admin_dashboard:stats:v2', now()->addSeconds(60), function () {
             $memberSummary = Member::query()
                 ->selectRaw('COUNT(*) as total_members, COALESCE(SUM(savings_balance), 0) as total_savings, COALESCE(SUM(balance), 0) as total_balance')
                 ->first();
 
             $userSummary = User::query()
+                ->whereHas('member')
                 ->selectRaw('COUNT(*) as total_users, SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END) as active_users')
                 ->first();
 

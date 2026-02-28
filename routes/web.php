@@ -122,7 +122,7 @@ Route::post('/switch-role', function(\Illuminate\Http\Request $request) {
 // Unified Dashboard
 Route::get('/dashboard', function () {
     try {
-        $dashboardPayload = \Illuminate\Support\Facades\Cache::remember('ui:dashboard_payload:v2', now()->addSeconds(45), function () {
+        $dashboardPayload = \Illuminate\Support\Facades\Cache::remember('ui:dashboard_payload:v3', now()->addSeconds(45), function () {
             $currentYear = now()->year;
             $currentMonthStart = now()->startOfMonth();
             $previousMonthStart = now()->copy()->subMonthNoOverflow()->startOfMonth();
@@ -157,6 +157,7 @@ Route::get('/dashboard', function () {
                 ->first();
 
             $userSummary = \App\Models\User::query()
+                ->whereHas('member')
                 ->selectRaw('COUNT(*) as total_users, SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END) as active_users')
                 ->first();
 
@@ -178,6 +179,17 @@ Route::get('/dashboard', function () {
             $totalSavings = (float) ($memberSummary->savings_total ?? 0);
             $activeProjects = (int) ($projectSummary->active_projects ?? 0);
             $approvedLoans = (int) ($loanSummary->approved_loans ?? 0);
+
+            $roleData = [
+                'client' => \App\Models\Member::where('role', 'client')->count(),
+                'shareholder' => \App\Models\Member::where('role', 'shareholder')->count(),
+                'cashier' => \App\Models\Member::where('role', 'cashier')->count(),
+                'td' => \App\Models\Member::where('role', 'td')->count(),
+                'ceo' => \App\Models\Member::where('role', 'ceo')->count(),
+                'admin' => \App\Models\Member::where('role', 'admin')->count(),
+                'total' => (int) ($memberSummary->total_members ?? 0),
+                'active' => (int) ($userSummary->active_users ?? 0),
+            ];
 
             return [
                 'stats' => [
@@ -298,13 +310,15 @@ Route::get('/dashboard', function () {
                 'url' => '/admin/dashboard'
             ]
                 ],
+                'roleData' => $roleData,
             ];
         });
         
         $stats = $dashboardPayload['stats'];
         $dashboards = $dashboardPayload['dashboards'];
+        $roleData = $dashboardPayload['roleData'] ?? [];
         
-        return view('dashboard', compact('stats', 'dashboards'));
+        return view('dashboard', compact('stats', 'dashboards', 'roleData'));
     } catch (\Exception $e) {
         return response()->json(['error' => $e->getMessage()], 500);
     }

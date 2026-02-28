@@ -288,14 +288,14 @@ class DashboardApiController extends Controller
     public function getAdminData()
     {
         // Get real system statistics
-        $totalUsers = User::count();
-        $activeUsers = User::where('is_active', true)->count();
+        $totalUsers = User::whereHas('member')->count();
+        $activeUsers = User::whereHas('member')->where('is_active', true)->count();
         $totalMembers = Member::count();
         $totalTransactions = Transaction::count();
         $totalProjects = Project::count();
 
         // Get recent users
-        $recentUsers = User::latest()->take(10)->get();
+        $recentUsers = User::whereHas('member')->latest()->take(10)->get();
 
         // Generate system logs from recent activities
         $systemLogs = collect([

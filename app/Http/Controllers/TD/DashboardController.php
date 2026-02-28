@@ -14,7 +14,7 @@ class DashboardController extends Controller
 {
     public function index()
     {
-        $stats = Cache::remember('td_dashboard:stats:v1', now()->addSeconds(60), static function () {
+        $stats = Cache::remember('td_dashboard:stats:v2', now()->addSeconds(60), static function () {
             $projectSummary = Project::query()
                 ->selectRaw('COUNT(*) as total_projects, SUM(CASE WHEN status = "active" THEN 1 ELSE 0 END) as active_projects, SUM(CASE WHEN status = "completed" THEN 1 ELSE 0 END) as completed_projects, SUM(CASE WHEN status = "pending" THEN 1 ELSE 0 END) as pending_projects')
                 ->first();
@@ -32,6 +32,7 @@ class DashboardController extends Controller
                 ->first();
 
             $userSummary = User::query()
+                ->whereHas('member')
                 ->selectRaw('COUNT(*) as total_users, SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END) as active_users')
                 ->first();
 

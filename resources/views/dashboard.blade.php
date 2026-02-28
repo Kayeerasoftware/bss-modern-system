@@ -398,19 +398,16 @@
     </div>
 
     <script id="chartData" type="application/json">
-        @php
-            $roleData = [
-                'client' => \App\Models\User::where('role', 'client')->count(),
-                'shareholder' => \App\Models\User::where('role', 'shareholder')->count(),
-                'cashier' => \App\Models\User::where('role', 'cashier')->count(),
-                'td' => \App\Models\User::where('role', 'td')->count(),
-                'ceo' => \App\Models\User::where('role', 'ceo')->count(),
-                'admin' => \App\Models\User::where('role', 'admin')->count(),
-                'total' => \App\Models\User::count(),
-                'active' => \App\Models\User::count()
-            ];
-        @endphp
-        {!! json_encode($roleData) !!}
+        {!! json_encode(array_merge([
+            'client' => 0,
+            'shareholder' => 0,
+            'cashier' => 0,
+            'td' => 0,
+            'ceo' => 0,
+            'admin' => 0,
+            'total' => 0,
+            'active' => 0,
+        ], $roleData ?? [])) !!}
     </script>
     <script src="{{ asset('js/dashboard.js') }}"></script>
 
