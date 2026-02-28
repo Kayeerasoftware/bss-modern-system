@@ -161,7 +161,12 @@ class User extends Authenticatable
             return;
         }
 
-        if (!$this->hasRole($normalizedRole)) {
+        $alreadyAssignedToUser = DB::table('user_roles')
+            ->where('user_id', $this->id)
+            ->whereRaw('LOWER(TRIM(role)) = ?', [$normalizedRole])
+            ->exists();
+
+        if (!$alreadyAssignedToUser) {
             DB::table('user_roles')->insert([
                 'user_id' => $this->id,
                 'role' => $normalizedRole,
@@ -194,11 +199,20 @@ class User extends Authenticatable
 
     public function getRolesListAttribute()
     {
-        $roles = DB::table('user_roles')
+        $userRoles = DB::table('user_roles')
             ->where('user_id', $this->id)
             ->selectRaw('LOWER(TRIM(role)) as role')
             ->pluck('role')
             ->toArray();
+
+        $memberRoles = DB::table('member_roles')
+            ->join('members', 'members.id', '=', 'member_roles.member_id')
+            ->where('members.user_id', $this->id)
+            ->selectRaw('LOWER(TRIM(member_roles.role)) as role')
+            ->pluck('role')
+            ->toArray();
+
+        $roles = array_merge($userRoles, $memberRoles);
 
         if (!empty($this->role)) {
             $roles[] = strtolower((string) $this->role);
