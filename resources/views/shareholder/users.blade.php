@@ -161,10 +161,17 @@
                             </span>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap border-r border-gray-200">
+                            @if($user->is_active)
                             <span class="px-3 py-1.5 text-xs font-semibold rounded-full bg-green-100 text-green-800">
                                 <i class="fas fa-circle text-[8px] mr-1"></i>
                                 Active
                             </span>
+                            @else
+                            <span class="px-3 py-1.5 text-xs font-semibold rounded-full bg-gray-100 text-gray-700">
+                                <i class="fas fa-circle text-[8px] mr-1"></i>
+                                Inactive
+                            </span>
+                            @endif
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
                             <p class="text-sm text-gray-900">{{ $user->created_at->format('M d, Y') }}</p>

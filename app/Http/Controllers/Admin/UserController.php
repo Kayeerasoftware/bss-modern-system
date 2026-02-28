@@ -12,23 +12,40 @@ class UserController extends Controller
 {
     public function index(Request $request)
     {
-        $query = User::query();
+        $query = User::query()->whereHas('member');
 
         if ($request->search) {
             $query->where(function($q) use ($request) {
                 $q->where('name', 'like', "%{$request->search}%")
                   ->orWhere('email', 'like', "%{$request->search}%")
-                  ->orWhere('phone', 'like', "%{$request->search}%");
+                  ->orWhere('phone', 'like', "%{$request->search}%")
+                  ->orWhereHas('member', function ($memberQuery) use ($request) {
+                      $memberQuery->where('member_id', 'like', "%{$request->search}%")
+                          ->orWhere('full_name', 'like', "%{$request->search}%");
+                  });
             });
         }
 
         if ($request->role) {
-            $query->where('role', $request->role);
+            $query->whereHas('member', function ($memberQuery) use ($request) {
+                $memberQuery->where('role', $request->role);
+            });
         }
 
         if ($request->filled('status')) {
-            $query->where('is_active', $request->status);
+            $query->where('is_active', (bool) $request->status)
+                ->whereHas('member', function ($memberQuery) use ($request) {
+                    $memberQuery->where('status', ((bool) $request->status) ? 'active' : 'inactive');
+                });
         }
+
+        $statsBaseQuery = clone $query;
+        $userStats = [
+            'totalUsers' => (clone $statsBaseQuery)->count(),
+            'activeUsers' => (clone $statsBaseQuery)->where('is_active', true)->count(),
+            'admins' => (clone $statsBaseQuery)->whereHas('member', fn ($memberQuery) => $memberQuery->where('role', 'admin'))->count(),
+            'newThisMonth' => (clone $statsBaseQuery)->where('created_at', '>=', now()->startOfMonth())->count(),
+        ];
 
         $users = $query->latest()->paginate(15);
         
@@ -36,7 +53,7 @@ class UserController extends Controller
             return view('admin.users.partials.table', compact('users'))->render();
         }
         
-        return view('admin.users.index', compact('users'));
+        return view('admin.users.index', compact('users', 'userStats'));
     }
 
     public function create()

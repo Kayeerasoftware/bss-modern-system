@@ -49,7 +49,7 @@
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-indigo-100 text-[8px] md:text-[10px] font-medium mb-0.5">Total Users</p>
-                    <h3 class="text-base md:text-xl font-bold">{{ $users->total() }}</h3>
+                    <h3 class="text-base md:text-xl font-bold">{{ $userStats['totalUsers'] ?? $users->total() }}</h3>
                 </div>
                 <div class="bg-white/20 p-1.5 md:p-2 rounded-lg backdrop-blur-sm">
                     <i class="fas fa-users text-sm md:text-lg"></i>
@@ -60,7 +60,7 @@
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-green-100 text-[8px] md:text-[10px] font-medium mb-0.5">Active Users</p>
-                    <h3 class="text-base md:text-xl font-bold">{{ $users->where('is_active', true)->count() }}</h3>
+                    <h3 class="text-base md:text-xl font-bold">{{ $userStats['activeUsers'] ?? $users->where('is_active', true)->count() }}</h3>
                 </div>
                 <div class="bg-white/20 p-1.5 md:p-2 rounded-lg backdrop-blur-sm">
                     <i class="fas fa-user-check text-sm md:text-lg"></i>
@@ -71,7 +71,7 @@
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-purple-100 text-[8px] md:text-[10px] font-medium mb-0.5">Admins</p>
-                    <h3 class="text-base md:text-xl font-bold">{{ $users->where('role', 'admin')->count() }}</h3>
+                    <h3 class="text-base md:text-xl font-bold">{{ $userStats['admins'] ?? $users->where('role', 'admin')->count() }}</h3>
                 </div>
                 <div class="bg-white/20 p-1.5 md:p-2 rounded-lg backdrop-blur-sm">
                     <i class="fas fa-user-shield text-sm md:text-lg"></i>
@@ -82,7 +82,7 @@
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-orange-100 text-[8px] md:text-[10px] font-medium mb-0.5">New This Month</p>
-                    <h3 class="text-base md:text-xl font-bold">{{ $users->where('created_at', '>=', now()->startOfMonth())->count() }}</h3>
+                    <h3 class="text-base md:text-xl font-bold">{{ $userStats['newThisMonth'] ?? $users->where('created_at', '>=', now()->startOfMonth())->count() }}</h3>
                 </div>
                 <div class="bg-white/20 p-1.5 md:p-2 rounded-lg backdrop-blur-sm">
                     <i class="fas fa-user-plus text-sm md:text-lg"></i>
