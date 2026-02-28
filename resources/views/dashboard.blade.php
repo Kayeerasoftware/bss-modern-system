@@ -169,20 +169,41 @@
 
     <!-- Role Switch Loading Overlay -->
     <div id="role-loading-overlay" class="role-loading-overlay hidden" aria-live="polite" aria-busy="true">
-        <div class="role-loading-aurora" aria-hidden="true"></div>
         <div class="role-loading-card">
-            <div class="role-loader-stage" aria-hidden="true">
-                <div class="role-loader-orbit role-loader-orbit-one"></div>
-                <div class="role-loader-orbit role-loader-orbit-two"></div>
-                <div class="role-loader-core">
-                    <i id="role-loading-icon" class="fas fa-user-shield"></i>
+            <div class="role-loading-header">
+                <div class="role-loading-header-left">
+                    <div class="role-loading-header-icon">
+                        <i id="role-loading-icon" class="fas fa-user-shield"></i>
+                    </div>
+                    <div>
+                        <h3 class="role-loading-title">System Role Switch</h3>
+                        <p class="role-loading-caption">Secure session transition in progress</p>
+                    </div>
                 </div>
+                <span class="role-loading-chip">SYSTEM LOG</span>
             </div>
-            <h3 class="role-loading-title">Switching Workspace</h3>
-            <p id="role-loading-text" class="role-loading-text">Role selected. Initializing your dashboard...</p>
-            <p id="role-loading-subtext" class="role-loading-subtext">Syncing permissions, widgets, and latest insights</p>
-            <div class="role-loading-progress" aria-hidden="true">
-                <span class="role-loading-progress-bar"></span>
+
+            <div class="role-loading-body">
+                <p id="role-loading-text" class="role-loading-text">Role selected. Initializing your dashboard...</p>
+
+                <div class="role-loading-log">
+                    <div class="role-loading-log-row">
+                        <span class="role-log-dot role-log-dot-spin"></span>
+                        <span id="role-loading-subtext">Verifying role permissions and access matrix</span>
+                    </div>
+                    <div class="role-loading-log-row">
+                        <span class="role-log-dot"></span>
+                        <span>Loading role-specific modules and quick actions</span>
+                    </div>
+                    <div class="role-loading-log-row">
+                        <span class="role-log-dot"></span>
+                        <span>Establishing secure dashboard route</span>
+                    </div>
+                </div>
+
+                <div class="role-loading-progress" aria-hidden="true">
+                    <span class="role-loading-progress-bar"></span>
+                </div>
             </div>
         </div>
     </div>

@@ -214,10 +214,10 @@ function showRoleLoading(role) {
 
     const roleMeta = roleMetaMap[role] || { label: role, icon: 'fa-user-shield' };
     const tips = [
-        'Verifying your access permissions',
-        'Preparing your widgets and modules',
-        'Fetching fresh records and metrics',
-        'Applying role-specific interface settings',
+        'Verifying role permissions and access matrix',
+        'Loading role-specific modules and quick actions',
+        'Establishing secure dashboard route',
+        'Finalizing dashboard session state',
     ];
     let dotCount = 0;
     let tipIndex = 0;
