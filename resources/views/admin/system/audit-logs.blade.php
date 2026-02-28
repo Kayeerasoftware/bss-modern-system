@@ -283,7 +283,7 @@
                         <i class="fas fa-info-circle text-yellow-600 text-xl mt-1"></i>
                         <div>
                             <p class="text-xs font-semibold text-yellow-800 mb-1">Activity Description</p>
-                            <p class="text-sm text-gray-700" x-text="selectedLog.details"></p>
+                            <p class="text-sm text-gray-700" x-text="selectedLog.description || selectedLog.details"></p>
                         </div>
                     </div>
                 </div>
@@ -349,6 +349,26 @@
                     <h4 class="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
                         <i class="fas fa-exchange-alt text-gray-600"></i>Changes Made
                     </h4>
+                    <div x-show="selectedLog.changeItems && selectedLog.changeItems.length" class="mb-3 overflow-x-auto">
+                        <table class="min-w-full text-xs border border-gray-200 rounded-lg">
+                            <thead class="bg-gray-50 text-gray-700">
+                                <tr>
+                                    <th class="px-3 py-2 text-left">Source</th>
+                                    <th class="px-3 py-2 text-left">Field</th>
+                                    <th class="px-3 py-2 text-left">Value</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template x-for="(item, idx) in selectedLog.changeItems" :key="idx">
+                                    <tr class="border-t border-gray-100">
+                                        <td class="px-3 py-2" x-text="item.source"></td>
+                                        <td class="px-3 py-2 font-semibold text-gray-800" x-text="item.field"></td>
+                                        <td class="px-3 py-2 text-gray-700 break-all" x-text="item.value === null ? 'null' : item.value"></td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
                     <div class="bg-gray-900 rounded-lg p-4 overflow-x-auto">
                         <pre class="text-xs text-green-400 font-mono" x-text="JSON.stringify(selectedLog.changes, null, 2)"></pre>
                     </div>
@@ -374,7 +394,7 @@
                         </div>
                         <div>
                             <p class="text-gray-600">Status</p>
-                            <span class="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold" x-text="selectedLog.status"></span>
+                            <span class="px-2 py-1 rounded-full text-xs font-semibold" :class="selectedLog.statusClass || 'bg-gray-100 text-gray-700'" x-text="selectedLog.statusCode ? (selectedLog.status + ' (' + selectedLog.statusCode + ')') : selectedLog.status"></span>
                         </div>
                     </div>
                 </div>
@@ -399,14 +419,15 @@ function auditLogManager() {
         selectedLog: {},
         filters: {search: '', action: '', user: '', dateRange: 'all'},
         stats: {total: {{ $logs->count() }}, today: {{ $logs->where('created_at', '>=', now()->startOfDay())->count() }}, week: {{ $logs->where('created_at', '>=', now()->startOfWeek())->count() }}, critical: 0},
-        logs: [
-            @foreach($logs ?? [] as $log)
-            {id: '{{ $log->id }}', timestamp: '{{ $log->created_at }}', user: '{{ $log->user }}', userRole: 'User', userEmail: 'user@bss.com', userPhone: '+250788000000', userPhoto: 'https://ui-avatars.com/api/?name={{ urlencode($log->user) }}&background=3b82f6&color=fff', action: '{{ $log->action }}', module: 'System', details: '{{ $log->details }}', ip: '192.168.1.1', location: 'Kigali, Rwanda', userAgent: 'Browser', browser: 'Chrome', device: 'Desktop', platform: 'Windows', userColor: 'bg-blue-600', actionBadge: 'bg-blue-100 text-blue-700', sessionId: 'sess_{{ $log->id }}', requestId: 'req_{{ $log->id }}', duration: '100ms', status: 'Success', changes: {}},
-            @endforeach
-        ],
+        logs: {!! \Illuminate\Support\Js::from($logsData ?? []) !!},
+        init() {
+            this.stats.critical = this.logs.filter(log => (log.status || '').toLowerCase().includes('fail')).length;
+        },
         get filteredLogs() {
             return this.logs.filter(log => {
-                if (this.filters.search && !log.details.toLowerCase().includes(this.filters.search.toLowerCase())) return false;
+                const details = (log.details || '').toLowerCase();
+                const description = (log.description || '').toLowerCase();
+                if (this.filters.search && !details.includes(this.filters.search.toLowerCase()) && !description.includes(this.filters.search.toLowerCase())) return false;
                 if (this.filters.action && log.action.toLowerCase() !== this.filters.action.toLowerCase()) return false;
                 if (this.filters.user && !log.user.toLowerCase().includes(this.filters.user.toLowerCase())) return false;
                 return true;
