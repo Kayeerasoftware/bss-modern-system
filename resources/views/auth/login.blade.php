@@ -40,6 +40,22 @@
                 </script>
             @endif
 
+            @if (session('register_success'))
+                <div class="mb-3 bg-blue-50 border-2 border-blue-500 rounded-lg p-3">
+                    <div class="flex items-start gap-2">
+                        <i class="fas fa-user-check text-blue-600 text-lg mt-0.5"></i>
+                        <div>
+                            <p class="text-blue-900 font-bold text-sm">
+                                Registration successful as {{ session('register_role') }}
+                            </p>
+                            <p class="text-blue-700 text-xs">
+                                Please select your role and sign in.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            @endif
+
             <h2 class="text-lg font-bold text-gray-800 mb-1">Welcome Back</h2>
             <p class="text-gray-500 text-xs mb-3">Sign in to your account</p>
 
@@ -239,14 +255,14 @@
 
                 <div class="mb-3">
                     <label class="block text-gray-700 text-xs font-semibold mb-1">Email Address</label>
-                    <input type="email" name="email" value="{{ old('email') }}" required autofocus
+                    <input type="email" name="email" value="{{ old('email', session('registered_email')) }}" required autofocus
                            class="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:border-blue-500">
                 </div>
 
                 <div class="mb-3">
                     <label class="block text-green-600 text-xs font-semibold mb-1">Select only Active role</label>
                     <div class="relative">
-                        <input type="hidden" name="role" id="roleInput" required>
+                        <input type="hidden" name="role" id="roleInput" value="{{ old('role', session('registered_role')) }}" required>
                         <div class="w-full px-3 py-2 text-sm border rounded-lg cursor-pointer bg-white" id="roleDropdown">
                             <span id="selectedRole" class="text-gray-500">Select a role...</span>
                         </div>
@@ -298,6 +314,16 @@
                             options.classList.add('hidden');
                         }
                     });
+
+                    const initialRole = input.value;
+                    if (initialRole) {
+                        const initialOption = Array.from(document.querySelectorAll('#roleOptions > div'))
+                            .find(option => option.dataset.value === initialRole);
+                        if (initialOption) {
+                            selected.innerHTML = initialOption.innerHTML;
+                            selected.classList.remove('text-gray-500');
+                        }
+                    }
                 </script>
 
                 <div class="mb-3">

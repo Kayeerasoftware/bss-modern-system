@@ -130,12 +130,12 @@ class AuthController extends Controller
             return $user;
         });
 
-        Auth::login($user);
-        $request->session()->regenerate();
-        $request->session()->put('active_role', $normalizedRole);
-
-        return redirect()->route($this->dashboardRouteForRole($normalizedRole))
-            ->with('success', 'Registration successful. Welcome to your dashboard.');
+        return redirect()->route('login')->with([
+            'register_success' => true,
+            'register_role' => ucfirst($normalizedRole),
+            'registered_email' => $user->email,
+            'registered_role' => $normalizedRole,
+        ]);
     }
 
     public function logout()
@@ -163,19 +163,6 @@ class AuthController extends Controller
             'user' => $user,
             'role' => $user->role ?? 'client'
         ]);
-    }
-
-    private function dashboardRouteForRole(string $role): string
-    {
-        return match (strtolower(trim($role))) {
-            'admin' => 'admin.dashboard',
-            'ceo' => 'ceo.dashboard',
-            'td' => 'td.dashboard',
-            'cashier' => 'cashier.dashboard',
-            'shareholder' => 'shareholder.dashboard',
-            'client' => 'member.dashboard',
-            default => 'dashboard',
-        };
     }
 
     public function sendResetLink(Request $request)
