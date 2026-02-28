@@ -18,7 +18,7 @@ class AnalyticsController extends Controller
         try {
             // Basic statistics
             $totalSavings = Member::sum('savings') ?: 0;
-            $totalLoans = Loan::where('status', 'active')->sum('amount') ?: 0;
+            $totalLoans = Loan::where('status', 'approved')->sum('amount') ?: 0;
             $totalMembers = Member::count() ?: 0;
             $activeProjects = Project::where('status', '!=', 'completed')->count() ?: 0;
 
@@ -107,7 +107,7 @@ class AnalyticsController extends Controller
         // Calculate total assets up to the given date
         $savings = Member::where('created_at', '<=', $date)->sum('savings') ?: 0;
         $loans = Loan::where('created_at', '<=', $date)
-            ->where('status', 'active')
+            ->where('status', 'approved')
             ->sum('amount') ?: 0;
         
         return $savings + $loans;
@@ -121,7 +121,7 @@ class AnalyticsController extends Controller
     private function calculateLoanPortfolio($date)
     {
         return Loan::where('created_at', '<=', $date)
-            ->where('status', 'active')
+            ->where('status', 'approved')
             ->sum('amount') ?: 0;
     }
 
@@ -181,7 +181,7 @@ class AnalyticsController extends Controller
 
     private function getLoanRepaymentAnalysis()
     {
-        $totalLoans = Loan::where('status', 'active')->count();
+        $totalLoans = Loan::where('status', 'approved')->count();
         
         if ($totalLoans == 0) {
             return [
@@ -192,16 +192,16 @@ class AnalyticsController extends Controller
         }
 
         // Simplified analysis - in real implementation, you'd track payment dates
-        $onTime = Loan::where('status', 'active')
-            ->where('amount_paid', '>', 0)
+        $onTime = Loan::where('status', 'approved')
+            ->where('paid_amount', '>', 0)
             ->count();
         
-        $late = Loan::where('status', 'active')
-            ->where('amount_paid', 0)
+        $late = Loan::where('status', 'approved')
+            ->where('paid_amount', 0)
             ->where('created_at', '<', Carbon::now()->subMonths(1))
             ->count();
         
-        $defaulted = Loan::where('status', 'defaulted')->count();
+        $defaulted = Loan::where('status', 'rejected')->count();
 
         return [
             'on_time' => $onTime,
@@ -257,7 +257,7 @@ class AnalyticsController extends Controller
         $totalLoans = Loan::count();
         if ($totalLoans == 0) return 0;
         
-        $defaultedLoans = Loan::where('status', 'defaulted')->count();
+        $defaultedLoans = Loan::where('status', 'rejected')->count();
         return ($defaultedLoans / $totalLoans) * 100;
     }
 

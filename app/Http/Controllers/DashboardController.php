@@ -72,10 +72,14 @@ class DashboardController extends Controller
 
     public function applyLoan(Request $request)
     {
+        if ($request->filled('duration_months') && !$request->filled('repayment_months')) {
+            $request->merge(['repayment_months' => $request->input('duration_months')]);
+        }
+
         $validated = $request->validate([
             'amount' => 'required|numeric|min:1000',
             'purpose' => 'required|string|max:255',
-            'duration_months' => 'required|integer|min:1|max:60'
+            'repayment_months' => 'required|integer|min:1|max:60'
         ]);
 
         $user = auth()->user();
@@ -85,14 +89,20 @@ class DashboardController extends Controller
             return response()->json(['success' => false, 'message' => 'Member not found'], 404);
         }
 
+        $interestRate = 10;
+        $interest = $validated['amount'] * ($interestRate / 100) * ($validated['repayment_months'] / 12);
+        $monthlyPayment = ($validated['amount'] + $interest) / $validated['repayment_months'];
+
         $loan = Loan::create([
             'member_id' => $member->member_id,
             'amount' => $validated['amount'],
             'purpose' => $validated['purpose'],
-            'duration_months' => $validated['duration_months'],
-            'interest_rate' => 5,
+            'repayment_months' => $validated['repayment_months'],
+            'interest_rate' => $interestRate,
+            'interest' => $interest,
+            'monthly_payment' => $monthlyPayment,
             'status' => 'pending',
-            'application_date' => now()
+            'application_date' => now(),
         ]);
 
         return response()->json(['success' => true, 'loan' => $loan]);
@@ -102,8 +112,8 @@ class DashboardController extends Controller
     {
         $loan = Loan::findOrFail($loanId);
         $loan->update([
-            'status' => 'active',
-            'approved_date' => now()
+            'status' => 'approved',
+            'approved_date' => now(),
         ]);
 
         return response()->json(['success' => true]);

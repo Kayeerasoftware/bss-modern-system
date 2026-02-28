@@ -16,14 +16,21 @@ class LoanController extends Controller
 
     public function store(Request $request)
     {
+        $repaymentMonths = (int) ($request->repayment_months ?? $request->duration_months ?? 12);
+        $interestRate = (float) ($request->interest_rate ?? 10);
+        $interest = (float) $request->amount * ($interestRate / 100) * ($repaymentMonths / 12);
+        $monthlyPayment = ((float) $request->amount + $interest) / max($repaymentMonths, 1);
+
         $loan = Loan::create([
             'member_id' => $request->member_id,
             'amount' => $request->amount,
-            'interest_rate' => $request->interest_rate ?? 5,
-            'duration_months' => $request->duration_months,
+            'interest_rate' => $interestRate,
+            'repayment_months' => $repaymentMonths,
+            'interest' => $interest,
+            'monthly_payment' => $monthlyPayment,
             'purpose' => $request->purpose,
             'status' => 'pending',
-            'application_date' => now()
+            'application_date' => now(),
         ]);
 
         return response()->json($loan->load('member'));
@@ -50,11 +57,12 @@ class LoanController extends Controller
     public function repayment(Request $request, $id)
     {
         $loan = Loan::findOrFail($id);
-        $repaymentAmount = $request->amount;
+        $repaymentAmount = (float) $request->amount;
+        $paidAmount = (float) $loan->paid_amount + $repaymentAmount;
         
         $loan->update([
-            'amount_paid' => $loan->amount_paid + $repaymentAmount,
-            'status' => ($loan->amount_paid + $repaymentAmount >= $loan->amount) ? 'completed' : 'active'
+            'amount_paid' => $paidAmount,
+            'status' => 'approved',
         ]);
 
         return response()->json($loan);

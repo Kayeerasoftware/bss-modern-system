@@ -22,7 +22,7 @@ class ApiController extends Controller
                 return [
                     'totalMembers' => Member::count(),
                     'totalSavings' => Member::sum('savings') + Member::sum('savings_balance'),
-                    'activeLoans' => Loan::where('status', 'active')->count(),
+                    'activeLoans' => Loan::where('status', 'approved')->count(),
                     'totalProjects' => Project::count(),
                     'totalBalance' => Member::selectRaw('SUM(savings - loan) as total_balance')->first()->total_balance ?? 0,
                     'pendingLoans' => Loan::where('status', 'pending')->count(),
@@ -228,7 +228,7 @@ class ApiController extends Controller
 
             DB::beginTransaction();
 
-            $loan->update(['status' => 'active']);
+            $loan->update(['status' => 'approved']);
 
             $member = $loan->member;
             $member->increment('loan', $loan->amount);
@@ -236,8 +236,9 @@ class ApiController extends Controller
             Transaction::create([
                 'member_id' => $loan->member_id,
                 'amount' => $loan->amount,
-                'type' => 'loanDisbursement',
-                'description' => "Loan disbursement - ID: {$loan->id}"
+                'type' => 'loan_request',
+                'description' => "Loan approved and disbursed - ID: {$loan->id}",
+                'status' => 'completed',
             ]);
 
             DB::commit();
@@ -296,9 +297,13 @@ class ApiController extends Controller
             $validated = $request->validate([
                 'member_id' => 'required|exists:members,member_id',
                 'amount' => 'required|numeric|min:1',
-                'type' => 'required|in:deposit,withdrawal,loanPayment',
+                'type' => 'required|in:deposit,withdrawal,loan_payment,loanPayment',
                 'description' => 'nullable|string|max:255'
             ]);
+
+            if ($validated['type'] === 'loanPayment') {
+                $validated['type'] = 'loan_payment';
+            }
 
             DB::beginTransaction();
 
@@ -315,7 +320,7 @@ class ApiController extends Controller
                 $member->increment('savings', $validated['amount']);
             } elseif ($validated['type'] === 'withdrawal') {
                 $member->decrement('savings', $validated['amount']);
-            } elseif ($validated['type'] === 'loanPayment') {
+            } elseif ($validated['type'] === 'loan_payment') {
                 $member->decrement('loan', $validated['amount']);
             }
 

@@ -368,7 +368,7 @@ class DashboardApiController extends Controller
 
         $baseScore = 650;
         $savingsBonus = min(($member->savings / 1000000) * 100, 150);
-        $loanPenalty = $loans->where('status', 'defaulted')->count() * 50;
+        $loanPenalty = $loans->where('status', 'rejected')->count() * 50;
 
         return min(850, max(300, $baseScore + $savingsBonus - $loanPenalty));
     }

@@ -67,10 +67,10 @@
                     <div class="md:col-span-3 relative">
                         <select name="status" class="w-full px-2 py-1.5 text-xs border border-orange-200 rounded-lg focus:ring-2 focus:ring-orange-500 bg-white" onchange="this.form.submit()">
                             <option value="">All Status</option>
-                            <option value="pending">Pending</option>
-                            <option value="approved">Approved</option>
-                            <option value="rejected">Rejected</option>
-                            <option value="paid">Paid</option>
+                            <option value="pending" {{ request('status') === 'pending' ? 'selected' : '' }}>Pending</option>
+                            <option value="approved" {{ request('status') === 'approved' ? 'selected' : '' }}>Approved</option>
+                            <option value="rejected" {{ request('status') === 'rejected' ? 'selected' : '' }}>Rejected</option>
+                            <option value="repaid" {{ request('status') === 'repaid' ? 'selected' : '' }}>Repaid</option>
                         </select>
                     </div>
                     <div class="md:col-span-3 flex gap-1.5">
@@ -97,8 +97,8 @@
                         {{ $loan->status == 'approved' ? 'bg-green-100 text-green-800' : '' }}
                         {{ $loan->status == 'pending' ? 'bg-yellow-100 text-yellow-800' : '' }}
                         {{ $loan->status == 'rejected' ? 'bg-red-100 text-red-800' : '' }}
-                        {{ $loan->status == 'paid' ? 'bg-blue-100 text-blue-800' : '' }}">
-                        {{ ucfirst($loan->status) }}
+                        {{ ($loan->status === 'approved' && $loan->remaining_balance <= 0) ? 'bg-blue-100 text-blue-800' : '' }}">
+                        {{ $loan->status_label }}
                     </span>
                 </div>
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
@@ -108,7 +108,7 @@
                     </div>
                     <div>
                         <p class="text-xs text-gray-500">Duration</p>
-                        <p class="font-bold">{{ $loan->duration }} months</p>
+                        <p class="font-bold">{{ $loan->repayment_months }} months</p>
                     </div>
                     <div>
                         <p class="text-xs text-gray-500">Interest</p>
@@ -116,14 +116,14 @@
                     </div>
                     <div>
                         <p class="text-xs text-gray-500">Balance</p>
-                        <p class="font-bold text-red-600">UGX {{ number_format($loan->balance) }}</p>
+                        <p class="font-bold text-red-600">UGX {{ number_format($loan->remaining_balance) }}</p>
                     </div>
                 </div>
                 <div class="flex gap-2">
                     <a href="{{ route('member.loans.show', $loan->id) }}" class="px-3 py-1.5 bg-blue-100 text-blue-600 rounded-lg text-xs font-semibold hover:bg-blue-200">
                         <i class="fas fa-eye mr-1"></i>View Details
                     </a>
-                    @if($loan->status == 'approved' && $loan->balance > 0)
+                    @if($loan->status == 'approved' && $loan->remaining_balance > 0)
                     <a href="{{ route('member.loans.repay', $loan->id) }}" class="px-3 py-1.5 bg-green-100 text-green-600 rounded-lg text-xs font-semibold hover:bg-green-200">
                         <i class="fas fa-money-bill mr-1"></i>Make Payment
                     </a>

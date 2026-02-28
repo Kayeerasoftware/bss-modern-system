@@ -23,6 +23,9 @@ class LoanController extends Controller
     {
         $user = Auth::user();
         $member = $user->member ?? Member::where('email', $user->email)->first();
+        if (!$member) {
+            return redirect()->route('member.dashboard')->with('error', 'Member profile not found.');
+        }
         
         $query = Loan::where('member_id', $member->member_id);
 
@@ -35,9 +38,7 @@ class LoanController extends Controller
             });
         }
 
-        if ($request->filled('status')) {
-            $query->where('status', $request->status);
-        }
+        $query->filterStatus($request->status);
 
         if ($request->filled('date_from')) {
             $query->whereDate('created_at', '>=', $request->date_from);
@@ -56,6 +57,9 @@ class LoanController extends Controller
     {
         $user = Auth::user();
         $member = $user->member ?? Member::where('email', $user->email)->first();
+        if (!$member) {
+            return redirect()->route('member.dashboard')->with('error', 'Member profile not found.');
+        }
         
         $loan = Loan::where('id', $id)
             ->where('member_id', $member->member_id)
@@ -66,29 +70,39 @@ class LoanController extends Controller
 
     public function store(Request $request)
     {
+        $repaymentMonths = (int) ($request->repayment_months ?? $request->duration ?? 0);
+
         $request->validate([
             'amount' => 'required|numeric|min:10000',
             'purpose' => 'required|string',
-            'duration' => 'required|integer|min:1|max:60'
+            'repayment_months' => 'nullable|integer|min:1|max:60',
+            'duration' => 'nullable|integer|min:1|max:60',
         ]);
+        if ($repaymentMonths < 1) {
+            return back()->withErrors(['repayment_months' => 'Repayment months is required.'])->withInput();
+        }
 
         $user = Auth::user();
         $member = $user->member ?? Member::where('email', $user->email)->first();
+        if (!$member) {
+            return back()->withErrors(['error' => 'Member profile not found'])->withInput();
+        }
 
         DB::beginTransaction();
         try {
-            $interest = $member->calculateInterest($request->amount, $request->duration);
-            $monthlyPayment = $member->calculateMonthlyPayment($request->amount, $interest, $request->duration);
+            $interestRate = 10;
+            $interest = $member->calculateInterest($request->amount, $repaymentMonths);
+            $monthlyPayment = $member->calculateMonthlyPayment($request->amount, $interest, $repaymentMonths);
 
             Loan::create([
                 'member_id' => $member->member_id,
                 'amount' => $request->amount,
+                'interest_rate' => $interestRate,
                 'interest' => $interest,
-                'duration' => $request->duration,
+                'repayment_months' => $repaymentMonths,
                 'monthly_payment' => $monthlyPayment,
                 'purpose' => $request->purpose,
                 'status' => 'pending',
-                'balance' => $request->amount + $interest,
             ]);
 
             DB::commit();
@@ -103,6 +117,9 @@ class LoanController extends Controller
     {
         $user = Auth::user();
         $member = $user->member ?? Member::where('email', $user->email)->first();
+        if (!$member) {
+            return redirect()->route('member.dashboard')->with('error', 'Member profile not found.');
+        }
         
         $loan = Loan::where('id', $id)
             ->where('member_id', $member->member_id)
@@ -126,11 +143,8 @@ class LoanController extends Controller
 
         DB::beginTransaction();
         try {
-            $loan->balance -= $request->amount;
-            if ($loan->balance <= 0) {
-                $loan->status = 'paid';
-                $loan->balance = 0;
-            }
+            $loan->paid_amount = $loan->paid_amount + (float) $request->amount;
+            $loan->status = 'approved';
             $loan->save();
 
             DB::commit();

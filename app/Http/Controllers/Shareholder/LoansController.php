@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Shareholder;
 use App\Http\Controllers\Controller;
 use App\Models\Loan;
 use App\Models\LoanApplication;
+use App\Models\Transaction;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class LoansController extends Controller
 {
@@ -31,9 +33,7 @@ class LoansController extends Controller
         }
         
         // Status filter
-        if ($request->filled('status')) {
-            $query->where('status', $request->status);
-        }
+        $query->filterStatus($request->status);
         
         // Amount range
         if ($request->filled('amount_min')) {
@@ -76,7 +76,10 @@ class LoansController extends Controller
             'total' => Loan::where('member_id', $member->member_id)->count(),
             'active' => Loan::where('member_id', $member->member_id)->where('status', 'approved')->count(),
             'pending' => Loan::where('member_id', $member->member_id)->where('status', 'pending')->count(),
-            'completed' => Loan::where('member_id', $member->member_id)->where('status', 'completed')->count(),
+            'completed' => Loan::where('member_id', $member->member_id)
+                ->where('status', 'approved')
+                ->whereRaw('(COALESCE(amount, 0) + COALESCE(interest, 0) + COALESCE(processing_fee, 0)) <= COALESCE(paid_amount, 0)')
+                ->count(),
         ];
 
         return view('shareholder.loans', compact('loans', 'stats'));
@@ -178,20 +181,23 @@ class LoansController extends Controller
         $request->validate([
             'amount' => 'required|numeric|min:1|max:' . $loan->remaining_balance,
         ]);
-        
-        // Create payment transaction
-        $loan->transactions()->create([
-            'member_id' => $member->id,
-            'type' => 'loan_payment',
-            'amount' => $request->amount,
-            'description' => 'Loan payment for loan #' . $loan->id,
-            'status' => 'completed',
-        ]);
-        
-        // Update loan balance
-        $loan->update([
-            'paid_amount' => $loan->paid_amount + $request->amount,
-        ]);
+
+        DB::transaction(function () use ($loan, $member, $request): void {
+            Transaction::create([
+                'member_id' => $member->member_id,
+                'type' => 'loan_payment',
+                'amount' => $request->amount,
+                'description' => 'Loan payment for loan #' . $loan->loan_id,
+                'status' => 'completed',
+                'metadata' => ['loan_id' => $loan->id],
+                'transaction_date' => now(),
+            ]);
+
+            $loan->update([
+                'paid_amount' => $loan->paid_amount + (float) $request->amount,
+                'status' => 'approved',
+            ]);
+        });
         
         return response()->json([
             'success' => true,

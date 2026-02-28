@@ -68,7 +68,7 @@
                                 <option value="">All Status</option>
                                 <option value="pending" {{ request('status') == 'pending' ? 'selected' : '' }}>Pending</option>
                                 <option value="approved" {{ request('status') == 'approved' ? 'selected' : '' }}>Approved</option>
-                                <option value="completed" {{ request('status') == 'completed' ? 'selected' : '' }}>Completed</option>
+                                <option value="repaid" {{ request('status') == 'repaid' ? 'selected' : '' }}>Repaid</option>
                                 <option value="rejected" {{ request('status') == 'rejected' ? 'selected' : '' }}>Rejected</option>
                             </select>
                         </div>
@@ -161,13 +161,14 @@
                                 $statusColors = [
                                     'pending' => 'bg-yellow-100 text-yellow-800 border-yellow-200',
                                     'approved' => 'bg-green-100 text-green-800 border-green-200',
-                                    'completed' => 'bg-blue-100 text-blue-800 border-blue-200',
+                                    'repaid' => 'bg-blue-100 text-blue-800 border-blue-200',
                                     'rejected' => 'bg-red-100 text-red-800 border-red-200',
                                 ];
-                                $colorClass = $statusColors[$loan->status] ?? 'bg-gray-100 text-gray-800 border-gray-200';
+                                $statusKey = ($loan->status === 'approved' && $loan->remaining_balance <= 0) ? 'repaid' : $loan->status;
+                                $colorClass = $statusColors[$statusKey] ?? 'bg-gray-100 text-gray-800 border-gray-200';
                             @endphp
                             <span class="px-3 py-1.5 text-xs font-semibold rounded-full border {{ $colorClass }}">
-                                {{ ucfirst($loan->status) }}
+                                {{ $loan->status_label }}
                             </span>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap border-r border-gray-200">

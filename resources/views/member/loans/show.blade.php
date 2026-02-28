@@ -18,7 +18,7 @@
     <div class="mb-4 md:mb-6 no-print">
         <div class="flex items-center justify-between gap-2 md:gap-4">
             <div class="flex items-center gap-2 md:gap-4">
-                <a href="{{ route('shareholder.loans') }}" class="p-3 bg-white rounded-xl shadow-lg hover:shadow-xl transition-all transform hover:scale-105">
+                <a href="{{ route('member.loans.my-loans') }}" class="p-3 bg-white rounded-xl shadow-lg hover:shadow-xl transition-all transform hover:scale-105">
                     <i class="fas fa-arrow-left text-purple-600"></i>
                 </a>
                 <div class="relative">

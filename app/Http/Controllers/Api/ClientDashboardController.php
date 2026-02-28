@@ -161,7 +161,7 @@ class ClientDashboardController extends Controller
 
         // Subtract points for loan defaults
         $defaultedLoans = Loan::where('member_id', $member->member_id)
-            ->where('status', 'defaulted')
+            ->where('status', 'rejected')
             ->count();
         $score -= $defaultedLoans * 50;
 
