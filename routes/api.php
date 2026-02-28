@@ -2,17 +2,17 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\API\DashboardController;
-use App\Http\Controllers\API\LoanController;
-use App\Http\Controllers\API\MemberController;
-use App\Http\Controllers\API\TransactionController;
-use App\Http\Controllers\API\ProjectController;
-use App\Http\Controllers\API\ClientDashboardController;
-use App\Http\Controllers\API\AdminController;
-// use App\Http\Controllers\API\CEOController;
-use App\Http\Controllers\API\TDController;
-use App\Http\Controllers\API\CashierController;
-use App\Http\Controllers\API\ShareholderController;
+use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\LoanController;
+use App\Http\Controllers\Api\MemberController;
+use App\Http\Controllers\Api\TransactionController;
+use App\Http\Controllers\Api\ProjectController;
+use App\Http\Controllers\Api\ClientDashboardController;
+use App\Http\Controllers\Api\AdminController;
+// use App\Http\Controllers\Api\CEOController;
+use App\Http\Controllers\Api\TDController;
+use App\Http\Controllers\Api\CashierController;
+use App\Http\Controllers\Api\ShareholderController;
 use App\Http\Controllers\CompleteDashboardController;
 
 // Authentication
@@ -104,14 +104,14 @@ Route::prefix('members')->name('api.members.')->group(function () {
     
     // Picture Management API
     Route::prefix('{memberId}/pictures')->name('pictures.')->group(function () {
-        Route::post('/upload', [\App\Http\Controllers\API\Members\MemberPictureController::class, 'upload'])->name('upload');
-        Route::put('/update', [\App\Http\Controllers\API\Members\MemberPictureController::class, 'update'])->name('update');
-        Route::delete('/', [\App\Http\Controllers\API\Members\MemberPictureController::class, 'delete'])->name('delete');
-        Route::get('/info', [\App\Http\Controllers\API\Members\MemberPictureController::class, 'show'])->name('info');
+        Route::post('/upload', [\App\Http\Controllers\Api\Members\MemberPictureController::class, 'upload'])->name('upload');
+        Route::put('/update', [\App\Http\Controllers\Api\Members\MemberPictureController::class, 'update'])->name('update');
+        Route::delete('/', [\App\Http\Controllers\Api\Members\MemberPictureController::class, 'delete'])->name('delete');
+        Route::get('/info', [\App\Http\Controllers\Api\Members\MemberPictureController::class, 'show'])->name('info');
     });
     
-    Route::post('/pictures/bulk-upload', [\App\Http\Controllers\API\Members\MemberPictureController::class, 'bulkUpload'])->name('pictures.bulk-upload');
-    Route::get('/pictures/statistics', [\App\Http\Controllers\API\Members\MemberPictureController::class, 'statistics'])->name('pictures.statistics');
+    Route::post('/pictures/bulk-upload', [\App\Http\Controllers\Api\Members\MemberPictureController::class, 'bulkUpload'])->name('pictures.bulk-upload');
+    Route::get('/pictures/statistics', [\App\Http\Controllers\Api\Members\MemberPictureController::class, 'statistics'])->name('pictures.statistics');
 });
 
 // Transactions
@@ -139,27 +139,27 @@ Route::prefix('reports')->name('api.reports.')->group(function () {
 
 // Notifications
 Route::prefix('notifications')->name('api.notifications.')->group(function () {
-    Route::get('/', [\App\Http\Controllers\API\NotificationController::class, 'index']);
-    Route::post('/', [\App\Http\Controllers\API\NotificationController::class, 'send']);
-    Route::post('/{id}/read', [\App\Http\Controllers\API\NotificationController::class, 'markAsRead']);
+    Route::get('/', [\App\Http\Controllers\Api\NotificationController::class, 'index']);
+    Route::post('/', [\App\Http\Controllers\Api\NotificationController::class, 'send']);
+    Route::post('/{id}/read', [\App\Http\Controllers\Api\NotificationController::class, 'markAsRead']);
 });
 
 // System
 Route::prefix('system')->name('api.system.')->group(function () {
-    Route::get('/health', [\App\Http\Controllers\API\SystemHealthController::class, 'getHealth']);
-    Route::post('/clear-cache', [\App\Http\Controllers\API\SystemHealthController::class, 'clearCache']);
-    Route::get('/backups', [\App\Http\Controllers\API\BackupController::class, 'index']);
-    Route::post('/backups', [\App\Http\Controllers\API\BackupController::class, 'create']);
+    Route::get('/health', [\App\Http\Controllers\Api\SystemHealthController::class, 'getHealth']);
+    Route::post('/clear-cache', [\App\Http\Controllers\Api\SystemHealthController::class, 'clearCache']);
+    Route::get('/backups', [\App\Http\Controllers\Api\BackupController::class, 'index']);
+    Route::post('/backups', [\App\Http\Controllers\Api\BackupController::class, 'create']);
 });
 
 // Locations
 Route::prefix('locations')->name('api.locations.')->middleware('throttle:locations')->group(function () {
-    Route::get('/regions', [\App\Http\Controllers\API\LocationController::class, 'getRegions']);
-    Route::get('/districts/{region}', [\App\Http\Controllers\API\LocationController::class, 'getDistricts']);
-    Route::get('/counties/{district}', [\App\Http\Controllers\API\LocationController::class, 'getCounties']);
-    Route::get('/subcounties', [\App\Http\Controllers\API\LocationController::class, 'getSubcounties']);
-    Route::get('/parishes', [\App\Http\Controllers\API\LocationController::class, 'getParishes']);
-    Route::get('/villages', [\App\Http\Controllers\API\LocationController::class, 'getVillages']);
+    Route::get('/regions', [\App\Http\Controllers\Api\LocationController::class, 'getRegions']);
+    Route::get('/districts/{region}', [\App\Http\Controllers\Api\LocationController::class, 'getDistricts']);
+    Route::get('/counties/{district}', [\App\Http\Controllers\Api\LocationController::class, 'getCounties']);
+    Route::get('/subcounties', [\App\Http\Controllers\Api\LocationController::class, 'getSubcounties']);
+    Route::get('/parishes', [\App\Http\Controllers\Api\LocationController::class, 'getParishes']);
+    Route::get('/villages', [\App\Http\Controllers\Api\LocationController::class, 'getVillages']);
 });
 
 // Current Member
