@@ -8,8 +8,15 @@ let selectedRole = null;
 // Initialize user role from data attribute
 function initUserRole() {
     const body = document.body;
-    userRole = body.dataset.userRole || null;
-    userRoles = JSON.parse(body.dataset.userRoles || '[]');
+    userRole = (body.dataset.userRole || '').toLowerCase() || null;
+    userRoles = JSON.parse(body.dataset.userRoles || '[]')
+        .map(role => String(role).toLowerCase())
+        .filter(Boolean);
+
+    // Keep default role in the active roles set.
+    if (userRole && !userRoles.includes(userRole)) {
+        userRoles.push(userRole);
+    }
 }
 
 // Role selection and navigation
@@ -22,23 +29,34 @@ function selectRole(role) {
     });
     document.querySelector(`button[onclick="selectRole('${role}')"]`).classList.add('selected');
     
-    // Update status text
+    // Keep role status labels stable:
+    // - Default role: Default_Active
+    // - Assigned roles: Active
+    // - Unassigned roles: Inactive
     const statusTexts = document.querySelectorAll('.role-status-text');
     statusTexts.forEach(text => {
-        const btnRole = text.closest('.text-center').querySelector('button').getAttribute('onclick').match(/'([^']+)'/)[1];
-        if (btnRole === role) {
-            text.textContent = 'Selected Role';
-            text.classList.remove('text-red-400', 'text-green-400');
-            text.classList.add('text-blue-400');
-        } else if (btnRole === userRole) {
-            text.textContent = 'Active';
-            text.classList.remove('text-blue-400', 'text-red-400');
+        const button = text.closest('.text-center')?.querySelector('button');
+        const roleMatch = button?.getAttribute('onclick')?.match(/'([^']+)'/);
+        const btnRole = roleMatch ? roleMatch[1] : null;
+        if (!btnRole) return;
+
+        if (btnRole === userRole) {
+            text.textContent = 'Default_Active';
+            text.classList.remove('text-red-400', 'text-blue-400');
             text.classList.add('text-green-400');
-        } else {
-            text.textContent = 'Not Active';
-            text.classList.remove('text-blue-400', 'text-green-400');
-            text.classList.add('text-red-400');
+            return;
         }
+
+        if (userRoles.includes(btnRole)) {
+            text.textContent = 'Active';
+            text.classList.remove('text-red-400', 'text-blue-400');
+            text.classList.add('text-green-400');
+            return;
+        }
+
+        text.textContent = 'Inactive';
+        text.classList.remove('text-green-400', 'text-blue-400');
+        text.classList.add('text-red-400');
     });
     
     const roleConfig = {
