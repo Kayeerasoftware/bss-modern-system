@@ -12,6 +12,7 @@ use App\Models\Member;
 use App\Observers\UserObserver;
 use App\Observers\MemberObserver;
 use App\Observers\GlobalAuditObserver;
+use App\Services\UserMemberSyncService;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -45,6 +46,11 @@ class AppServiceProvider extends ServiceProvider
         // Register observers for user-member synchronization
         User::observe(UserObserver::class);
         Member::observe(MemberObserver::class);
+
+        // Auto-heal missing user/member links in production without manual intervention.
+        if ($this->app->isProduction() && !$this->app->runningInConsole()) {
+            app(UserMemberSyncService::class)->reconcileIfNeeded();
+        }
 
         // Capture model-level create/update/delete changes for full audit history.
         Event::listen('eloquent.created: *', function (string $eventName, array $data): void {
