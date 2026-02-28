@@ -199,7 +199,7 @@ class LoanController extends Controller
             'amount' => 'required|numeric|min:0',
             'purpose' => 'required|string',
             'repayment_months' => 'required|integer|min:1',
-            'status' => 'required|in:pending,approved,rejected',
+            'status' => 'required|in:pending,approved,rejected,disbursed',
         ]);
 
         $interestRate = $loan->interest_rate ?? $settings->default_interest_rate ?? 10;

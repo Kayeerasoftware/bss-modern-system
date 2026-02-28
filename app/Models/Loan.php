@@ -24,6 +24,13 @@ class Loan extends Model
 
     public function member()
     {
-        return $this->belongsTo(Member::class, 'member_id', 'member_id');
+        return $this->belongsTo(Member::class, 'member_id', 'member_id')
+            ->withDefault([
+                'member_id' => 'N/A',
+                'full_name' => 'Unknown Member',
+                'email' => null,
+                'contact' => null,
+                'profile_picture' => null,
+            ]);
     }
 }

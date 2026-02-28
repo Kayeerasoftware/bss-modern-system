@@ -30,12 +30,12 @@
                         <img src="{{ $loan->member->profile_picture_url }}" class="w-10 h-10 rounded-full object-cover ring-2 ring-green-500 ring-offset-2" alt="">
                     @else
                         <div class="w-10 h-10 rounded-full bg-gradient-to-br from-green-500 to-teal-600 flex items-center justify-center ring-2 ring-green-500 ring-offset-2">
-                            <span class="text-white font-bold text-sm">{{ substr($loan->member->full_name ?? 'N', 0, 1) }}</span>
+                            <span class="text-white font-bold text-sm">{{ substr((string) ($loan->member->full_name ?? 'N'), 0, 1) }}</span>
                         </div>
                     @endif
                     <div>
-                        <p class="text-sm font-semibold text-gray-900">{{ $loan->member->full_name ?? 'N/A' }}</p>
-                        <p class="text-xs text-gray-500">{{ $loan->member->member_id ?? '' }}</p>
+                        <p class="text-sm font-semibold text-gray-900">{{ $loan->member->full_name ?? 'Unknown Member' }}</p>
+                        <p class="text-xs text-gray-500">{{ $loan->member->member_id ?? 'N/A' }}</p>
                     </div>
                 </div>
             </td>

@@ -102,6 +102,10 @@ Route::prefix('admin')->name('admin.')->middleware(['web', 'auth', 'role:admin,c
     
     // Loans
     Route::prefix('loans')->name('loans.')->group(function () {
+        // Keep static paths before /{id} to avoid route capture conflicts.
+        Route::get('/applications', [LoanController::class, 'applications'])->name('applications');
+        Route::get('/approvals', [LoanController::class, 'approvals'])->name('approvals');
+        Route::get('/repayments', [LoanController::class, 'repayments'])->name('repayments');
         Route::get('/', [LoanController::class, 'index'])->name('index');
         Route::get('/create', [LoanController::class, 'create'])->name('create');
         Route::post('/', [LoanController::class, 'store'])->name('store');
@@ -110,11 +114,8 @@ Route::prefix('admin')->name('admin.')->middleware(['web', 'auth', 'role:admin,c
         Route::get('/{id}/edit', [LoanController::class, 'edit'])->name('edit');
         Route::put('/{id}', [LoanController::class, 'update'])->name('update');
         Route::delete('/{id}', [LoanController::class, 'destroy'])->name('destroy');
-        Route::get('/applications', [LoanController::class, 'applications'])->name('applications');
         Route::post('/{id}/approve', [LoanController::class, 'approve'])->name('approve');
         Route::post('/{id}/reject', [LoanController::class, 'reject'])->name('reject');
-        Route::get('/approvals', [LoanController::class, 'approvals'])->name('approvals');
-        Route::get('/repayments', [LoanController::class, 'repayments'])->name('repayments');
     });
     
     // Projects
