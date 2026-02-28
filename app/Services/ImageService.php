@@ -54,12 +54,8 @@ class ImageService
      */
     private function processAndSaveImage(UploadedFile $file, string $filename): void
     {
-        $basePath = storage_path('app/public/profile-pictures/members/');
-        
-        // Ensure directory exists
-        if (!file_exists($basePath)) {
-            mkdir($basePath, 0755, true);
-        }
+        $disk = Storage::disk('public');
+        $basePath = 'profile-pictures/members/';
 
         // Original image (resized to max 800x800)
         $image = Image::make($file->getRealPath());
@@ -67,19 +63,19 @@ class ImageService
             $constraint->aspectRatio();
             $constraint->upsize();
         });
-        $image->save($basePath . $filename, 85);
+        $disk->put($basePath . $filename, (string) $image->encode(null, 85), 'public');
 
         // Thumbnail (150x150)
         $thumbnailName = 'thumb_' . $filename;
         $thumbnail = Image::make($file->getRealPath());
         $thumbnail->fit(150, 150);
-        $thumbnail->save($basePath . $thumbnailName, 80);
+        $disk->put($basePath . $thumbnailName, (string) $thumbnail->encode(null, 80), 'public');
 
         // Small size (300x300)
         $smallName = 'small_' . $filename;
         $small = Image::make($file->getRealPath());
         $small->fit(300, 300);
-        $small->save($basePath . $smallName, 80);
+        $disk->put($basePath . $smallName, (string) $small->encode(null, 80), 'public');
     }
 
     /**
@@ -109,11 +105,11 @@ class ImageService
 
         // Check if sized version exists, fallback to original
         if (Storage::disk('public')->exists($sizedPath)) {
-            return asset('storage/' . $sizedPath);
+            return Storage::disk('public')->url($sizedPath);
         }
 
         return Storage::disk('public')->exists($picturePath) 
-            ? asset('storage/' . $picturePath)
+            ? Storage::disk('public')->url($picturePath)
             : asset('images/default-avatar.svg');
     }
 
@@ -161,12 +157,18 @@ class ImageService
             ];
         }
 
-        $fullPath = Storage::disk('public')->path($picturePath);
-        $imageSize = getimagesize($fullPath);
+        $imageSize = null;
+        try {
+            $fullPath = Storage::disk('public')->path($picturePath);
+            $imageSize = @getimagesize($fullPath) ?: null;
+        } catch (\Throwable $e) {
+            // Not all disks support local file paths (e.g. S3).
+            $imageSize = null;
+        }
         
         return [
             'exists' => true,
-            'url' => asset('storage/' . $picturePath),
+            'url' => Storage::disk('public')->url($picturePath),
             'size' => Storage::disk('public')->size($picturePath),
             'dimensions' => $imageSize ? ['width' => $imageSize[0], 'height' => $imageSize[1]] : null,
             'thumbnail_url' => $this->getPictureUrl($picturePath, 'thumbnail'),

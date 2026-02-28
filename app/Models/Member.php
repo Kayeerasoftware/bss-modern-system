@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class Member extends Authenticatable
 {
@@ -130,6 +131,26 @@ class Member extends Authenticatable
         }
 
         $trimmedPath = preg_replace('#^(storage|uploads)/#', '', $normalizedPath);
+        $storageCandidates = [
+            $normalizedPath,
+            $trimmedPath,
+        ];
+
+        if (str_starts_with($trimmedPath, 'profile_pictures/')) {
+            $storageCandidates[] = 'profile-pictures/' . substr($trimmedPath, strlen('profile_pictures/'));
+        } elseif (str_starts_with($trimmedPath, 'profile-pictures/')) {
+            $storageCandidates[] = 'profile_pictures/' . substr($trimmedPath, strlen('profile-pictures/'));
+        }
+
+        foreach (array_unique($storageCandidates) as $candidate) {
+            if (!$candidate || str_starts_with($candidate, 'uploads/')) {
+                continue;
+            }
+            if (Storage::disk('public')->exists($candidate)) {
+                return Storage::disk('public')->url($candidate);
+            }
+        }
+
         $candidates = [
             $normalizedPath,
             'uploads/' . $trimmedPath,

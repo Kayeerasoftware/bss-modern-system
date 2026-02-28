@@ -39,10 +39,16 @@ return [
         ],
 
         'public' => [
-            'driver' => 'local',
+            'driver' => env('PUBLIC_DISK_DRIVER', 'local'),
             'root' => env('PUBLIC_DISK_ROOT', storage_path('app/public')),
             'url' => env('PUBLIC_DISK_URL', env('APP_URL').'/storage'),
             'visibility' => 'public',
+            'key' => env('PUBLIC_DISK_KEY', env('AWS_ACCESS_KEY_ID')),
+            'secret' => env('PUBLIC_DISK_SECRET', env('AWS_SECRET_ACCESS_KEY')),
+            'region' => env('PUBLIC_DISK_REGION', env('AWS_DEFAULT_REGION')),
+            'bucket' => env('PUBLIC_DISK_BUCKET', env('AWS_BUCKET')),
+            'endpoint' => env('PUBLIC_DISK_ENDPOINT', env('AWS_ENDPOINT')),
+            'use_path_style_endpoint' => env('PUBLIC_DISK_USE_PATH_STYLE_ENDPOINT', env('AWS_USE_PATH_STYLE_ENDPOINT', false)),
             'throw' => false,
             'report' => false,
         ],
