@@ -18,6 +18,9 @@
                 </div>
             </div>
             <div class="flex gap-1.5 md:gap-2 w-full md:w-auto">
+                <a href="{{ route('admin.members.index', array_merge(request()->except('page', 'trash'), ['trash' => 'with'])) }}" class="flex-1 md:flex-none px-3 md:px-5 py-2 md:py-2.5 rounded-lg md:rounded-xl transition-all duration-300 text-xs md:text-sm font-bold flex items-center justify-center gap-1 md:gap-2 transform hover:scale-105 {{ ($trashFilter ?? 'with') === 'with' ? 'bg-gradient-to-r from-sky-600 to-blue-600 text-white' : 'bg-white text-gray-700 border border-gray-200' }}">
+                    <i class="fas fa-layer-group"></i><span>All</span>
+                </a>
                 <a href="{{ route('admin.members.index', array_merge(request()->except('page', 'trash'), ['trash' => 'active'])) }}" class="flex-1 md:flex-none px-3 md:px-5 py-2 md:py-2.5 rounded-lg md:rounded-xl transition-all duration-300 text-xs md:text-sm font-bold flex items-center justify-center gap-1 md:gap-2 transform hover:scale-105 {{ ($trashFilter ?? 'active') === 'active' ? 'bg-gradient-to-r from-emerald-600 to-green-600 text-white' : 'bg-white text-gray-700 border border-gray-200' }}">
                     <i class="fas fa-list"></i><span>Active</span>
                 </a>
@@ -115,7 +118,7 @@
     <!-- Advanced Search and Filters -->
     <div class="bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 rounded-2xl shadow-lg border border-blue-100 overflow-hidden mb-4">
         <form method="GET" action="{{ route('admin.members.index') }}" x-data="{ showAdvanced: false }">
-            <input type="hidden" name="trash" value="{{ $trashFilter ?? 'active' }}">
+            <input type="hidden" name="trash" value="{{ $trashFilter ?? 'with' }}">
             <div class="bg-white/60 backdrop-blur-sm p-3">
                 <!-- Basic Search Section -->
                 <div class="bg-white/80 rounded-xl p-2.5 border border-blue-100">
@@ -178,6 +181,13 @@
                                 <option value="savings_low" {{ request('sort') == 'savings_low' ? 'selected' : '' }}>Savings (Low-High)</option>
                                 <option value="newest" {{ request('sort') == 'newest' ? 'selected' : '' }}>Newest First</option>
                                 <option value="oldest" {{ request('sort') == 'oldest' ? 'selected' : '' }}>Oldest First</option>
+                            </select>
+                            <select name="per_page" class="w-full px-2 py-1.5 text-xs border border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white" @change="$el.form.submit()">
+                                <option value="25" {{ request('per_page') == '25' ? 'selected' : '' }}>25 per page</option>
+                                <option value="50" {{ request('per_page') == '50' ? 'selected' : '' }}>50 per page</option>
+                                <option value="100" {{ request('per_page', '100') == '100' ? 'selected' : '' }}>100 per page</option>
+                                <option value="200" {{ request('per_page') == '200' ? 'selected' : '' }}>200 per page</option>
+                                <option value="500" {{ request('per_page') == '500' ? 'selected' : '' }}>500 per page</option>
                             </select>
                         </div>
                     </div>

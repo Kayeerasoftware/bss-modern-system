@@ -27,7 +27,7 @@ class MemberController extends Controller
 
     public function index(Request $request)
     {
-        $trashFilter = (string) $request->get('trash', 'active');
+        $trashFilter = (string) $request->get('trash', 'with');
         $query = Member::with('user');
 
         if ($trashFilter === 'only') {
@@ -104,7 +104,15 @@ class MemberController extends Controller
             'newThisMonth' => (clone $statsBaseQuery)->where('created_at', '>=', now()->startOfMonth())->count(),
         ];
 
-        $members = $query->paginate(15)->appends($request->query());
+        $perPage = (int) $request->get('per_page', 100);
+        if ($perPage < 10) {
+            $perPage = 10;
+        }
+        if ($perPage > 500) {
+            $perPage = 500;
+        }
+
+        $members = $query->paginate($perPage)->appends($request->query());
         
         if ($request->ajax()) {
             return view('admin.members.partials.table', compact('members', 'trashFilter'))->render();
