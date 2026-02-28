@@ -20,75 +20,6 @@ class LoansController extends Controller
             return redirect()->route('shareholder.dashboard')->with('error', 'Member profile not found.');
         }
         
-        $query = Loan::with('member')->where('member_id', $member->member_id);
-        
-        // Search
-        if ($request->filled('search')) {
-            $search = $request->search;
-            $query->where(function($q) use ($search) {
-                $q->where('purpose', 'like', "%{$search}%")
-                  ->orWhere('amount', 'like', "%{$search}%")
-                  ->orWhere('id', 'like', "%{$search}%");
-            });
-        }
-        
-        // Status filter
-        $query->filterStatus($request->status);
-        
-        // Amount range
-        if ($request->filled('amount_min')) {
-            $query->where('amount', '>=', $request->amount_min);
-        }
-        if ($request->filled('amount_max')) {
-            $query->where('amount', '<=', $request->amount_max);
-        }
-        
-        // Date range
-        if ($request->filled('date_from')) {
-            $query->whereDate('created_at', '>=', $request->date_from);
-        }
-        if ($request->filled('date_to')) {
-            $query->whereDate('created_at', '<=', $request->date_to);
-        }
-        
-        // Sorting
-        switch ($request->sort) {
-            case 'amount_high':
-                $query->orderBy('amount', 'desc');
-                break;
-            case 'amount_low':
-                $query->orderBy('amount', 'asc');
-                break;
-            case 'newest':
-                $query->latest();
-                break;
-            case 'oldest':
-                $query->oldest();
-                break;
-            default:
-                $query->latest();
-        }
-        
-        $perPage = (int) $request->get('per_page', 20);
-        if (!in_array($perPage, [10, 15, 20, 50], true)) {
-            $perPage = 20;
-        }
-
-        $loans = $query
-            ->paginate($perPage, ['*'], 'page')
-            ->appends($request->except('page'));
-
-        $stats = [
-            'total' => Loan::where('member_id', $member->member_id)->count(),
-            'active' => Loan::where('member_id', $member->member_id)->where('status', 'approved')->count(),
-            'pending' => Loan::where('member_id', $member->member_id)->where('status', 'pending')->count(),
-            'completed' => Loan::where('member_id', $member->member_id)
-                ->where('status', 'approved')
-                ->get()
-                ->filter(static fn (Loan $loan) => $loan->remaining_balance <= 0)
-                ->count(),
-        ];
-
         $applicationsQuery = LoanApplication::with('member')
             ->where('member_id', $member->member_id);
 
@@ -144,7 +75,7 @@ class LoansController extends Controller
             'rejected' => LoanApplication::where('member_id', $member->member_id)->where('status', 'rejected')->count(),
         ];
 
-        return view('shareholder.loans', compact('loans', 'stats', 'applications', 'applicationStats'));
+        return view('shareholder.loans', compact('applications', 'applicationStats'));
     }
     
     public function show($id)
