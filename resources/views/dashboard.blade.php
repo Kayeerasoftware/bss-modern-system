@@ -184,43 +184,66 @@
             <div class="flex flex-wrap justify-between items-center">
                 <div class="grid grid-cols-2 sm:grid-cols-3 lg:flex lg:flex-wrap gap-2 lg:gap-3 w-full lg:w-auto">
                     @php
-                        $userRoles = Auth::user()->roles_list ?? [];
+                        $defaultRole = strtolower((string) (Auth::user()->role ?? ''));
+                        $userRoles = array_values(array_unique(array_map(
+                            fn ($role) => strtolower((string) $role),
+                            Auth::user()->roles_list ?? []
+                        )));
+                        if ($defaultRole !== '' && !in_array($defaultRole, $userRoles, true)) {
+                            $userRoles[] = $defaultRole;
+                        }
+
+                        $roleStatusText = function (string $roleKey) use ($userRoles, $defaultRole): string {
+                            if ($roleKey === $defaultRole) {
+                                return 'Default_Active';
+                            }
+
+                            return in_array($roleKey, $userRoles, true) ? 'Active' : 'Inactive';
+                        };
+
+                        $roleStatusClass = function (string $roleKey) use ($userRoles, $defaultRole): string {
+                            if ($roleKey === $defaultRole || in_array($roleKey, $userRoles, true)) {
+                                return 'text-green-400';
+                            }
+
+                            return 'text-red-400';
+                        };
                     @endphp
                     <div class="text-center">
                         <button onclick="selectRole('client')" class="navbar-item w-full lg:w-auto {{ in_array('client', $userRoles) ? 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700' : 'bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800' }} px-3 lg:px-5 py-2 lg:py-3 font-semibold text-sm">
                             <i class="fas fa-user-circle mr-0 lg:mr-2 text-base lg:text-lg block lg:inline mb-1 lg:mb-0"></i><span class="text-xs lg:text-base">Client</span>
                         </button>
-                        <p class="role-status-text text-xs mt-1 {{ in_array('client', $userRoles) ? 'text-green-400' : 'text-red-400' }}">{{ in_array('client', $userRoles) ? 'Active' : 'Not Active' }}</p>
+                        <p class="role-status-text text-xs mt-1 {{ $roleStatusClass('client') }}">{{ $roleStatusText('client') }}</p>
                     </div>
                     <div class="text-center">
                         <button onclick="selectRole('shareholder')" class="navbar-item w-full lg:w-auto {{ in_array('shareholder', $userRoles) ? 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700' : 'bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800' }} px-3 lg:px-5 py-2 lg:py-3 font-semibold text-sm">
                             <i class="fas fa-chart-line mr-0 lg:mr-2 text-base lg:text-lg block lg:inline mb-1 lg:mb-0"></i><span class="text-xs lg:text-base">Shareholder</span>
                         </button>
-                        <p class="role-status-text text-xs mt-1 {{ in_array('shareholder', $userRoles) ? 'text-green-400' : 'text-red-400' }}">{{ in_array('shareholder', $userRoles) ? 'Active' : 'Not Active' }}</p>
+                        <p class="role-status-text text-xs mt-1 {{ $roleStatusClass('shareholder') }}">{{ $roleStatusText('shareholder') }}</p>
                     </div>
                     <div class="text-center">
                         <button onclick="selectRole('cashier')" class="navbar-item w-full lg:w-auto {{ in_array('cashier', $userRoles) ? 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700' : 'bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800' }} px-3 lg:px-5 py-2 lg:py-3 font-semibold text-sm">
                             <i class="fas fa-cash-register mr-0 lg:mr-2 text-base lg:text-lg block lg:inline mb-1 lg:mb-0"></i><span class="text-xs lg:text-base">Cashier</span>
                         </button>
-                        <p class="role-status-text text-xs mt-1 {{ in_array('cashier', $userRoles) ? 'text-green-400' : 'text-red-400' }}">{{ in_array('cashier', $userRoles) ? 'Active' : 'Not Active' }}</p>
+                        <p class="role-status-text text-xs mt-1 {{ $roleStatusClass('cashier') }}">{{ $roleStatusText('cashier') }}</p>
                     </div>
                     <div class="text-center">
                         <button onclick="selectRole('td')" class="navbar-item w-full lg:w-auto {{ in_array('td', $userRoles) ? 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700' : 'bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800' }} px-3 lg:px-5 py-2 lg:py-3 font-semibold text-sm">
                             <i class="fas fa-project-diagram mr-0 lg:mr-2 text-base lg:text-lg block lg:inline mb-1 lg:mb-0"></i><span class="text-xs lg:text-base">Technical Director</span>
                         </button>
-                        <p class="role-status-text text-xs mt-1 {{ in_array('td', $userRoles) ? 'text-green-400' : 'text-red-400' }}">{{ in_array('td', $userRoles) ? 'Active' : 'Not Active' }}</p>
+                        <p class="role-status-text text-xs mt-1 {{ $roleStatusClass('td') }}">{{ $roleStatusText('td') }}</p>
                     </div>
                     <div class="text-center">
                         <button onclick="selectRole('ceo')" class="navbar-item w-full lg:w-auto {{ in_array('ceo', $userRoles) ? 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700' : 'bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800' }} px-3 lg:px-5 py-2 lg:py-3 font-semibold text-sm">
                             <i class="fas fa-crown mr-0 lg:mr-2 text-base lg:text-lg block lg:inline mb-1 lg:mb-0"></i><span class="text-xs lg:text-base">CEO & Chairperson</span>
                         </button>
-                        <p class="role-status-text text-xs mt-1 {{ in_array('ceo', $userRoles) ? 'text-green-400' : 'text-red-400' }}">{{ in_array('ceo', $userRoles) ? 'Active' : 'Not Active' }}</p>
+                        <p class="role-status-text text-xs mt-1 {{ $roleStatusClass('ceo') }}">{{ $roleStatusText('ceo') }}</p>
                     </div>
                     <div class="text-center">
                         <button onclick="selectRole('admin')" class="navbar-item w-full lg:w-auto {{ in_array('admin', $userRoles) ? 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700' : 'bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800' }} px-3 lg:px-5 py-2 lg:py-3 font-semibold text-sm">
                             <i class="fas fa-user-shield mr-0 lg:mr-2 text-base lg:text-lg block lg:inline mb-1 lg:mb-0"></i><span class="text-xs lg:text-base">Admin</span>
                         </button>
-                        <p class="role-status-text text-xs mt-1 {{ in_array('admin', $userRoles) ? 'text-green-400' : 'text-red-400' }}">{{ in_array('admin', $userRoles) ? 'Active' : 'Not Active' }}</p>
+                        <p class="role-status-text text-xs mt-1 {{ $roleStatusClass('admin') }}">{{ $roleStatusText('admin') }}</p>
                     </div>
                 </div>
                 <div class="flex gap-2 mt-2 lg:mt-0 w-full lg:w-auto justify-end">
