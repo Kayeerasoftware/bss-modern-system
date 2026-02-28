@@ -128,9 +128,14 @@ class MemberController extends Controller
     {
         DB::beginTransaction();
         try {
-            $data = $request->except('profile_picture');
+            $data = $request->except('profile_picture', 'roles', 'default_role');
             $selectedRoles = array_values((array) $request->input('roles', []));
-            $primaryRole = $selectedRoles[0] ?? 'client';
+            $primaryRole = strtolower((string) $request->input('default_role', 'client'));
+            if (!in_array($primaryRole, $selectedRoles, true)) {
+                return back()->withErrors([
+                    'default_role' => 'Default role must be one of the selected roles.'
+                ])->withInput();
+            }
 
             // Generate member ID in format: BSS-C15-000x
             $lastMember = Member::withTrashed()
@@ -213,7 +218,12 @@ class MemberController extends Controller
         try {
             $member = Member::findOrFail($id);
             $selectedRoles = array_values((array) $request->input('roles', []));
-            $primaryRole = $selectedRoles[0] ?? 'client';
+            $primaryRole = strtolower((string) $request->input('default_role', 'client'));
+            if (!in_array($primaryRole, $selectedRoles, true)) {
+                return back()->withErrors([
+                    'default_role' => 'Default role must be one of the selected roles.'
+                ])->withInput();
+            }
             $data = $request->only(['full_name', 'email', 'contact', 'location', 'occupation']);
             $data['role'] = $primaryRole;
 

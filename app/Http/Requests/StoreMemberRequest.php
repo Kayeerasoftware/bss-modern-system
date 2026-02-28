@@ -21,6 +21,7 @@ class StoreMemberRequest extends FormRequest
             'occupation' => 'required|string|max:255',
             'roles' => 'required|array|min:1',
             'roles.*' => 'required|in:client,shareholder,cashier,td,ceo',
+            'default_role' => 'required|in:client,shareholder,cashier,td,ceo',
             'password' => 'required|min:6',
             'savings' => 'nullable|numeric|min:0',
             'balance' => 'nullable|numeric|min:0',

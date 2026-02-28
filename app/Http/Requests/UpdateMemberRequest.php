@@ -21,6 +21,7 @@ class UpdateMemberRequest extends FormRequest
             'occupation' => 'required|string|max:255',
             'roles' => 'required|array|min:1',
             'roles.*' => 'required|in:client,shareholder,cashier,td,ceo',
+            'default_role' => 'required|in:client,shareholder,cashier,td,ceo',
             'password' => 'nullable|min:6',
             'profile_picture' => 'nullable|image|mimes:jpeg,jpg,png,gif,webp|max:5120|dimensions:min_width=100,min_height=100,max_width=2000,max_height=2000',
         ];

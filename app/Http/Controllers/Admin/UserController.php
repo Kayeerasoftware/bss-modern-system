@@ -52,22 +52,32 @@ class UserController extends Controller
             'password' => 'required|min:8',
             'roles' => 'required|array|min:1',
             'roles.*' => 'required|in:client,shareholder,cashier,td,ceo',
+            'default_role' => 'required|in:client,shareholder,cashier,td,ceo',
             'phone' => 'nullable|string|max:20',
             'location' => 'nullable|string|max:255',
             'profile_picture' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
         ]);
+        $selectedRoles = array_values((array) $request->input('roles', []));
+        $defaultRole = strtolower((string) $request->input('default_role', 'client'));
+        if (!in_array($defaultRole, $selectedRoles, true)) {
+            return back()->withErrors([
+                'default_role' => 'Default role must be one of the selected roles.'
+            ])->withInput();
+        }
 
         if ($request->hasFile('profile_picture')) {
             $validated['profile_picture'] = $request->file('profile_picture')->store('profile_pictures', 'public');
         }
 
         $validated['password'] = bcrypt($validated['password']);
-        $validated['role'] = $request->roles[0] ?? 'client';
-        $user = User::create($validated);
+        $validated['role'] = $defaultRole;
+        $createData = $validated;
+        unset($createData['roles'], $createData['default_role']);
+        $user = User::create($createData);
 
         // Assign multiple roles
-        if ($request->has('roles')) {
-            $user->syncRoles($request->roles);
+        if (!empty($selectedRoles)) {
+            $user->syncRoles($selectedRoles);
         }
 
         // Auto-create member with BSS-C15-000x format
@@ -96,8 +106,8 @@ class UserController extends Controller
         ]);
 
         // Sync member roles
-        if ($request->has('roles')) {
-            $member->syncRoles($request->roles);
+        if (!empty($selectedRoles)) {
+            $member->syncRoles($selectedRoles);
         }
 
         return redirect()->route('admin.users.index')->with('success', 'User created successfully');
@@ -125,10 +135,18 @@ class UserController extends Controller
             'password' => 'nullable|min:8',
             'roles' => 'required|array|min:1',
             'roles.*' => 'required|in:client,shareholder,cashier,td,ceo',
+            'default_role' => 'required|in:client,shareholder,cashier,td,ceo',
             'phone' => 'nullable|string|max:20',
             'location' => 'nullable|string|max:255',
             'profile_picture' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
         ]);
+        $selectedRoles = array_values((array) $request->input('roles', []));
+        $defaultRole = strtolower((string) $request->input('default_role', 'client'));
+        if (!in_array($defaultRole, $selectedRoles, true)) {
+            return back()->withErrors([
+                'default_role' => 'Default role must be one of the selected roles.'
+            ])->withInput();
+        }
 
         if ($request->hasFile('profile_picture')) {
             if ($user->profile_picture && Storage::disk('public')->exists($user->profile_picture)) {
@@ -144,13 +162,13 @@ class UserController extends Controller
         }
 
         $updateData = $validated;
-        unset($updateData['roles']);
-        $updateData['role'] = $request->roles[0] ?? 'client';
+        unset($updateData['roles'], $updateData['default_role']);
+        $updateData['role'] = $defaultRole;
         $user->update($updateData);
 
         // Sync roles
-        if ($request->has('roles')) {
-            $user->syncRoles($request->roles);
+        if (!empty($selectedRoles)) {
+            $user->syncRoles($selectedRoles);
         }
 
         // Sync member
@@ -169,8 +187,8 @@ class UserController extends Controller
                 $memberData['password'] = $validated['password'];
             }
             $user->member->update($memberData);
-            if ($request->has('roles')) {
-                $user->member->syncRoles($request->roles);
+            if (!empty($selectedRoles)) {
+                $user->member->syncRoles($selectedRoles);
             }
         }
 

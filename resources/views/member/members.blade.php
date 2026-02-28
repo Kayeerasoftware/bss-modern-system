@@ -129,7 +129,8 @@
                 <thead class="bg-gradient-to-r from-purple-600 via-pink-600 to-purple-600">
                     <tr class="border-b-2 border-white/20">
                         <th class="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider border-r border-white/20">Member</th>
-                        <th class="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider border-r border-white/20">Role</th>
+                        <th class="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider border-r border-white/20">Default Role</th>
+                        <th class="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider border-r border-white/20">Other Roles</th>
                         <th class="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider border-r border-white/20">Savings</th>
                         <th class="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider border-r border-white/20">Status</th>
                         <th class="px-6 py-4 text-right text-xs font-bold text-white uppercase tracking-wider border-r border-white/20">Last Message</th>
@@ -170,6 +171,24 @@
                             <span class="px-3 py-1.5 text-xs font-semibold rounded-full border {{ $colorClass }}">
                                 {{ ucfirst($member->role ?? 'Client') }}
                             </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap border-r border-gray-200">
+                            @php
+                                $allRoles = $member->roles_list ?? [];
+                                $defaultRole = strtolower((string) ($member->role ?? 'client'));
+                                $otherRoles = array_values(array_filter($allRoles, fn ($r) => strtolower((string) $r) !== $defaultRole));
+                            @endphp
+                            @if(!empty($otherRoles))
+                                <div class="flex flex-wrap gap-1">
+                                    @foreach($otherRoles as $otherRole)
+                                        <span class="px-2 py-1 text-[10px] font-semibold rounded-full bg-gray-100 text-gray-700 border border-gray-200">
+                                            {{ ucfirst($otherRole) }}
+                                        </span>
+                                    @endforeach
+                                </div>
+                            @else
+                                <span class="text-xs text-gray-500">None</span>
+                            @endif
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap border-r border-gray-200">
                             <div class="flex items-center gap-2">
@@ -218,7 +237,7 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="6" class="px-6 py-12 text-center">
+                        <td colspan="7" class="px-6 py-12 text-center">
                             <div class="flex flex-col items-center justify-center">
                                 <i class="fas fa-users text-6xl text-gray-300 mb-4"></i>
                                 <p class="text-gray-500 text-lg font-medium">No members found</p>

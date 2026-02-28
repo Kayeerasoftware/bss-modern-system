@@ -113,6 +113,8 @@
                     <tr class="border-b-2 border-white/20">
                         <th class="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider border-r border-white/20">Member</th>
                         <th class="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider border-r border-white/20">Contact</th>
+                        <th class="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider border-r border-white/20">Default Role</th>
+                        <th class="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider border-r border-white/20">Other Roles</th>
                         <th class="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider border-r border-white/20">Balance</th>
                         <th class="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider border-r border-white/20">Status</th>
                         <th class="px-6 py-4 text-center text-xs font-bold text-white uppercase tracking-wider">Actions</th>
@@ -143,6 +145,39 @@
                             <div class="text-xs text-gray-500">{{ $member->email ?? 'N/A' }}</div>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap border-r border-gray-200">
+                            @php
+                                $roleColors = [
+                                    'client' => 'bg-blue-100 text-blue-800 border-blue-200',
+                                    'shareholder' => 'bg-purple-100 text-purple-800 border-purple-200',
+                                    'cashier' => 'bg-green-100 text-green-800 border-green-200',
+                                    'td' => 'bg-orange-100 text-orange-800 border-orange-200',
+                                    'ceo' => 'bg-red-100 text-red-800 border-red-200',
+                                ];
+                                $defaultRole = strtolower((string) ($member->role ?? 'client'));
+                                $defaultRoleColor = $roleColors[$defaultRole] ?? 'bg-gray-100 text-gray-800 border-gray-200';
+                            @endphp
+                            <span class="px-3 py-1.5 text-xs font-semibold rounded-full border {{ $defaultRoleColor }}">
+                                {{ ucfirst($defaultRole) }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap border-r border-gray-200">
+                            @php
+                                $allRoles = $member->roles_list ?? [];
+                                $otherRoles = array_values(array_filter($allRoles, fn ($r) => strtolower((string) $r) !== $defaultRole));
+                            @endphp
+                            @if(!empty($otherRoles))
+                                <div class="flex flex-wrap gap-1">
+                                    @foreach($otherRoles as $otherRole)
+                                        <span class="px-2 py-1 text-[10px] font-semibold rounded-full bg-gray-100 text-gray-700 border border-gray-200">
+                                            {{ ucfirst($otherRole) }}
+                                        </span>
+                                    @endforeach
+                                </div>
+                            @else
+                                <span class="text-xs text-gray-500">None</span>
+                            @endif
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap border-r border-gray-200">
                             <div class="flex items-center gap-2">
                                 <i class="fas fa-wallet text-green-500"></i>
                                 <span class="text-sm font-semibold text-gray-900">{{ number_format($member->balance ?? 0) }}</span>
@@ -162,7 +197,7 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="5" class="px-6 py-12 text-center">
+                        <td colspan="7" class="px-6 py-12 text-center">
                             <div class="flex flex-col items-center justify-center">
                                 <i class="fas fa-users text-6xl text-gray-300 mb-4"></i>
                                 <p class="text-gray-500 text-lg font-medium">No members found</p>

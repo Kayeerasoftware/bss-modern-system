@@ -119,6 +119,20 @@
                                     </label>
                                 @endforeach
                             </div>
+                            <div class="mt-3">
+                                <label class="flex items-center gap-2 text-sm font-bold text-gray-700 mb-2">
+                                    <i class="fas fa-star text-amber-500"></i>
+                                    Default Role *
+                                </label>
+                                <select name="default_role" class="w-full px-3 py-2 text-sm border-2 border-amber-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-amber-500 bg-white">
+                                    @foreach($availableRoles as $roleValue => $roleLabel)
+                                        <option value="{{ $roleValue }}" {{ old('default_role', $user->role ?? 'client') === $roleValue ? 'selected' : '' }}>{{ $roleLabel }}</option>
+                                    @endforeach
+                                </select>
+                                @error('default_role')
+                                    <p class="text-xs text-red-600 flex items-center gap-1 mt-1"><i class="fas fa-exclamation-circle"></i>{{ $message }}</p>
+                                @enderror
+                            </div>
                             <p class="text-xs text-gray-500 mt-2">Select one or more roles for this user</p>
                             @error('roles')
                                 <p class="text-xs text-red-600 flex items-center gap-1"><i class="fas fa-exclamation-circle"></i>{{ $message }}</p>
