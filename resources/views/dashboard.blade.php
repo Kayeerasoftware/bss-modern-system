@@ -191,14 +191,6 @@
                         <span class="role-log-dot role-log-dot-spin"></span>
                         <span id="role-loading-subtext">Verifying role permissions and access matrix</span>
                     </div>
-                    <div class="role-loading-log-row">
-                        <span class="role-log-dot"></span>
-                        <span>Loading role-specific modules and quick actions</span>
-                    </div>
-                    <div class="role-loading-log-row">
-                        <span class="role-log-dot"></span>
-                        <span>Establishing secure dashboard route</span>
-                    </div>
                 </div>
 
                 <div class="role-loading-progress" aria-hidden="true">
