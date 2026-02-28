@@ -47,16 +47,25 @@ class LoanController extends Controller
                 'member_id' => 'required|exists:members,member_id',
                 'amount' => 'required|numeric|min:1000',
                 'purpose' => 'required|string|max:500',
-                'status' => 'nullable|in:pending,approved,rejected'
+                'status' => 'nullable|in:pending,approved,rejected',
+                'repayment_months' => 'nullable|integer|min:1|max:120',
+                'interest_rate' => 'nullable|numeric|min:0|max:100'
             ]);
+
+            $repaymentMonths = (int) ($request->repayment_months ?? 12);
+            $interestRate = (float) ($request->interest_rate ?? 10);
+            $interest = (float) $request->amount * ($interestRate / 100) * ($repaymentMonths / 12);
+            $monthlyPayment = ($request->amount + $interest) / max($repaymentMonths, 1);
 
             $loan = Loan::create([
                 'member_id' => $request->member_id,
                 'amount' => $request->amount,
                 'purpose' => $request->purpose,
                 'status' => $request->status ?? 'pending',
-                'repayment_months' => $request->repayment_months ?? 12,
-                'interest' => $request->interest ?? 10
+                'repayment_months' => $repaymentMonths,
+                'interest_rate' => $interestRate,
+                'interest' => $interest,
+                'monthly_payment' => $monthlyPayment,
             ]);
 
             return response()->json([
@@ -115,6 +124,23 @@ class LoanController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Error approving loan: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function show($id)
+    {
+        try {
+            $loan = Loan::with('member')->findOrFail($id);
+
+            return response()->json([
+                'success' => true,
+                'loan' => $loan,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error loading loan: ' . $e->getMessage(),
             ], 500);
         }
     }
@@ -231,6 +257,31 @@ class LoanController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Error deleting loan: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function recordRepayment(Request $request, $id)
+    {
+        try {
+            $request->validate([
+                'amount' => 'required|numeric|min:1',
+            ]);
+
+            $loan = Loan::findOrFail($id);
+            $loan->paid_amount = $loan->paid_amount + (float) $request->amount;
+            $loan->status = 'approved';
+            $loan->save();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Repayment recorded successfully.',
+                'loan' => $loan,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error recording repayment: ' . $e->getMessage(),
             ], 500);
         }
     }

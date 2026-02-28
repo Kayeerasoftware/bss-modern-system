@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\CEO;
 
 use App\Http\Controllers\Admin\MemberController as AdminMemberController;
+use App\Http\Requests\StoreMemberRequest;
+use App\Http\Requests\UpdateMemberRequest;
 
 class MemberController extends AdminMemberController
 {
@@ -12,7 +14,7 @@ class MemberController extends AdminMemberController
         abort(403, 'CEO cannot create members');
     }
     
-    public function store()
+    public function store(StoreMemberRequest $request)
     {
         abort(403, 'CEO cannot create members');
     }
@@ -22,7 +24,7 @@ class MemberController extends AdminMemberController
         abort(403, 'CEO cannot edit members');
     }
     
-    public function update($id)
+    public function update(UpdateMemberRequest $request, $id)
     {
         abort(403, 'CEO cannot update members');
     }

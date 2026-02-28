@@ -18,7 +18,7 @@
                 </div>
             </div>
             <div class="flex gap-1.5 md:gap-2 w-full md:w-auto">
-                <a href="{{ route('shareholder.loans.apply') }}" class="flex-1 md:flex-none px-3 md:px-5 py-2 md:py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg md:rounded-xl hover:shadow-xl transition-all duration-300 text-xs md:text-sm font-bold flex items-center justify-center gap-1 md:gap-2 transform hover:scale-105">
+                <a href="{{ route('member.loans.apply') }}" class="flex-1 md:flex-none px-3 md:px-5 py-2 md:py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg md:rounded-xl hover:shadow-xl transition-all duration-300 text-xs md:text-sm font-bold flex items-center justify-center gap-1 md:gap-2 transform hover:scale-105">
                     <i class="fas fa-plus"></i><span class="hidden sm:inline">Apply for Loan</span><span class="sm:hidden">Apply</span>
                 </a>
             </div>
@@ -83,7 +83,7 @@
                             {{ $application->created_at ? $application->created_at->format('M d, Y') : 'N/A' }}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <a href="{{ route('shareholder.loans.applications.show', $application->id ?? 1) }}" class="text-blue-600 hover:text-blue-900">View</a>
+                            <a href="{{ route('member.loans.my-loans') }}" class="text-blue-600 hover:text-blue-900">View</a>
                         </td>
                     </tr>
                     @empty

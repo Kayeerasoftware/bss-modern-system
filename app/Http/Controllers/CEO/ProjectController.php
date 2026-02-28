@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\CEO;
 
 use App\Http\Controllers\Admin\ProjectController as AdminProjectController;
+use Illuminate\Http\Request;
 
 class ProjectController extends AdminProjectController 
 {
@@ -12,7 +13,7 @@ class ProjectController extends AdminProjectController
         abort(403, 'CEO cannot create projects');
     }
     
-    public function store()
+    public function store(Request $request)
     {
         abort(403, 'CEO cannot create projects');
     }
@@ -22,7 +23,7 @@ class ProjectController extends AdminProjectController
         abort(403, 'CEO cannot edit projects');
     }
     
-    public function update($id)
+    public function update(Request $request, $id)
     {
         abort(403, 'CEO cannot update projects');
     }

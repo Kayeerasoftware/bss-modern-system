@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\CEO;
 
 use App\Http\Controllers\Admin\LoanController as AdminLoanController;
+use Illuminate\Http\Request;
 
 class LoanController extends AdminLoanController 
 {
@@ -12,7 +13,7 @@ class LoanController extends AdminLoanController
         abort(403, 'CEO cannot create loans');
     }
     
-    public function store()
+    public function store(Request $request)
     {
         abort(403, 'CEO cannot create loans');
     }
@@ -22,7 +23,7 @@ class LoanController extends AdminLoanController
         abort(403, 'CEO cannot edit loans');
     }
     
-    public function update($id)
+    public function update(Request $request, $id)
     {
         abort(403, 'CEO cannot update loans');
     }

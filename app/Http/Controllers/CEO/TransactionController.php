@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\CEO;
 
 use App\Http\Controllers\Admin\TransactionController as AdminTransactionController;
+use Illuminate\Http\Request;
 
 class TransactionController extends AdminTransactionController 
 {
@@ -12,7 +13,7 @@ class TransactionController extends AdminTransactionController
         abort(403, 'CEO cannot create transactions');
     }
     
-    public function store()
+    public function store(Request $request)
     {
         abort(403, 'CEO cannot create transactions');
     }
@@ -22,7 +23,7 @@ class TransactionController extends AdminTransactionController
         abort(403, 'CEO cannot edit transactions');
     }
     
-    public function update($id)
+    public function update(Request $request, $id)
     {
         abort(403, 'CEO cannot update transactions');
     }
