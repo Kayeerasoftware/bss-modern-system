@@ -169,10 +169,21 @@
 
     <!-- Role Switch Loading Overlay -->
     <div id="role-loading-overlay" class="role-loading-overlay hidden" aria-live="polite" aria-busy="true">
+        <div class="role-loading-aurora" aria-hidden="true"></div>
         <div class="role-loading-card">
-            <div class="role-loading-spinner" aria-hidden="true"></div>
-            <h3 class="role-loading-title">Preparing Dashboard</h3>
-            <p id="role-loading-text" class="role-loading-text">Please wait while we switch your role...</p>
+            <div class="role-loader-stage" aria-hidden="true">
+                <div class="role-loader-orbit role-loader-orbit-one"></div>
+                <div class="role-loader-orbit role-loader-orbit-two"></div>
+                <div class="role-loader-core">
+                    <i id="role-loading-icon" class="fas fa-user-shield"></i>
+                </div>
+            </div>
+            <h3 class="role-loading-title">Switching Workspace</h3>
+            <p id="role-loading-text" class="role-loading-text">Role selected. Initializing your dashboard...</p>
+            <p id="role-loading-subtext" class="role-loading-subtext">Syncing permissions, widgets, and latest insights</p>
+            <div class="role-loading-progress" aria-hidden="true">
+                <span class="role-loading-progress-bar"></span>
+            </div>
         </div>
     </div>
 

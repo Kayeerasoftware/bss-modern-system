@@ -6,13 +6,13 @@ let userRoles = [];
 let selectedRole = null;
 let roleLoadingInterval = null;
 
-const roleLabelMap = {
-    client: 'Client',
-    shareholder: 'Shareholder',
-    cashier: 'Cashier',
-    td: 'Technical Director',
-    ceo: 'CEO & Chairperson',
-    admin: 'Admin',
+const roleMetaMap = {
+    client: { label: 'Client', icon: 'fa-user-circle' },
+    shareholder: { label: 'Shareholder', icon: 'fa-chart-line' },
+    cashier: { label: 'Cashier', icon: 'fa-cash-register' },
+    td: { label: 'Technical Director', icon: 'fa-project-diagram' },
+    ceo: { label: 'CEO & Chairperson', icon: 'fa-crown' },
+    admin: { label: 'Admin', icon: 'fa-user-shield' },
 };
 
 // Initialize user role from data attribute
@@ -207,12 +207,24 @@ function goToRole() {
 function showRoleLoading(role) {
     const overlay = document.getElementById('role-loading-overlay');
     const text = document.getElementById('role-loading-text');
+    const subtext = document.getElementById('role-loading-subtext');
+    const icon = document.getElementById('role-loading-icon');
 
-    if (!overlay || !text) return;
+    if (!overlay || !text || !subtext || !icon) return;
 
-    const roleLabel = roleLabelMap[role] || role;
+    const roleMeta = roleMetaMap[role] || { label: role, icon: 'fa-user-shield' };
+    const tips = [
+        'Verifying your access permissions',
+        'Preparing your widgets and modules',
+        'Fetching fresh records and metrics',
+        'Applying role-specific interface settings',
+    ];
     let dotCount = 0;
-    text.textContent = `Role selected: ${roleLabel}. Loading dashboard...`;
+    let tipIndex = 0;
+
+    icon.className = `fas ${roleMeta.icon}`;
+    text.textContent = `Role selected: ${roleMeta.label}. Loading dashboard...`;
+    subtext.textContent = tips[tipIndex];
     overlay.classList.remove('hidden');
 
     if (roleLoadingInterval) {
@@ -221,7 +233,11 @@ function showRoleLoading(role) {
 
     roleLoadingInterval = setInterval(() => {
         dotCount = (dotCount + 1) % 4;
-        text.textContent = `Role selected: ${roleLabel}. Loading dashboard${'.'.repeat(dotCount)}`;
+        text.textContent = `Role selected: ${roleMeta.label}. Loading dashboard${'.'.repeat(dotCount)}`;
+        if (dotCount === 0) {
+            tipIndex = (tipIndex + 1) % tips.length;
+            subtext.textContent = tips[tipIndex];
+        }
     }, 450);
 }
 
