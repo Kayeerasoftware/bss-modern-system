@@ -8,6 +8,7 @@ use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
 use App\Services\AuditLogService;
 use Symfony\Component\HttpFoundation\Response;
+use Throwable;
 
 class AuditLogMiddleware
 {
@@ -44,9 +45,28 @@ class AuditLogMiddleware
 
     private function resolveActor(Request $request)
     {
-        return $request->user()
-            ?? Auth::guard('sanctum')->user()
-            ?? Auth::guard('web')->user();
+        $actor = $request->user();
+        if ($actor) {
+            return $actor;
+        }
+
+        foreach (['sanctum', 'web', 'member'] as $guard) {
+            if (!config("auth.guards.{$guard}")) {
+                continue;
+            }
+
+            try {
+                $guardActor = Auth::guard($guard)->user();
+                if ($guardActor) {
+                    return $guardActor;
+                }
+            } catch (Throwable) {
+                // Never break page rendering due to an unavailable auth guard.
+                continue;
+            }
+        }
+
+        return null;
     }
 
     private function shouldLog(Request $request, Response $response): bool
