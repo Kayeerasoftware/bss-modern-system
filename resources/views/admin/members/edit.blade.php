@@ -172,6 +172,7 @@
                                 @php
                                     $memberRoles = $member->roles_list ?? [];
                                     $availableRoles = [
+                                        'admin' => 'Admin',
                                         'client' => 'Client',
                                         'shareholder' => 'Shareholder',
                                         'cashier' => 'Cashier',

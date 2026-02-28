@@ -98,6 +98,7 @@
                             <div class="space-y-3 p-4 border-2 border-gray-200 rounded-xl bg-gray-50">
                                 @php
                                     $availableRoles = [
+                                        'admin' => 'Admin',
                                         'client' => 'Client',
                                         'shareholder' => 'Shareholder',
                                         'cashier' => 'Cashier',
