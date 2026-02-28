@@ -129,6 +129,8 @@ class MemberController extends Controller
         DB::beginTransaction();
         try {
             $data = $request->except('profile_picture');
+            $selectedRoles = array_values((array) $request->input('roles', []));
+            $primaryRole = $selectedRoles[0] ?? 'client';
 
             // Generate member ID in format: BSS-C15-000x
             $lastMember = Member::withTrashed()
@@ -149,7 +151,7 @@ class MemberController extends Controller
             $data['savings_balance'] = $request->savings ?? 0;
             $data['loan'] = 0;
             $data['status'] = 'active';
-            $data['role'] = $request->roles[0] ?? 'client';
+            $data['role'] = $primaryRole;
 
             if ($request->hasFile('profile_picture')) {
                 $file = $request->file('profile_picture');
@@ -168,7 +170,7 @@ class MemberController extends Controller
                 'name' => $data['full_name'],
                 'email' => $data['email'],
                 'password' => $data['password'],
-                'role' => $data['role'],
+                'role' => $primaryRole,
                 'phone' => $data['contact'] ?? null,
                 'location' => $data['location'] ?? null,
                 'profile_picture' => $data['profile_picture'] ?? null,
@@ -180,8 +182,9 @@ class MemberController extends Controller
             $member = Member::create($data);
 
             // Assign multiple roles
-            if ($request->has('roles')) {
-                $member->syncRoles($request->roles);
+            if (!empty($selectedRoles)) {
+                $member->syncRoles($selectedRoles);
+                $user->syncRoles($selectedRoles);
             }
 
             DB::commit();
@@ -209,7 +212,10 @@ class MemberController extends Controller
         DB::beginTransaction();
         try {
             $member = Member::findOrFail($id);
+            $selectedRoles = array_values((array) $request->input('roles', []));
+            $primaryRole = $selectedRoles[0] ?? 'client';
             $data = $request->only(['full_name', 'email', 'contact', 'location', 'occupation']);
+            $data['role'] = $primaryRole;
 
             if ($request->filled('password')) {
                 $data['password'] = Hash::make($request->password);
@@ -239,6 +245,7 @@ class MemberController extends Controller
                     'email' => $member->email,
                     'phone' => $member->contact,
                     'location' => $member->location,
+                    'role' => $primaryRole,
                 ];
                 if (isset($data['profile_picture'])) {
                     $userData['profile_picture'] = $data['profile_picture'];
@@ -247,11 +254,14 @@ class MemberController extends Controller
                     $userData['password'] = $data['password'];
                 }
                 $member->user->update($userData);
+                if (!empty($selectedRoles)) {
+                    $member->user->syncRoles($selectedRoles);
+                }
             }
 
             // Sync roles
-            if ($request->has('roles')) {
-                $member->syncRoles($request->roles);
+            if (!empty($selectedRoles)) {
+                $member->syncRoles($selectedRoles);
             }
 
             DB::commit();
