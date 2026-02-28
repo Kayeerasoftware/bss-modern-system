@@ -8,7 +8,9 @@ use App\Models\Member;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Facades\DB;
 use App\Services\AuditLogService;
+use App\Services\UserMemberSyncService;
 
 class AuthController extends Controller
 {
@@ -90,45 +92,50 @@ class AuthController extends Controller
             return back()->withErrors(['role' => 'The selected role is currently inactive. Please contact the administrator.'])->withInput();
         }
 
-        $user = User::create([
-            'name' => $validated['name'],
-            'email' => $validated['email'],
-            'password' => Hash::make($validated['password']),
-            'role' => $validated['role']
-        ]);
+        $normalizedRole = strtolower(trim((string) $validated['role']));
 
-        // Assign role to user
-        $user->assignRole($validated['role']);
+        $user = DB::transaction(function () use ($validated, $normalizedRole) {
+            $user = User::create([
+                'name' => $validated['name'],
+                'email' => strtolower(trim((string) $validated['email'])),
+                'password' => Hash::make($validated['password']),
+                'role' => $normalizedRole,
+            ]);
 
-        // Auto-create member with BSS-C15-000x format
-        $lastMember = Member::withTrashed()
-            ->where('member_id', 'like', 'BSS-C15-%')
-            ->orderBy('member_id', 'desc')
-            ->first();
-        
-        if ($lastMember && preg_match('/BSS-C15-(\d+)/', $lastMember->member_id, $matches)) {
-            $nextNumber = intval($matches[1]) + 1;
-        } else {
-            $nextNumber = 1;
-        }
-        
-        $member = Member::create([
-            'member_id' => 'BSS-C15-' . str_pad($nextNumber, 4, '0', STR_PAD_LEFT),
-            'full_name' => $user->name,
-            'email' => $user->email,
-            'contact' => '',
-            'password' => $user->password,
-            'role' => $user->role,
-            'user_id' => $user->id,
-        ]);
+            $user->assignRole($normalizedRole);
 
-        // Assign role to member
-        $member->assignRole($validated['role']);
+            // Observer usually creates member automatically; this call guarantees linkage if observer is skipped.
+            app(UserMemberSyncService::class)->syncFromUser($user);
+
+            $member = Member::query()
+                ->where('user_id', $user->id)
+                ->orWhere('email', $user->email)
+                ->first();
+
+            if ($member) {
+                $member->fill([
+                    'full_name' => $user->name,
+                    'email' => $user->email,
+                    'role' => $normalizedRole,
+                    'user_id' => $user->id,
+                ]);
+
+                if ($member->isDirty()) {
+                    $member->saveQuietly();
+                }
+
+                $member->assignRole($normalizedRole);
+            }
+
+            return $user;
+        });
 
         Auth::login($user);
         $request->session()->regenerate();
+        $request->session()->put('active_role', $normalizedRole);
 
-        return redirect()->route('register')->with(['register_success' => true, 'register_role' => ucfirst($validated['role'])]);
+        return redirect()->route($this->dashboardRouteForRole($normalizedRole))
+            ->with('success', 'Registration successful. Welcome to your dashboard.');
     }
 
     public function logout()
@@ -156,6 +163,19 @@ class AuthController extends Controller
             'user' => $user,
             'role' => $user->role ?? 'client'
         ]);
+    }
+
+    private function dashboardRouteForRole(string $role): string
+    {
+        return match (strtolower(trim($role))) {
+            'admin' => 'admin.dashboard',
+            'ceo' => 'ceo.dashboard',
+            'td' => 'td.dashboard',
+            'cashier' => 'cashier.dashboard',
+            'shareholder' => 'shareholder.dashboard',
+            'client' => 'member.dashboard',
+            default => 'dashboard',
+        };
     }
 
     public function sendResetLink(Request $request)
