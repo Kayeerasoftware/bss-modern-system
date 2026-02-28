@@ -111,37 +111,65 @@ function selectRole(role) {
 }
 
 function goToRole() {
-    if (selectedRole && userRoles.includes(selectedRole)) {
-        // Switch role via API first
-        fetch('/switch-role', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-            },
-            body: JSON.stringify({ role: selectedRole })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                const roleRoutes = {
-                    'client': '/client/dashboard',
-                    'shareholder': '/shareholder/dashboard',
-                    'cashier': '/cashier/dashboard',
-                    'td': '/td/dashboard',
-                    'ceo': '/ceo/dashboard',
-                    'admin': '/admin/dashboard'
-                };
-                window.location.href = roleRoutes[selectedRole] || '/dashboard';
-            } else {
-                showToast(data.message || 'Failed to switch role', 'error');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showToast('Error switching role', 'error');
-        });
+    if (!selectedRole) {
+        showToast('Please select a role first', 'error');
+        return;
     }
+
+    if (!userRoles.includes(selectedRole)) {
+        showToast('You are not assigned to this role', 'error');
+        return;
+    }
+
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+    if (!csrfToken) {
+        showToast('Security token missing. Please refresh and try again.', 'error');
+        return;
+    }
+
+    // Switch role via API first
+    fetch('/switch-role', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRF-TOKEN': csrfToken
+        },
+        body: JSON.stringify({ role: selectedRole })
+    })
+    .then(async response => {
+        const contentType = response.headers.get('content-type') || '';
+        if (!contentType.includes('application/json')) {
+            if (response.status === 401 || response.status === 419) {
+                throw new Error('Session expired. Please login again.');
+            }
+            throw new Error('Unexpected server response. Please refresh and try again.');
+        }
+
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+            throw new Error(data.message || 'Failed to switch role');
+        }
+
+        return data;
+    })
+    .then(() => {
+        const roleRoutes = {
+            'client': '/client/dashboard',
+            'shareholder': '/shareholder/dashboard',
+            'cashier': '/cashier/dashboard',
+            'td': '/td/dashboard',
+            'ceo': '/ceo/dashboard',
+            'admin': '/admin/dashboard'
+        };
+        window.location.href = roleRoutes[selectedRole] || '/dashboard';
+    })
+    .catch(error => {
+        console.error('Error switching role:', error);
+        showToast(error.message || 'Error switching role', 'error');
+    });
 }
 
 // Transition effects
