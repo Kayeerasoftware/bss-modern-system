@@ -145,16 +145,26 @@ class User extends Authenticatable
 
         return DB::table('user_roles')
             ->where('user_id', $this->id)
-            ->where('role', $normalizedRole)
-            ->exists();
+            ->whereRaw('LOWER(TRIM(role)) = ?', [$normalizedRole])
+            ->exists()
+            || DB::table('member_roles')
+                ->join('members', 'members.id', '=', 'member_roles.member_id')
+                ->where('members.user_id', $this->id)
+                ->whereRaw('LOWER(TRIM(member_roles.role)) = ?', [$normalizedRole])
+                ->exists();
     }
 
     public function assignRole($role)
     {
-        if (!$this->hasRole($role)) {
+        $normalizedRole = strtolower(trim((string) $role));
+        if ($normalizedRole === '') {
+            return;
+        }
+
+        if (!$this->hasRole($normalizedRole)) {
             DB::table('user_roles')->insert([
                 'user_id' => $this->id,
-                'role' => $role,
+                'role' => $normalizedRole,
                 'created_at' => now(),
                 'updated_at' => now()
             ]);
@@ -163,9 +173,14 @@ class User extends Authenticatable
 
     public function removeRole($role)
     {
+        $normalizedRole = strtolower(trim((string) $role));
+        if ($normalizedRole === '') {
+            return;
+        }
+
         DB::table('user_roles')
             ->where('user_id', $this->id)
-            ->where('role', $role)
+            ->whereRaw('LOWER(TRIM(role)) = ?', [$normalizedRole])
             ->delete();
     }
 
@@ -181,6 +196,7 @@ class User extends Authenticatable
     {
         $roles = DB::table('user_roles')
             ->where('user_id', $this->id)
+            ->selectRaw('LOWER(TRIM(role)) as role')
             ->pluck('role')
             ->toArray();
 
