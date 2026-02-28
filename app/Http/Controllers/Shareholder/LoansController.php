@@ -69,8 +69,14 @@ class LoansController extends Controller
                 $query->latest();
         }
         
-        $perPage = $request->get('per_page', 20);
-        $loans = $query->paginate($perPage)->appends($request->query());
+        $perPage = (int) $request->get('per_page', 20);
+        if (!in_array($perPage, [10, 15, 20, 50], true)) {
+            $perPage = 20;
+        }
+
+        $loans = $query
+            ->paginate($perPage, ['*'], 'page')
+            ->appends($request->except('page'));
 
         $stats = [
             'total' => Loan::where('member_id', $member->member_id)->count(),
@@ -83,7 +89,62 @@ class LoansController extends Controller
                 ->count(),
         ];
 
-        return view('shareholder.loans', compact('loans', 'stats'));
+        $applicationsQuery = LoanApplication::with('member')
+            ->where('member_id', $member->member_id);
+
+        if ($request->filled('app_search')) {
+            $search = $request->app_search;
+            $applicationsQuery->where(function ($q) use ($search): void {
+                $q->where('application_id', 'like', "%{$search}%")
+                    ->orWhere('purpose', 'like', "%{$search}%")
+                    ->orWhere('amount', 'like', "%{$search}%");
+            });
+        }
+
+        if ($request->filled('app_status')) {
+            $applicationsQuery->where('status', $request->app_status);
+        }
+
+        if ($request->filled('app_date_from')) {
+            $applicationsQuery->whereDate('created_at', '>=', $request->app_date_from);
+        }
+
+        if ($request->filled('app_date_to')) {
+            $applicationsQuery->whereDate('created_at', '<=', $request->app_date_to);
+        }
+
+        switch ($request->app_sort) {
+            case 'amount_high':
+                $applicationsQuery->orderBy('amount', 'desc');
+                break;
+            case 'amount_low':
+                $applicationsQuery->orderBy('amount', 'asc');
+                break;
+            case 'oldest':
+                $applicationsQuery->oldest();
+                break;
+            default:
+                $applicationsQuery->latest();
+                break;
+        }
+
+        $applicationsPerPage = (int) $request->get('applications_per_page', 10);
+        if (!in_array($applicationsPerPage, [5, 10, 15, 20, 50], true)) {
+            $applicationsPerPage = 10;
+        }
+
+        $applications = $applicationsQuery
+            ->paginate($applicationsPerPage, ['*'], 'applications_page')
+            ->appends($request->except('applications_page'));
+
+        $applicationStats = [
+            'total' => LoanApplication::where('member_id', $member->member_id)->count(),
+            'pending' => LoanApplication::where('member_id', $member->member_id)->where('status', 'pending')->count(),
+            'approved' => LoanApplication::where('member_id', $member->member_id)->where('status', 'approved')->count(),
+            'rejected' => LoanApplication::where('member_id', $member->member_id)->where('status', 'rejected')->count(),
+        ];
+
+        return view('shareholder.loans', compact('loans', 'stats', 'applications', 'applicationStats'));
     }
     
     public function show($id)
@@ -100,36 +161,41 @@ class LoansController extends Controller
     
     public function applications(Request $request)
     {
-        $user = auth()->user();
-        $member = $user->member;
-        
-        $query = LoanApplication::with('member')
-            ->where('member_id', $member->member_id);
+        $query = array_filter($request->query(), static fn ($value) => $value !== null && $value !== '');
 
-        if ($request->filled('search')) {
-            $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->where('application_id', 'like', "%{$search}%")
-                    ->orWhere('purpose', 'like', "%{$search}%")
-                    ->orWhere('amount', 'like', "%{$search}%");
-            });
+        if (isset($query['search']) && !isset($query['app_search'])) {
+            $query['app_search'] = $query['search'];
+            unset($query['search']);
         }
 
-        if ($request->filled('status')) {
-            $query->where('status', $request->status);
+        if (isset($query['status']) && !isset($query['app_status'])) {
+            $query['app_status'] = $query['status'];
+            unset($query['status']);
         }
 
-        if ($request->filled('date_from')) {
-            $query->whereDate('created_at', '>=', $request->date_from);
+        if (isset($query['date_from']) && !isset($query['app_date_from'])) {
+            $query['app_date_from'] = $query['date_from'];
+            unset($query['date_from']);
         }
 
-        if ($request->filled('date_to')) {
-            $query->whereDate('created_at', '<=', $request->date_to);
+        if (isset($query['date_to']) && !isset($query['app_date_to'])) {
+            $query['app_date_to'] = $query['date_to'];
+            unset($query['date_to']);
         }
 
-        $applications = $query->latest()->paginate(20)->appends($request->query());
-            
-        return view('shareholder.loans.applications', compact('applications'));
+        if (isset($query['sort']) && !isset($query['app_sort'])) {
+            $query['app_sort'] = $query['sort'];
+            unset($query['sort']);
+        }
+
+        if (isset($query['per_page']) && !isset($query['applications_per_page'])) {
+            $query['applications_per_page'] = $query['per_page'];
+            unset($query['per_page']);
+        }
+
+        $query['tab'] = 'applications';
+
+        return redirect()->to(route('shareholder.loans', $query) . '#loan-applications');
     }
     
     public function apply()
@@ -156,7 +222,7 @@ class LoansController extends Controller
             'status' => 'pending',
         ]);
         
-        return redirect()->route('shareholder.loans.applications')
+        return redirect()->to(route('shareholder.loans', ['tab' => 'applications']) . '#loan-applications')
             ->with('success', 'Loan application submitted successfully.');
     }
     

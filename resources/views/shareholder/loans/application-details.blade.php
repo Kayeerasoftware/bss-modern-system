@@ -6,7 +6,7 @@
         <!-- Header -->
         <div class="mb-6">
             <div class="flex items-center gap-4 mb-4">
-                <a href="{{ route('shareholder.loans.applications') }}" class="p-2 bg-white rounded-lg shadow hover:shadow-md transition">
+                <a href="{{ route('shareholder.loans', ['tab' => 'applications']) }}#loan-applications" class="p-2 bg-white rounded-lg shadow hover:shadow-md transition">
                     <i class="fas fa-arrow-left text-gray-600"></i>
                 </a>
                 <div>
