@@ -167,6 +167,15 @@
     <!-- Toast Notification -->
     <div id="toast" class="toast"></div>
 
+    <!-- Role Switch Loading Overlay -->
+    <div id="role-loading-overlay" class="role-loading-overlay hidden" aria-live="polite" aria-busy="true">
+        <div class="role-loading-card">
+            <div class="role-loading-spinner" aria-hidden="true"></div>
+            <h3 class="role-loading-title">Preparing Dashboard</h3>
+            <p id="role-loading-text" class="role-loading-text">Please wait while we switch your role...</p>
+        </div>
+    </div>
+
     <!-- Navigation -->
     <nav class="bg-gray-900 text-white p-4">
         <div class="max-w-7xl mx-auto">

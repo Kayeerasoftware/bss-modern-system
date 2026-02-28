@@ -4,6 +4,16 @@
 let userRole = null;
 let userRoles = [];
 let selectedRole = null;
+let roleLoadingInterval = null;
+
+const roleLabelMap = {
+    client: 'Client',
+    shareholder: 'Shareholder',
+    cashier: 'Cashier',
+    td: 'Technical Director',
+    ceo: 'CEO & Chairperson',
+    admin: 'Admin',
+};
 
 // Initialize user role from data attribute
 function initUserRole() {
@@ -139,8 +149,11 @@ function goToRole() {
         return;
     }
 
+    showRoleLoading(selectedRole);
+
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
     if (!csrfToken) {
+        hideRoleLoading();
         showToast('Security token missing. Please refresh and try again.', 'error');
         return;
     }
@@ -185,9 +198,43 @@ function goToRole() {
         window.location.href = roleRoutes[selectedRole] || '/dashboard';
     })
     .catch(error => {
+        hideRoleLoading();
         console.error('Error switching role:', error);
         showToast(error.message || 'Error switching role', 'error');
     });
+}
+
+function showRoleLoading(role) {
+    const overlay = document.getElementById('role-loading-overlay');
+    const text = document.getElementById('role-loading-text');
+
+    if (!overlay || !text) return;
+
+    const roleLabel = roleLabelMap[role] || role;
+    let dotCount = 0;
+    text.textContent = `Role selected: ${roleLabel}. Loading dashboard...`;
+    overlay.classList.remove('hidden');
+
+    if (roleLoadingInterval) {
+        clearInterval(roleLoadingInterval);
+    }
+
+    roleLoadingInterval = setInterval(() => {
+        dotCount = (dotCount + 1) % 4;
+        text.textContent = `Role selected: ${roleLabel}. Loading dashboard${'.'.repeat(dotCount)}`;
+    }, 450);
+}
+
+function hideRoleLoading() {
+    const overlay = document.getElementById('role-loading-overlay');
+    if (overlay) {
+        overlay.classList.add('hidden');
+    }
+
+    if (roleLoadingInterval) {
+        clearInterval(roleLoadingInterval);
+        roleLoadingInterval = null;
+    }
 }
 
 // Transition effects
@@ -419,6 +466,7 @@ function initMemberChart(roleData) {
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
+    hideRoleLoading();
     initUserRole();
     initProjectSlideshow();
     initMeetingSlideshow();
