@@ -4,6 +4,8 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Auth;
 use App\Services\AuditLogService;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -14,14 +16,17 @@ class AuditLogMiddleware
         /** @var Response $response */
         $response = $next($request);
 
-        if (!$request->user() || !$this->shouldLog($request, $response)) {
+        $actor = $this->resolveActor($request);
+
+        if (!$actor || !$this->shouldLog($request, $response)) {
             return $response;
         }
 
         $action = $this->resolveAction($request, $response);
-        $details = $this->buildDetails($request, $action);
+        $details = $this->buildDetails($request, $action, $response);
+        $payload = $request->except(['_token', '_method', 'password', 'password_confirmation', 'current_password']);
 
-        AuditLogService::log($request->user(), $action, $details, [
+        AuditLogService::log($actor, $action, $details, [
             'method' => $request->method(),
             'route' => $request->route()?->getName(),
             'path' => $request->path(),
@@ -30,10 +35,18 @@ class AuditLogMiddleware
             'ip' => $request->ip(),
             'user_agent' => (string) $request->userAgent(),
             'query' => $request->query(),
-            'payload' => $request->except(['_token', '_method', 'password', 'password_confirmation']),
+            'payload' => $payload,
+            'changed_fields' => array_keys(Arr::except($payload, ['remember'])),
         ]);
 
         return $response;
+    }
+
+    private function resolveActor(Request $request)
+    {
+        return $request->user()
+            ?? Auth::guard('sanctum')->user()
+            ?? Auth::guard('web')->user();
     }
 
     private function shouldLog(Request $request, Response $response): bool
@@ -52,7 +65,7 @@ class AuditLogMiddleware
             return false;
         }
 
-        if (!config('audit.log_get_requests', false)) {
+        if (!config('audit.log_get_requests', true)) {
             return false;
         }
 
@@ -66,17 +79,15 @@ class AuditLogMiddleware
             return false;
         }
 
-        if ($request->query()) {
-            return true; // capture checks/search/filter operations
+        // Skip static resources and framework internals.
+        if (str_starts_with($path, '_debugbar')
+            || str_starts_with($path, 'storage/')
+            || str_starts_with($path, 'build/')
+            || str_starts_with($path, 'vendor/')) {
+            return false;
         }
 
-        foreach (['download', 'export', 'report', 'audit', 'settings', 'dashboard'] as $keyword) {
-            if (str_contains($routeName, $keyword) || str_contains($path, $keyword)) {
-                return true;
-            }
-        }
-
-        return false;
+        return true;
     }
 
     private function resolveAction(Request $request, Response $response): string
@@ -112,19 +123,27 @@ class AuditLogMiddleware
         return 'view';
     }
 
-    private function buildDetails(Request $request, string $action): string
+    private function buildDetails(Request $request, string $action, Response $response): string
     {
         $segments = explode('/', trim($request->path(), '/'));
         $area = $segments[0] ?? 'system';
         $module = $segments[1] ?? ($segments[0] ?? 'unknown');
-        $user = $request->user();
+        $user = $this->resolveActor($request);
+        $route = (string) ($request->route()?->getName() ?? $request->path());
+        $status = $response->getStatusCode();
 
-        $details = ucfirst($action).' in '.strtoupper((string) $area).' / '.ucfirst((string) $module)
-            .' by '.($user->name ?? 'Unknown').' ('.($user->role ?? 'unknown').')';
+        $details = ucfirst($action).' request on '.strtoupper((string) $area).' / '.ucfirst((string) $module)
+            .' by '.($user->name ?? 'Unknown').' ('.($user->role ?? 'unknown').')'
+            .' via '.$route.' [HTTP '.$status.']';
 
         $id = $request->route()?->parameter('id') ?? $request->route()?->parameter('memberId');
         if ($id !== null) {
             $details .= ' - Record ID: '.$id;
+        }
+
+        $fields = array_keys($request->except(['_token', '_method', 'password', 'password_confirmation', 'current_password']));
+        if ($fields !== []) {
+            $details .= ' - Fields: '.implode(', ', array_slice($fields, 0, 10));
         }
 
         return $details;

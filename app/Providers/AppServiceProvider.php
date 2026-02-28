@@ -6,10 +6,12 @@ use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Event;
 use App\Models\User;
 use App\Models\Member;
 use App\Observers\UserObserver;
 use App\Observers\MemberObserver;
+use App\Observers\GlobalAuditObserver;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -43,6 +45,28 @@ class AppServiceProvider extends ServiceProvider
         // Register observers for user-member synchronization
         User::observe(UserObserver::class);
         Member::observe(MemberObserver::class);
+
+        // Capture model-level create/update/delete changes for full audit history.
+        Event::listen('eloquent.created: *', function (string $eventName, array $data): void {
+            $model = $data[0] ?? null;
+            if ($model instanceof Model) {
+                GlobalAuditObserver::created($model);
+            }
+        });
+
+        Event::listen('eloquent.updated: *', function (string $eventName, array $data): void {
+            $model = $data[0] ?? null;
+            if ($model instanceof Model) {
+                GlobalAuditObserver::updated($model);
+            }
+        });
+
+        Event::listen('eloquent.deleted: *', function (string $eventName, array $data): void {
+            $model = $data[0] ?? null;
+            if ($model instanceof Model) {
+                GlobalAuditObserver::deleted($model);
+            }
+        });
         
         // Share isCEO variable with all views
         view()->composer('*', function ($view) {
