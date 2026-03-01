@@ -241,14 +241,14 @@
 
                 <div class="mb-3">
                     <label class="block text-gray-700 text-xs font-semibold mb-1">Email Address</label>
-                    <input type="email" name="email" value="{{ old('email', session('registered_email')) }}" required autofocus
+                    <input type="email" name="email" value="{{ old('email', session('registered_email', $rememberedLogin['email'] ?? '')) }}" required autofocus
                            class="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:border-blue-500">
                 </div>
 
                 <div class="mb-3">
                     <label class="block text-green-600 text-xs font-semibold mb-1">Select only Active role</label>
                     <div class="relative">
-                        <input type="hidden" name="role" id="roleInput" value="{{ old('role', session('registered_role')) }}" required>
+                        <input type="hidden" name="role" id="roleInput" value="{{ old('role', session('registered_role', $rememberedLogin['role'] ?? '')) }}" required>
                         <div class="w-full px-3 py-2 text-sm border rounded-lg cursor-pointer bg-white" id="roleDropdown">
                             <span id="selectedRole" class="text-gray-500">Select a role...</span>
                         </div>
@@ -330,7 +330,7 @@
 
                 <div class="flex items-center justify-between mb-3">
                     <label class="flex items-center cursor-pointer group">
-                        <input type="checkbox" name="remember" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2">
+                        <input type="checkbox" name="remember" value="1" @checked(old('remember') || !empty($rememberedLogin['email'])) class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2">
                         <span class="ml-2 text-xs text-gray-700 font-medium group-hover:text-gray-900">Remember me</span>
                     </label>
                     <a href="{{ route('password.request') }}" class="text-xs text-blue-600 hover:text-blue-800 font-semibold hover:underline">Forgot password?</a>

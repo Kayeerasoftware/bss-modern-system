@@ -10,6 +10,10 @@ Route::view('/learn-more', 'learn-more')->name('learn-more');
 
 // Authentication Routes
 Route::get('/login', function () { 
+    if (auth()->check()) {
+        return redirect()->route('dashboard');
+    }
+
     $roleStatuses = [
         'client' => \App\Models\Setting::get('role_status_client', 1),
         'shareholder' => \App\Models\Setting::get('role_status_shareholder', 1),
@@ -26,6 +30,11 @@ Route::get('/login', function () {
             ->value('phone');
     });
 
+    $rememberedLogin = [
+        'email' => trim((string) request()->cookie('remembered_login_email', '')),
+        'role' => strtolower(trim((string) request()->cookie('remembered_login_role', ''))),
+    ];
+
     $recentRegisteredUser = null;
     $registeredEmail = session('registered_email');
     if (is_string($registeredEmail) && $registeredEmail !== '') {
@@ -35,7 +44,7 @@ Route::get('/login', function () {
             ->first();
     }
     
-    return view('auth.login', compact('roleStatuses', 'adminPhone', 'recentRegisteredUser')); 
+    return view('auth.login', compact('roleStatuses', 'adminPhone', 'recentRegisteredUser', 'rememberedLogin')); 
 })->name('login');
 
 Route::post('/login', [AuthController::class, 'login'])->name('login.post');

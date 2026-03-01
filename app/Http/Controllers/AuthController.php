@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Models\Member;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\DB;
 use App\Services\AuditLogService;
@@ -51,6 +52,14 @@ class AuthController extends Controller
         if (Auth::attempt(['email' => $credentials['email'], 'password' => $credentials['password']], $remember)) {
             $request->session()->regenerate();
             $request->session()->put('active_role', $request->role);
+
+            if ($remember) {
+                Cookie::queue('remembered_login_email', $credentials['email'], 60 * 24 * 30);
+                Cookie::queue('remembered_login_role', $request->role, 60 * 24 * 30);
+            } else {
+                Cookie::queue(Cookie::forget('remembered_login_email'));
+                Cookie::queue(Cookie::forget('remembered_login_role'));
+            }
 
             AuditLogService::log(Auth::user(), 'login', 'User logged into the system', [
                 'role' => $request->role,
