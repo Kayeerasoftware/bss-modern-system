@@ -7,7 +7,7 @@
             <div class="relative flex justify-between items-center">
                 <div class="flex items-center space-x-4">
                     <div class="flex items-center space-x-3">
-                        <h3 class="text-xl font-bold tracking-wide">Hi, <span x-text="adminProfile.name || 'User'" class="text-yellow-300"></span> 👋</h3>
+                        <h3 class="text-xl font-bold tracking-wide">Hello, <span x-text="adminProfile.name || 'User'" class="text-yellow-300"></span></h3>
                     </div>
                     <div class="h-8 w-px bg-white/30"></div>
                     <div class="flex items-center space-x-3">
@@ -18,7 +18,7 @@
                             <div class="absolute -bottom-1 -right-1 w-4 h-4 bg-green-400 rounded-full border-2 border-white shadow-lg animate-pulse"></div>
                         </div>
                         <div>
-                            <p class="text-sm font-semibold">Support Team</p>
+                            <p class="text-sm font-semibold">Support Assistant</p>
                             <p class="text-xs text-blue-100 flex items-center gap-1">
                                 <span class="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></span>
                                 Always here to help
@@ -33,42 +33,61 @@
                 </div>
             </div>
         </div>
+
+        <div class="border-b bg-gray-50 px-4 py-3">
+            <label class="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-gray-500">Support Category</label>
+            <select x-model="supportCategory" class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100">
+                <option value="settings_help">Settings Help</option>
+                <option value="user_issue">User Issue</option>
+                <option value="error">Error</option>
+                <option value="performance">Performance</option>
+                <option value="account_access">Account Access</option>
+                <option value="data_sync">Data Sync</option>
+                <option value="billing">Billing/Payments</option>
+                <option value="general">General</option>
+            </select>
+            <div class="mt-2 flex flex-wrap gap-2">
+                <button type="button" @click="supportCategory = 'settings_help'; sendQuickMessage('I need help with system settings')" class="group px-3 py-2 bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 border border-blue-200 rounded-xl text-xs font-medium text-blue-700 transition-all hover:shadow-md flex items-center gap-2">
+                    <i class="fas fa-cog group-hover:rotate-180 transition-transform duration-500"></i>
+                    <span>Settings Help</span>
+                </button>
+                <button type="button" @click="supportCategory = 'user_issue'; sendQuickMessage('User management issue')" class="group px-3 py-2 bg-gradient-to-r from-purple-50 to-pink-50 hover:from-purple-100 hover:to-pink-100 border border-purple-200 rounded-xl text-xs font-medium text-purple-700 transition-all hover:shadow-md flex items-center gap-2">
+                    <i class="fas fa-user-circle group-hover:scale-110 transition-transform"></i>
+                    <span>User Issue</span>
+                </button>
+                <button type="button" @click="supportCategory = 'error'; sendQuickMessage('System error')" class="group px-3 py-2 bg-gradient-to-r from-red-50 to-orange-50 hover:from-red-100 hover:to-orange-100 border border-red-200 rounded-xl text-xs font-medium text-red-700 transition-all hover:shadow-md flex items-center gap-2">
+                    <i class="fas fa-exclamation-triangle group-hover:animate-bounce"></i>
+                    <span>Error</span>
+                </button>
+                <button type="button" @click="showMemberChatModal = true; showChatModal = false" class="group px-3 py-2 bg-gradient-to-r from-green-50 to-emerald-50 hover:from-green-100 hover:to-emerald-100 border border-green-200 rounded-xl text-xs font-medium text-green-700 transition-all hover:shadow-md flex items-center gap-2">
+                    <i class="fas fa-users group-hover:scale-110 transition-transform"></i>
+                    <span>Member Chat</span>
+                </button>
+            </div>
+        </div>
+
         <div class="flex-1 p-4 overflow-y-auto bg-gray-50" id="chatMessages">
             <div class="space-y-3">
                 <template x-for="(msg, index) in chatMessages" :key="index">
                     <div :class="msg.sender === 'user' ? 'flex justify-end' : 'flex justify-start'">
-                        <div :class="msg.sender === 'user' ? 'bg-blue-600 text-white' : 'bg-white text-gray-800'"
-                             class="p-3 rounded-lg shadow-sm max-w-xs">
+                        <div :class="msg.sender === 'user' ? 'bg-blue-600 text-white' : 'bg-white text-gray-800'" class="p-3 rounded-lg shadow-sm max-w-xs">
                             <p class="text-sm" x-text="msg.text"></p>
                             <span class="text-xs opacity-75" x-text="msg.time"></span>
                         </div>
                     </div>
                 </template>
+                <div x-show="supportLoading" class="flex justify-start">
+                    <div class="bg-white text-gray-800 p-3 rounded-lg shadow-sm max-w-xs">
+                        <p class="text-sm">Support Assistant is typing...</p>
+                    </div>
+                </div>
             </div>
         </div>
+
         <div class="p-4 border-t bg-white rounded-b-lg">
-            <div class="flex flex-wrap gap-2 mb-3">
-                <button @click="sendQuickMessage('I need help with system settings')" class="group px-3 py-2 bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 border border-blue-200 rounded-xl text-xs font-medium text-blue-700 transition-all hover:shadow-md flex items-center gap-2">
-                    <i class="fas fa-cog group-hover:rotate-180 transition-transform duration-500"></i>
-                    <span>Settings Help</span>
-                </button>
-                <button @click="sendQuickMessage('User management issue')" class="group px-3 py-2 bg-gradient-to-r from-purple-50 to-pink-50 hover:from-purple-100 hover:to-pink-100 border border-purple-200 rounded-xl text-xs font-medium text-purple-700 transition-all hover:shadow-md flex items-center gap-2">
-                    <i class="fas fa-user-circle group-hover:scale-110 transition-transform"></i>
-                    <span>User Issue</span>
-                </button>
-                <button @click="sendQuickMessage('System error')" class="group px-3 py-2 bg-gradient-to-r from-red-50 to-orange-50 hover:from-red-100 hover:to-orange-100 border border-red-200 rounded-xl text-xs font-medium text-red-700 transition-all hover:shadow-md flex items-center gap-2">
-                    <i class="fas fa-exclamation-triangle group-hover:animate-bounce"></i>
-                    <span>Error</span>
-                </button>
-                <button @click="showMemberChatModal = true; showChatModal = false" class="group px-3 py-2 bg-gradient-to-r from-green-50 to-emerald-50 hover:from-green-100 hover:to-emerald-100 border border-green-200 rounded-xl text-xs font-medium text-green-700 transition-all hover:shadow-md flex items-center gap-2">
-                    <i class="fas fa-users group-hover:scale-110 transition-transform"></i>
-                    <span>Members</span>
-                </button>
-            </div>
             <div class="flex items-center space-x-2">
-                <input type="text" x-model="chatInput" @keyup.enter="sendMessage" placeholder="Type your message..."
-                       class="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all placeholder-gray-400 bg-gray-50 hover:bg-white">
-                <button @click="sendMessage" class="group px-5 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg hover:shadow-xl transform hover:scale-105">
+                <input type="text" x-model="chatInput" @keyup.enter="sendMessage" placeholder="Describe your issue..." class="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all placeholder-gray-400 bg-gray-50 hover:bg-white">
+                <button @click="sendMessage" :disabled="supportLoading" class="group px-5 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg hover:shadow-xl transform hover:scale-105 disabled:opacity-70 disabled:cursor-not-allowed">
                     <i class="fas fa-paper-plane group-hover:translate-x-1 transition-transform"></i>
                 </button>
             </div>

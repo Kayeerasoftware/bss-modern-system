@@ -84,7 +84,6 @@
         </div>
     </div>
     
-    @include('partials.support.chat-widget')
     @include('partials.admin.modals.member-chat')
     
     <script src="{{ asset('js/chat.js') }}"></script>

@@ -7,6 +7,9 @@ window.chatModule = function () {
         imagePreviewName: '',
         chatMessages: [],
         chatInput: '',
+        supportCategory: 'settings_help',
+        supportLoading: false,
+        supportEndpoint: '/support/chat/respond',
         showMemberChatModal: false,
         selectedMemberChat: null,
         memberChatMessages: [],
@@ -40,7 +43,7 @@ window.chatModule = function () {
 
         initChat() {
             this.chatMessages = [
-                { sender: 'support', text: 'Hello! How can I help you today?', time: this.getCurrentTime(), timestamp: Date.now() }
+                { sender: 'support', text: 'Hello! Describe your issue and I will provide quick support steps.', time: this.getCurrentTime(), timestamp: Date.now() }
             ];
 
             this.prepareMembers();
@@ -204,11 +207,15 @@ window.chatModule = function () {
             return this.onlineMembers.includes(memberId);
         },
 
-        sendMessage() {
+        async sendMessage() {
             if (!this.chatInput.trim()) return;
+
+            if (this.supportLoading) return;
+
+            const messageText = this.chatInput.trim();
             const msg = {
                 sender: 'user',
-                text: this.chatInput,
+                text: messageText,
                 time: this.getCurrentTime(),
                 timestamp: Date.now(),
                 status: 'sent',
@@ -218,27 +225,63 @@ window.chatModule = function () {
             this.chatInput = '';
             this.replyingTo = null;
             this.scrollToBottom('chatMessages');
-            setTimeout(() => {
-                msg.status = 'delivered';
-                setTimeout(() => {
-                    msg.status = 'read';
-                    this.autoReply();
-                }, 1000);
-            }, 500);
-        },
 
-        autoReply() {
-            this.isTyping = true;
-            setTimeout(() => {
-                this.isTyping = false;
+            this.supportLoading = true;
+            msg.status = 'delivered';
+
+            try {
+                const response = await fetch(this.supportEndpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name=\"csrf-token\"]')?.content || '',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        category: this.supportCategory || 'general',
+                        message: messageText,
+                        path: window.location.pathname
+                    })
+                });
+
+                const data = await response.json();
+                msg.status = 'read';
+
+                if (!response.ok || !data.success) {
+                    this.chatMessages.push({
+                        sender: 'support',
+                        text: 'Support Assistant is temporarily unavailable. Please retry.',
+                        time: this.getCurrentTime(),
+                        timestamp: Date.now()
+                    });
+                    this.scrollToBottom('chatMessages');
+                    return;
+                }
+
+                if (data?.data?.suggested_category) {
+                    this.supportCategory = data.data.suggested_category;
+                }
+
                 this.chatMessages.push({
                     sender: 'support',
-                    text: 'Thank you! Our team will assist you shortly.',
+                    text: data?.data?.reply || 'Support response unavailable.',
                     time: this.getCurrentTime(),
                     timestamp: Date.now()
                 });
                 this.scrollToBottom('chatMessages');
-            }, 1500);
+            } catch (error) {
+                msg.status = 'read';
+                this.chatMessages.push({
+                    sender: 'support',
+                    text: 'Network error while contacting Support Assistant.',
+                    time: this.getCurrentTime(),
+                    timestamp: Date.now()
+                });
+                this.scrollToBottom('chatMessages');
+            } finally {
+                this.supportLoading = false;
+            }
         },
 
         async sendMemberMessage() {
