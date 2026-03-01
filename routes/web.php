@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\Support\SupportChatController;
 
 // Public Routes
 Route::view('/', 'welcome')->name('welcome');
@@ -72,6 +73,9 @@ Route::get('/reset-password/{token}', function ($token) {
 Route::post('/reset-password', [AuthController::class, 'resetPassword'])->name('password.update');
 
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+Route::post('/support/chat/respond', [SupportChatController::class, 'respond'])
+    ->middleware('auth')
+    ->name('support.chat.respond');
 
 // Switch active role
 Route::post('/switch-role', function(\Illuminate\Http\Request $request) {

@@ -18,5 +18,8 @@
     @include('components.navigation-loading')
     @include('components.loading-screen')
     @yield('content')
+    @auth
+        @include('partials.support.chat-widget')
+    @endauth
 </body>
 </html>

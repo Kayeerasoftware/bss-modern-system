@@ -93,6 +93,7 @@
         </div>
     </div>
 
+    @include('partials.support.chat-widget')
     @stack('modals')
     @include('partials.admin.modals.member-chat')
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
