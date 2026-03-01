@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Support\Arr;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -38,7 +39,8 @@ class SystemController extends Controller
         if ($request->filled('search')) {
             $query->where(function($q) use ($request) {
                 $q->where('user', 'like', '%' . $request->search . '%')
-                  ->orWhere('details', 'like', '%' . $request->search . '%');
+                  ->orWhere('details', 'like', '%' . $request->search . '%')
+                  ->orWhere('action', 'like', '%' . $request->search . '%');
             });
         }
         
@@ -51,11 +53,17 @@ class SystemController extends Controller
         }
         
         if ($request->filled('date_from')) {
-            $query->whereDate('created_at', '>=', $request->date_from);
+            $from = $this->normalizeDateTime((string) $request->date_from);
+            if ($from) {
+                $query->where('created_at', '>=', $from);
+            }
         }
         
         if ($request->filled('date_to')) {
-            $query->whereDate('created_at', '<=', $request->date_to);
+            $to = $this->normalizeDateTime((string) $request->date_to);
+            if ($to) {
+                $query->where('created_at', '<=', $to);
+            }
         }
         
         if ($request->filled('sort')) {
@@ -64,12 +72,33 @@ class SystemController extends Controller
             $query->orderBy('created_at', 'desc');
         }
         
-        $perPage = $request->get('per_page', 20);
+        $perPage = (int) $request->get('per_page', 20);
+        if ($perPage < 1) {
+            $perPage = 1;
+        }
+        if ($perPage > 500) {
+            $perPage = 500;
+        }
+
         $logs = $query->paginate($perPage)->appends($request->except('page'));
         $logsData = $logs->getCollection()
             ->map(fn ($log) => $this->formatAuditLog($log))
             ->values()
             ->all();
+
+        if ($request->ajax()) {
+            return response()->json([
+                'logs' => $logsData,
+                'pagination' => [
+                    'total' => $logs->total(),
+                    'per_page' => $logs->perPage(),
+                    'current_page' => $logs->currentPage(),
+                    'last_page' => $logs->lastPage(),
+                    'from' => $logs->firstItem(),
+                    'to' => $logs->lastItem(),
+                ],
+            ]);
+        }
         
         return view('admin.system.audit-logs', compact('settings', 'logs', 'logsData'));
     }
@@ -320,5 +349,19 @@ class SystemController extends Controller
         if (Str::contains($ua, 'iPad')) return 'Tablet';
 
         return 'Desktop';
+    }
+
+    private function normalizeDateTime(string $value): ?Carbon
+    {
+        $trimmed = trim($value);
+        if ($trimmed === '') {
+            return null;
+        }
+
+        try {
+            return Carbon::parse($trimmed);
+        } catch (\Throwable $e) {
+            return null;
+        }
     }
 }

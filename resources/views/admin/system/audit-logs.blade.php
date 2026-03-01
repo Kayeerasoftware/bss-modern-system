@@ -19,7 +19,14 @@
         ->values();
 @endphp
 
-<div class="min-h-screen bg-gradient-to-br from-slate-50 via-zinc-50 to-stone-100 p-3 md:p-6" x-data="auditLogManager({{ \Illuminate\Support\Js::from($logsPayload) }})" x-init="init()">
+<div class="min-h-screen bg-gradient-to-br from-slate-50 via-zinc-50 to-stone-100 p-3 md:p-6" x-data="auditLogManager({{ \Illuminate\Support\Js::from($logsPayload) }}, {{ \Illuminate\Support\Js::from([
+    'total' => $logs->total(),
+    'per_page' => $logs->perPage(),
+    'current_page' => $logs->currentPage(),
+    'last_page' => $logs->lastPage(),
+    'from' => $logs->firstItem(),
+    'to' => $logs->lastItem(),
+]) }})" x-init="init()">
     <div class="max-w-7xl mx-auto space-y-5">
         <div class="rounded-3xl border border-slate-200 bg-white/90 shadow-sm backdrop-blur">
             <div class="flex flex-wrap items-center justify-between gap-4 px-5 py-4 md:px-6">
@@ -34,7 +41,7 @@
                 </div>
                 <div class="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-1.5 text-xs font-semibold text-emerald-700">
                     <i class="fas fa-shield-check"></i>
-                    <span x-text="filteredLogs.length + ' visible of ' + logs.length"></span>
+                    <span x-text="displayLogs.length + ' visible of ' + (pagination.total || 0)"></span>
                 </div>
             </div>
         </div>
@@ -131,7 +138,7 @@
                 <div class="md:col-span-3">
                     <label class="mb-1 block text-[11px] font-bold uppercase tracking-wide text-slate-500">Time From</label>
                     <input
-                        x-model="filters.timeFrom"
+                        x-model="filters.dateFrom"
                         type="datetime-local"
                         class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-200"
                     >
@@ -139,12 +146,31 @@
                 <div class="md:col-span-3">
                     <label class="mb-1 block text-[11px] font-bold uppercase tracking-wide text-slate-500">Time To</label>
                     <input
-                        x-model="filters.timeTo"
+                        x-model="filters.dateTo"
                         type="datetime-local"
                         class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-200"
                     >
                 </div>
-                <div class="md:col-span-6">
+                <div class="md:col-span-3">
+                    <label class="mb-1 block text-[11px] font-bold uppercase tracking-wide text-slate-500">Items Per Page</label>
+                    <div class="flex items-center gap-2">
+                        <input
+                            x-model.number="filters.perPage"
+                            type="number"
+                            min="1"
+                            max="500"
+                            placeholder="20"
+                            class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-200"
+                        >
+                        <select x-model.number="filters.perPage" class="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-200">
+                            <option :value="20">20</option>
+                            <option :value="50">50</option>
+                            <option :value="100">100</option>
+                            <option :value="200">200</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="md:col-span-3">
                     <label class="mb-1 block text-[11px] font-bold uppercase tracking-wide text-slate-500">Quick Time Filter</label>
                     <div class="flex flex-wrap gap-2">
                         <button @click="applyTimePreset('1h')" type="button" class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100">Last 1 Hour</button>
@@ -173,17 +199,25 @@
                     <template x-if="filters.status">
                         <span class="rounded-full bg-rose-100 px-3 py-1 text-xs font-semibold text-rose-700" x-text="'Status: ' + filters.status"></span>
                     </template>
-                    <template x-if="filters.timeFrom || filters.timeTo">
-                        <span class="rounded-full bg-violet-100 px-3 py-1 text-xs font-semibold text-violet-700" x-text="'Time: ' + (filters.timeFrom || '...') + ' to ' + (filters.timeTo || '...')"></span>
+                    <template x-if="filters.dateFrom || filters.dateTo">
+                        <span class="rounded-full bg-violet-100 px-3 py-1 text-xs font-semibold text-violet-700" x-text="'Time: ' + (filters.dateFrom || '...') + ' to ' + (filters.dateTo || '...')"></span>
                     </template>
                 </div>
-                <button @click="clearFilters()" class="rounded-xl border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100">
-                    <i class="fas fa-rotate-left mr-1"></i>Clear Filters
-                </button>
+                <div class="flex items-center gap-2">
+                    <button @click="fetchLogs(1)" class="rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100">
+                        <i class="fas fa-magnifying-glass mr-1"></i>Search
+                    </button>
+                    <button @click="clearFilters()" class="rounded-xl border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100">
+                        <i class="fas fa-rotate-left mr-1"></i>Clear Filters
+                    </button>
+                </div>
             </div>
         </div>
 
         <div class="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-lg">
+            <div x-show="loading" x-cloak class="border-b border-slate-200 bg-amber-50 px-5 py-2 text-xs font-semibold text-amber-700">
+                <i class="fas fa-spinner fa-spin mr-1"></i>Loading filtered logs...
+            </div>
             <div class="overflow-x-auto">
                 <table class="min-w-full divide-y-0 text-sm">
                     <thead class="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600">
@@ -233,7 +267,7 @@
                         </tr>
                     </thead>
                     <tbody class="bg-white">
-                        <template x-for="(log, index) in filteredLogs" :key="log.id + '-' + index">
+                        <template x-for="(log, index) in displayLogs" :key="log.id + '-' + index">
                             <tr
                                 class="transition-all duration-200 border-l-4 border-blue-400 hover:bg-gradient-to-r hover:from-purple-50 hover:to-pink-50"
                                 :class="index % 2 === 0 ? 'bg-white' : 'bg-blue-50/40'"
@@ -274,7 +308,7 @@
                 </table>
             </div>
 
-            <div x-show="filteredLogs.length === 0" class="px-6 py-16 text-center">
+            <div x-show="displayLogs.length === 0 && !loading" class="px-6 py-16 text-center">
                 <div class="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-slate-100 text-slate-400">
                     <i class="fas fa-inbox text-xl"></i>
                 </div>
@@ -284,8 +318,26 @@
         </div>
 
         <div class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-gradient-to-r from-gray-50 to-gray-100 px-4 py-3 text-xs text-slate-600 shadow-sm">
-            <p>Server page: {{ $logs->firstItem() ?? 0 }} - {{ $logs->lastItem() ?? 0 }} of {{ $logs->total() }}</p>
-            <div>{{ $logs->links() }}</div>
+            <p x-text="'Server page: ' + (pagination.from || 0) + ' - ' + (pagination.to || 0) + ' of ' + (pagination.total || 0)"></p>
+            <div class="flex items-center gap-2">
+                <button
+                    type="button"
+                    @click="fetchLogs((pagination.current_page || 1) - 1)"
+                    :disabled="(pagination.current_page || 1) <= 1 || loading"
+                    class="rounded-lg border border-slate-300 px-2.5 py-1 font-semibold transition disabled:opacity-40 hover:bg-slate-100"
+                >
+                    Prev
+                </button>
+                <span class="font-semibold" x-text="'Page ' + (pagination.current_page || 1) + ' / ' + (pagination.last_page || 1)"></span>
+                <button
+                    type="button"
+                    @click="fetchLogs((pagination.current_page || 1) + 1)"
+                    :disabled="(pagination.current_page || 1) >= (pagination.last_page || 1) || loading"
+                    class="rounded-lg border border-slate-300 px-2.5 py-1 font-semibold transition disabled:opacity-40 hover:bg-slate-100"
+                >
+                    Next
+                </button>
+            </div>
         </div>
     </div>
 
@@ -399,9 +451,12 @@
 </div>
 
 <script>
-function auditLogManager(initialLogs) {
+function auditLogManager(initialLogs, initialPagination) {
     return {
         logs: Array.isArray(initialLogs) ? initialLogs : [],
+        pagination: initialPagination || { total: 0, per_page: 20, current_page: 1, last_page: 1, from: 0, to: 0 },
+        loading: false,
+        debounceHandle: null,
         showDetailsModal: false,
         selectedLog: null,
         filters: {
@@ -409,14 +464,24 @@ function auditLogManager(initialLogs) {
             action: @js(strtolower((string) request('action', ''))),
             user: @js((string) request('user', '')),
             status: '',
-            timeFrom: '',
-            timeTo: '',
+            dateFrom: @js((string) request('date_from', '')),
+            dateTo: @js((string) request('date_to', '')),
+            perPage: Number(@js((int) request('per_page', 20))) || 20,
             sort: @js((string) request('sort', 'newest') ?: 'newest'),
         },
         stats: { total: 0, today: 0, week: 0, critical: 0 },
 
         init() {
             this.rebuildStats();
+            this.installHotkeys();
+            this.$watch('filters.search', () => this.queueFetch());
+            this.$watch('filters.action', () => this.queueFetch());
+            this.$watch('filters.user', () => this.queueFetch());
+            this.$watch('filters.status', () => this.queueFetch());
+            this.$watch('filters.dateFrom', () => this.queueFetch());
+            this.$watch('filters.dateTo', () => this.queueFetch());
+            this.$watch('filters.sort', () => this.queueFetch());
+            this.$watch('filters.perPage', () => this.queueFetch());
         },
 
         get activeFilterCount() {
@@ -425,61 +490,78 @@ function auditLogManager(initialLogs) {
             if (this.filters.action) count++;
             if (this.filters.user) count++;
             if (this.filters.status) count++;
-            if (this.filters.timeFrom || this.filters.timeTo) count++;
+            if (this.filters.dateFrom || this.filters.dateTo) count++;
             return count;
         },
 
-        get filteredLogs() {
-            const search = (this.filters.search || '').toLowerCase().trim();
-            const action = (this.filters.action || '').toLowerCase().trim();
-            const user = (this.filters.user || '').toLowerCase().trim();
-            const status = (this.filters.status || '').toLowerCase().trim();
-            const timeFromTs = this.filters.timeFrom ? Date.parse(this.filters.timeFrom) : null;
-            const timeToTs = this.filters.timeTo ? Date.parse(this.filters.timeTo) : null;
+        get displayLogs() {
+            const status = String(this.filters.status || '').toLowerCase().trim();
+            if (!status) {
+                return this.logs;
+            }
 
-            let rows = this.logs.filter((log) => {
-                const actionValue = String(log.action || '').toLowerCase();
-                const userValue = String(log.user || '').toLowerCase();
-                const statusValue = String(log.status || '').toLowerCase();
+            return this.logs.filter((log) => {
                 const statusCode = Number(log.statusCode || 0);
-                const logTs = this.ts(log);
-                const haystack = [
-                    log.timestamp,
-                    log.user,
-                    log.action,
-                    log.module,
-                    log.details,
-                    log.description,
-                    log.ip,
-                    log.userEmail,
-                ].join(' ').toLowerCase();
-
-                if (search && !haystack.includes(search)) return false;
-                if (action && actionValue !== action) return false;
-                if (user && !userValue.includes(user)) return false;
-
-                if (status) {
-                    if (status === 'success' && !(statusCode >= 200 && statusCode < 300 || statusValue.includes('success'))) return false;
-                    if (status === 'warning' && !(statusCode >= 300 && statusCode < 400 || statusValue.includes('redirect'))) return false;
-                    if (status === 'failed' && !(statusCode >= 400 || statusValue.includes('fail'))) return false;
+                const statusText = String(log.status || '').toLowerCase();
+                if (status === 'success') {
+                    return (statusCode >= 200 && statusCode < 300) || statusText.includes('success');
                 }
-
-                if (timeFromTs !== null && !Number.isNaN(timeFromTs) && logTs < timeFromTs) return false;
-                if (timeToTs !== null && !Number.isNaN(timeToTs) && logTs > timeToTs) return false;
-
+                if (status === 'warning') {
+                    return (statusCode >= 300 && statusCode < 400) || statusText.includes('redirect') || statusText.includes('warning');
+                }
+                if (status === 'failed') {
+                    return statusCode >= 400 || statusText.includes('fail');
+                }
                 return true;
             });
+        },
 
-            const sort = this.filters.sort || 'newest';
-            rows.sort((a, b) => {
-                if (sort === 'oldest') return this.ts(a) - this.ts(b);
-                if (sort === 'action_asc') return String(a.action || '').localeCompare(String(b.action || ''));
-                if (sort === 'user_asc') return String(a.user || '').localeCompare(String(b.user || ''));
-                if (sort === 'module_asc') return String(a.module || '').localeCompare(String(b.module || ''));
-                return this.ts(b) - this.ts(a);
-            });
+        queueFetch() {
+            if (this.debounceHandle) {
+                clearTimeout(this.debounceHandle);
+            }
+            this.debounceHandle = setTimeout(() => this.fetchLogs(1), 280);
+        },
 
-            return rows;
+        buildQuery(page = 1) {
+            const params = new URLSearchParams();
+            if (this.filters.search) params.set('search', this.filters.search);
+            if (this.filters.action) params.set('action', this.filters.action);
+            if (this.filters.user) params.set('user', this.filters.user);
+            if (this.filters.sort) params.set('sort', this.filters.sort);
+            if (this.filters.dateFrom) params.set('date_from', this.filters.dateFrom);
+            if (this.filters.dateTo) params.set('date_to', this.filters.dateTo);
+            if (this.filters.status) params.set('status', this.filters.status);
+            params.set('per_page', String(Math.min(Math.max(Number(this.filters.perPage || 20), 1), 500)));
+            params.set('page', String(Math.max(Number(page || 1), 1)));
+            return params;
+        },
+
+        async fetchLogs(page = 1) {
+            const targetPage = Math.max(Number(page || 1), 1);
+            this.loading = true;
+            try {
+                const params = this.buildQuery(targetPage);
+                const url = `{{ route('admin.system.audit-logs') }}?${params.toString()}`;
+                const response = await fetch(url, {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json',
+                    },
+                });
+                if (!response.ok) {
+                    throw new Error(`Request failed with status ${response.status}`);
+                }
+                const payload = await response.json();
+                this.logs = Array.isArray(payload.logs) ? payload.logs : [];
+                this.pagination = payload.pagination || this.pagination;
+                this.rebuildStats();
+                history.replaceState({}, '', `{{ route('admin.system.audit-logs') }}?${this.buildQuery(this.pagination.current_page || 1).toString()}`);
+            } catch (error) {
+                console.error('Failed to fetch audit logs:', error);
+            } finally {
+                this.loading = false;
+            }
         },
 
         ts(log) {
@@ -499,9 +581,11 @@ function auditLogManager(initialLogs) {
             this.filters.action = '';
             this.filters.user = '';
             this.filters.status = '';
-            this.filters.timeFrom = '';
-            this.filters.timeTo = '';
+            this.filters.dateFrom = '';
+            this.filters.dateTo = '';
+            this.filters.perPage = 20;
             this.filters.sort = 'newest';
+            this.fetchLogs(1);
         },
 
         toLocalInputValue(date) {
@@ -514,8 +598,8 @@ function auditLogManager(initialLogs) {
             const from = new Date(now);
 
             if (preset === 'clear') {
-                this.filters.timeFrom = '';
-                this.filters.timeTo = '';
+                this.filters.dateFrom = '';
+                this.filters.dateTo = '';
                 return;
             }
 
@@ -524,8 +608,24 @@ function auditLogManager(initialLogs) {
             if (preset === '24h') from.setHours(now.getHours() - 24);
             if (preset === '7d') from.setDate(now.getDate() - 7);
 
-            this.filters.timeFrom = this.toLocalInputValue(from);
-            this.filters.timeTo = this.toLocalInputValue(now);
+            this.filters.dateFrom = this.toLocalInputValue(from);
+            this.filters.dateTo = this.toLocalInputValue(now);
+        },
+
+        installHotkeys() {
+            window.addEventListener('keydown', (event) => {
+                if (event.key === '/' && !event.metaKey && !event.ctrlKey && !event.altKey) {
+                    const targetTag = String(event.target?.tagName || '').toLowerCase();
+                    if (targetTag === 'input' || targetTag === 'textarea' || event.target?.isContentEditable) {
+                        return;
+                    }
+                    event.preventDefault();
+                    const searchInput = document.querySelector('input[x-model="filters.search"]');
+                    if (searchInput) {
+                        searchInput.focus();
+                    }
+                }
+            });
         },
 
         openDetails(log) {
