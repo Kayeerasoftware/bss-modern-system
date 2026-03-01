@@ -20,7 +20,7 @@
                     </div>
                     <div>
                         <p class="text-sm font-semibold text-gray-900">{{ $loan->loan_id }}</p>
-                        <p class="text-xs text-gray-500">{{ $loan->created_at->format('M d, Y') }}</p>
+                        <p class="text-xs text-gray-500">{{ optional($loan->created_at)->format('M d, Y') ?? 'N/A' }}</p>
                     </div>
                 </div>
             </td>
@@ -42,34 +42,35 @@
             <td class="px-6 py-4 whitespace-nowrap border-r border-gray-200">
                 <div class="flex items-center gap-2">
                     <i class="fas fa-money-bill-wave text-green-500"></i>
-                    <span class="text-sm font-semibold text-gray-900">{{ number_format($loan->amount, 2) }}</span>
+                    <span class="text-sm font-semibold text-gray-900">{{ number_format((float) ($loan->amount ?? 0), 2) }}</span>
                 </div>
             </td>
             <td class="px-6 py-4 whitespace-nowrap border-r border-gray-200">
                 <div class="flex items-center gap-2">
                     <i class="fas fa-percentage text-teal-500"></i>
-                    <span class="text-sm font-semibold text-gray-900">{{ number_format($loan->interest, 2) }}</span>
+                    <span class="text-sm font-semibold text-gray-900">{{ number_format((float) ($loan->interest ?? 0), 2) }}</span>
                 </div>
             </td>
             <td class="px-6 py-4 whitespace-nowrap border-r border-gray-200">
                 <div class="flex items-center gap-2">
                     <i class="fas fa-calendar-alt text-blue-500"></i>
-                    <span class="text-sm font-semibold text-gray-900">{{ number_format($loan->monthly_payment, 2) }}</span>
+                    <span class="text-sm font-semibold text-gray-900">{{ number_format((float) ($loan->monthly_payment ?? 0), 2) }}</span>
                 </div>
             </td>
             <td class="px-6 py-4 whitespace-nowrap border-r border-gray-200">
                 @php
+                    $statusValue = strtolower((string) ($loan->status ?? 'pending'));
                     $statusColors = [
                         'pending' => 'bg-yellow-100 text-yellow-800 border-yellow-200',
                         'approved' => 'bg-green-100 text-green-800 border-green-200',
                         'rejected' => 'bg-red-100 text-red-800 border-red-200',
                         'disbursed' => 'bg-blue-100 text-blue-800 border-blue-200',
                     ];
-                    $colorClass = $statusColors[$loan->status] ?? 'bg-gray-100 text-gray-800 border-gray-200';
+                    $colorClass = $statusColors[$statusValue] ?? 'bg-gray-100 text-gray-800 border-gray-200';
                 @endphp
                 <span class="px-3 py-1.5 text-xs font-semibold rounded-full border {{ $colorClass }}">
                     <i class="fas fa-circle text-[8px] mr-1"></i>
-                    {{ ucfirst($loan->status) }}
+                    {{ ucfirst($statusValue) }}
                 </span>
             </td>
             <td class="px-6 py-4 whitespace-nowrap text-center">

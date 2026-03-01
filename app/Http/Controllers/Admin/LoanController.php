@@ -103,11 +103,7 @@ class LoanController extends Controller
         }
 
         $loans = $query->paginate(15);
-        
-        if ($request->ajax()) {
-            return view('admin.loans.partials.table', compact('loans'))->render();
-        }
-        
+
         return view('admin.loans.index', compact('loans'));
     }
 
