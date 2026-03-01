@@ -132,9 +132,10 @@ class AuthController extends Controller
 
         return redirect()->route('login')->with([
             'register_success' => true,
-            'register_role' => ucfirst($normalizedRole),
+            'register_role' => ucwords(str_replace('_', ' ', $normalizedRole)),
             'registered_email' => $user->email,
             'registered_role' => $normalizedRole,
+            'registered_name' => $user->name,
         ]);
     }
 

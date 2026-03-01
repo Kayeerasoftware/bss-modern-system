@@ -41,23 +41,31 @@
             @endif
 
             @if (session('register_success'))
-                <div class="mb-3 bg-blue-50 border-2 border-blue-500 rounded-lg p-3">
-                    <div class="flex items-start gap-2">
-                        <i class="fas fa-user-check text-blue-600 text-lg mt-0.5"></i>
-                        <div>
-                            <p class="text-blue-900 font-bold text-sm">
-                                Registration successful as {{ session('register_role') }}
+                <div class="mb-4 p-4 bg-gradient-to-r from-emerald-50 to-green-50 border-2 border-emerald-500 rounded-xl shadow-sm">
+                    <div class="flex items-start gap-3">
+                        <div class="mt-0.5">
+                            <i class="fas fa-check-circle text-emerald-600 text-xl"></i>
+                        </div>
+                        <div class="space-y-1">
+                            <p class="text-emerald-900 font-extrabold text-sm">
+                                Registration successful as {{ session('register_role') }} Role
                             </p>
-                            <p class="text-blue-700 text-xs">
+                            <p class="text-emerald-800 text-xs font-semibold">
                                 Please select your role and sign in.
+                            </p>
+                            <p class="text-emerald-700 text-xs flex items-center gap-2">
+                                <i class="fas fa-check-circle text-emerald-600"></i>
+                                User role with a tick in green indicates an active role.
                             </p>
                         </div>
                     </div>
                 </div>
             @endif
 
-            <h2 class="text-lg font-bold text-gray-800 mb-1">Welcome Back</h2>
-            <p class="text-gray-500 text-xs mb-3">Sign in to your account</p>
+            <h2 class="text-xl font-extrabold bg-gradient-to-r from-blue-700 to-purple-700 bg-clip-text text-transparent mb-1">
+                Welcome Back{{ session('registered_name') ? ', ' . session('registered_name') : '' }}
+            </h2>
+            <p class="text-gray-600 text-xs mb-3 font-semibold">Sign in to your account</p>
 
             @if (session('status'))
                 <div class="mb-3 p-2 bg-green-50 text-green-700 rounded text-xs">{{ session('status') }}</div>
@@ -283,7 +291,11 @@
                                 @endphp
                                 <div class="px-3 py-2 hover:bg-gray-100 cursor-pointer" data-value="{{ $roleKey }}">
                                     <span class="text-gray-800">{{ $roleLabel }}</span>
-                                    <span class="font-semibold" style="color: {{ $isActive ? '#16a34a' : '#dc2626' }};">[{{ $isActive ? 'Active role' : 'Inactive role' }}]</span>
+                                    @if($isActive)
+                                        <span class="font-semibold text-green-600">[<i class="fas fa-check-circle"></i> Active role]</span>
+                                    @else
+                                        <span class="font-semibold text-red-600">[Inactive role]</span>
+                                    @endif
                                 </div>
                             @endforeach
                         </div>
