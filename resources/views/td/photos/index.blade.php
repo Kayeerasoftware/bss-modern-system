@@ -21,7 +21,7 @@
             </div>
             <div class="flex gap-1.5 md:gap-2 w-full md:w-auto">
                 <button @click="showUploadModal = true" class="flex-1 md:flex-none px-3 md:px-5 py-2 md:py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg md:rounded-xl hover:shadow-xl transition-all duration-300 text-xs md:text-sm font-bold flex items-center justify-center gap-1 md:gap-2 transform hover:scale-105">
-                    <i class="fas fa-upload"></i><span>Upload Photo</span>
+                    <i class="fas fa-upload"></i><span>Upload Photos</span>
                 </button>
                 <button class="px-3 md:px-5 py-2 md:py-2.5 bg-white text-gray-700 rounded-lg md:rounded-xl hover:shadow-xl transition-all duration-300 shadow-md border border-gray-200 text-xs md:text-sm font-bold flex items-center justify-center gap-1 md:gap-2 transform hover:scale-105">
                     <i class="fas fa-file-export"></i><span class="hidden sm:inline">Export</span>
@@ -103,8 +103,9 @@
                         <i class="fas fa-filter absolute left-2.5 top-1/2 transform -translate-y-1/2 text-indigo-400 text-xs"></i>
                         <select x-model="filterType" @change="filterPhotos()" class="w-full pl-8 pr-2 py-1.5 text-xs border border-indigo-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all appearance-none bg-white">
                             <option value="all">All Types</option>
-                            <option value="project">Projects</option>
-                            <option value="meeting">Meetings</option>
+                            @foreach($photoTypes as $type)
+                                <option value="{{ $type }}">{{ ucfirst(str_replace('_', ' ', $type)) }}</option>
+                            @endforeach
                         </select>
                     </div>
                     <div class="md:col-span-2 relative">
@@ -137,8 +138,8 @@
                 <div class="relative h-48">
                     <img :src="photo.photo_path" :alt="photo.title" class="w-full h-full object-cover">
                     <div class="absolute top-2 right-2 flex gap-2">
-                        <span :class="photo.type === 'project' ? 'bg-blue-500' : 'bg-green-500'" class="px-2 py-1 text-xs rounded-full font-semibold text-white">
-                            <span x-text="photo.type === 'project' ? 'Project' : 'Meeting'"></span>
+                        <span :class="typeBadgeClass(photo.type)" class="px-2 py-1 text-xs rounded-full font-semibold text-white">
+                            <span x-text="formatType(photo.type)"></span>
                         </span>
                         <button @click="toggleStatus(photo.id, !photo.is_active)" :class="photo.is_active ? 'bg-green-500' : 'bg-gray-500'" class="px-2 py-1 text-xs rounded-full font-semibold text-white hover:opacity-80">
                             <span x-text="photo.is_active ? 'Active' : 'Inactive'"></span>
@@ -203,9 +204,9 @@
                                 <p class="text-xs text-gray-500 line-clamp-2" x-text="photo.description || 'No description'"></p>
                             </td>
                             <td class="px-4 py-3 whitespace-nowrap">
-                                <span :class="photo.type === 'project' ? 'bg-blue-100 text-blue-800 border-blue-200' : 'bg-green-100 text-green-800 border-green-200'" class="px-3 py-1 text-xs font-bold rounded-full border">
-                                    <i :class="photo.type === 'project' ? 'fa-project-diagram' : 'fa-handshake'" class="fas text-[6px] mr-1"></i>
-                                    <span x-text="photo.type === 'project' ? 'Project' : 'Meeting'"></span>
+                                <span :class="typePillClass(photo.type)" class="px-3 py-1 text-xs font-bold rounded-full border">
+                                    <i :class="typeIcon(photo.type)" class="fas text-[6px] mr-1"></i>
+                                    <span x-text="formatType(photo.type)"></span>
                                 </span>
                             </td>
                             <td class="px-4 py-3 whitespace-nowrap">
@@ -256,26 +257,38 @@
         <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div class="bg-gradient-to-r from-purple-600 to-indigo-600 p-6 rounded-t-lg">
                 <h2 class="text-2xl font-bold text-white flex items-center">
-                    <i class="fas fa-upload mr-3"></i>Upload New Photo
+                    <i class="fas fa-upload mr-3"></i>Upload Photo(s)
                 </h2>
             </div>
             <form action="{{ route('td.photos.store') }}" method="POST" enctype="multipart/form-data" class="p-6 space-y-4">
                 @csrf
                 <div>
                     <label class="block text-sm font-semibold text-gray-700 mb-2">Photo Type *</label>
-                    <select name="type" required class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500">
+                    <select name="type" x-model="uploadType" required class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500">
                         <option value="project">Project Photo</option>
                         <option value="meeting">Meeting Photo</option>
+                        <option value="other">Other Category</option>
                     </select>
                 </div>
-                <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">Photo *</label>
-                    <input type="file" name="photo" accept="image/*" required class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500">
-                    <p class="text-xs text-gray-500 mt-1">Max size: 5MB. Formats: JPG, PNG, GIF</p>
+                <div x-show="uploadType === 'other'" x-cloak>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Custom Category Name *</label>
+                    <input
+                        type="text"
+                        name="custom_type"
+                        x-model="customType"
+                        :required="uploadType === 'other'"
+                        class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
+                        placeholder="e.g event, field_visit, workshop"
+                    >
                 </div>
                 <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">Title *</label>
-                    <input type="text" name="title" required class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500" placeholder="Enter photo title">
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Photos *</label>
+                    <input type="file" name="photos[]" accept="image/*" multiple required class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500">
+                    <p class="text-xs text-gray-500 mt-1">Select one or many photos. Max 30 files, 5MB each. Formats: JPG, PNG, GIF.</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Title / Base Title</label>
+                    <input type="text" name="title" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500" placeholder="Used for single photo, or base name for bulk">
                 </div>
                 <div>
                     <label class="block text-sm font-semibold text-gray-700 mb-2">Description</label>
@@ -288,7 +301,7 @@
                 </div>
                 <div class="flex gap-3 pt-4">
                     <button type="submit" class="flex-1 bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 transition font-semibold">
-                        <i class="fas fa-upload mr-2"></i>Upload Photo
+                        <i class="fas fa-upload mr-2"></i>Upload
                     </button>
                     <button type="button" @click="showUploadModal = false" class="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition font-semibold">
                         Cancel
@@ -372,6 +385,8 @@ function photoManager() {
         filterType: 'all',
         filterStatus: 'all',
         showUploadModal: false,
+        uploadType: 'project',
+        customType: '',
         showEditModal: false,
         showDeleteModal: false,
         editPhotoId: null,
@@ -416,6 +431,29 @@ function photoManager() {
                 
                 return matchesSearch && matchesType && matchesStatus;
             });
+        },
+
+        formatType(type) {
+            if (!type) return 'Other';
+            return type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+        },
+
+        typeBadgeClass(type) {
+            if (type === 'project') return 'bg-blue-500';
+            if (type === 'meeting') return 'bg-green-500';
+            return 'bg-gray-600';
+        },
+
+        typePillClass(type) {
+            if (type === 'project') return 'bg-blue-100 text-blue-800 border-blue-200';
+            if (type === 'meeting') return 'bg-green-100 text-green-800 border-green-200';
+            return 'bg-gray-100 text-gray-800 border-gray-200';
+        },
+
+        typeIcon(type) {
+            if (type === 'project') return 'fa-project-diagram';
+            if (type === 'meeting') return 'fa-handshake';
+            return 'fa-image';
         },
 
         resetFilters() {
