@@ -116,6 +116,18 @@
                                 <i class="fas fa-trash-restore group-hover:scale-110 transition-transform"></i>
                             </button>
                         </form>
+                        <form action="{{ route('admin.members.force-delete', $member->id) }}" method="POST" class="inline">
+                            @csrf
+                            @method('DELETE')
+                            <button
+                                type="submit"
+                                class="p-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-all duration-200 group"
+                                onclick="return confirm('Permanently delete this member from trash? This cannot be undone.')"
+                                title="Delete Permanently"
+                            >
+                                <i class="fas fa-trash-alt group-hover:scale-110 transition-transform"></i>
+                            </button>
+                        </form>
                     @else
                         <a href="{{ route('admin.bio-data.view', $member->id) }}" class="p-2 bg-purple-100 text-purple-600 rounded-lg hover:bg-purple-200 transition-all duration-200 group" title="View Bio Data">
                             <i class="fas fa-id-card group-hover:scale-110 transition-transform"></i>

@@ -320,6 +320,45 @@ class MemberController extends Controller
         return redirect()->route('admin.members.index', ['trash' => 'only'])->with('success', 'Member restored successfully');
     }
 
+    public function forceDelete($id)
+    {
+        $member = Member::withTrashed()->findOrFail($id);
+
+        if (!$member->trashed()) {
+            return redirect()->route('admin.members.index')->with('error', 'Only trashed members can be permanently deleted.');
+        }
+
+        DB::beginTransaction();
+        try {
+            $user = $member->user;
+            $memberPrimaryKey = $member->id;
+
+            // Remove dependent records tied to the member PK.
+            BioData::query()->where('member_id', $memberPrimaryKey)->delete();
+            DB::table('member_roles')->where('member_id', $memberPrimaryKey)->delete();
+
+            $member->forceDelete();
+
+            // Keep user/member sync: remove user if it was linked only to this member.
+            if ($user) {
+                $hasRemainingMemberLink = Member::withTrashed()
+                    ->where('user_id', $user->id)
+                    ->exists();
+
+                if (!$hasRemainingMemberLink) {
+                    DB::table('user_roles')->where('user_id', $user->id)->delete();
+                    $user->delete();
+                }
+            }
+
+            DB::commit();
+            return redirect()->route('admin.members.index', ['trash' => 'only'])->with('success', 'Member permanently deleted.');
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return redirect()->route('admin.members.index', ['trash' => 'only'])->with('error', 'Permanent delete failed: ' . $e->getMessage());
+        }
+    }
+
     public function viewBioData($id)
     {
         $member = Member::with('bioData')->findOrFail($id);

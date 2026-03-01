@@ -39,6 +39,7 @@ Route::prefix('admin')->name('admin.')->middleware(['web', 'auth', 'role:admin,c
         Route::put('/{id}', [MemberController::class, 'update'])->name('update');
         Route::delete('/{id}', [MemberController::class, 'destroy'])->name('destroy');
         Route::post('/{id}/restore', [MemberController::class, 'restore'])->name('restore');
+        Route::delete('/{id}/force', [MemberController::class, 'forceDelete'])->name('force-delete');
         
         // Picture Management
         Route::post('/{id}/picture/upload', [MemberController::class, 'uploadPicture'])->name('picture.upload');
