@@ -12,7 +12,13 @@
     </thead>
     <tbody class="bg-white">
         @forelse($members as $member)
-        <tr class="transition-all duration-200 {{ $loop->iteration % 2 == 0 ? 'bg-blue-50' : 'bg-white' }} hover:bg-gradient-to-r hover:from-purple-50 hover:to-pink-50 border-l-4 {{ $member->trashed() ? 'border-orange-500 opacity-80' : 'border-green-500' }}">
+        @php
+            $rawStatus = strtolower((string) ($member->status ?? ''));
+            $isDeletedMember = $member->trashed() || in_array($rawStatus, ['deleted', 'deleated', 'delede'], true);
+            $deletedPrimaryTextClass = $isDeletedMember ? 'line-through text-gray-500' : 'text-gray-900';
+            $deletedSecondaryTextClass = $isDeletedMember ? 'line-through text-gray-400' : 'text-gray-500';
+        @endphp
+        <tr class="transition-all duration-200 {{ $isDeletedMember ? 'bg-red-50 border-red-500 hover:bg-gradient-to-r hover:from-red-50 hover:to-rose-50' : (($loop->iteration % 2 == 0 ? 'bg-blue-50' : 'bg-white') . ' hover:bg-gradient-to-r hover:from-purple-50 hover:to-pink-50 border-green-500') }} border-l-4 {{ $isDeletedMember ? 'opacity-90' : '' }}">
             <td class="px-6 py-4 whitespace-nowrap relative border-r border-gray-200">
                 <div class="flex items-center gap-4">
                     <div class="relative w-12 h-12 rounded-full overflow-hidden shrink-0">
@@ -28,8 +34,8 @@
                         @endif
                     </div>
                     <div>
-                        <p class="text-sm font-semibold text-gray-900">{{ $member->full_name }}</p>
-                        <p class="text-xs text-gray-500">ID: {{ $member->member_id }}</p>
+                        <p class="text-sm font-semibold {{ $deletedPrimaryTextClass }}">{{ $member->full_name }}</p>
+                        <p class="text-xs {{ $deletedSecondaryTextClass }}">ID: {{ $member->member_id }}</p>
                         @if($hasProfilePicture)
                             <p class="text-xs text-green-600 flex items-center gap-1 mt-1">
                                 <i class="fas fa-check-circle"></i>
@@ -46,11 +52,11 @@
             </td>
             <td class="px-6 py-4 border-r border-gray-200">
                 <div class="space-y-1">
-                    <p class="text-sm text-gray-900 flex items-center gap-2">
+                    <p class="text-sm {{ $deletedPrimaryTextClass }} flex items-center gap-2">
                         <i class="fas fa-envelope text-gray-400 text-xs"></i>
                         {{ $member->email }}
                     </p>
-                    <p class="text-sm text-gray-600 flex items-center gap-2">
+                    <p class="text-sm {{ $isDeletedMember ? 'line-through text-gray-400' : 'text-gray-600' }} flex items-center gap-2">
                         <i class="fas fa-phone text-gray-400 text-xs"></i>
                         {{ $member->contact }}
                     </p>
@@ -92,18 +98,18 @@
             <td class="px-6 py-4 whitespace-nowrap border-r border-gray-200">
                 <div class="flex items-center gap-2">
                     <i class="fas fa-coins text-yellow-500"></i>
-                    <span class="text-sm font-semibold text-gray-900">{{ number_format($member->savings, 2) }}</span>
+                    <span class="text-sm font-semibold {{ $deletedPrimaryTextClass }}">{{ number_format($member->savings, 2) }}</span>
                 </div>
             </td>
             <td class="px-6 py-4 whitespace-nowrap border-r border-gray-200">
-                <span class="px-3 py-1.5 text-xs font-semibold rounded-full {{ $member->status == 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800' }}">
+                <span class="px-3 py-1.5 text-xs font-semibold rounded-full {{ $isDeletedMember ? 'bg-red-100 text-red-800' : ($member->status == 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800') }}">
                     <i class="fas fa-circle text-[8px] mr-1"></i>
-                    {{ $member->trashed() ? 'Deleted' : ucfirst($member->status ?? 'active') }}
+                    {{ $isDeletedMember ? 'Deleted' : ucfirst($member->status ?? 'active') }}
                 </span>
             </td>
             <td class="px-6 py-4 whitespace-nowrap text-center">
                 <div class="flex items-center justify-center gap-2">
-                    @if($member->trashed())
+                    @if($isDeletedMember && $member->trashed())
                         <form action="{{ route('admin.members.restore', $member->id) }}" method="POST" class="inline">
                             @csrf
                             <button type="submit" class="p-2 bg-emerald-100 text-emerald-700 rounded-lg hover:bg-emerald-200 transition-all duration-200 group" onclick="return confirm('Restore this member?')" title="Restore">
