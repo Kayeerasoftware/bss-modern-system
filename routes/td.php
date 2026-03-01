@@ -50,6 +50,7 @@ Route::prefix('td')->name('td.')->middleware(['auth', 'role:td,admin'])->group(f
     Route::prefix('photos')->name('photos.')->group(function () {
         Route::get('/', [PhotoController::class, 'index'])->name('index');
         Route::post('/', [PhotoController::class, 'store'])->name('store');
+        Route::delete('/batch-delete', [PhotoController::class, 'batchDestroy'])->name('batch-destroy');
         Route::put('/{id}', [PhotoController::class, 'update'])->name('update');
         Route::delete('/{id}', [PhotoController::class, 'destroy'])->name('destroy');
         Route::post('/{id}/toggle', [PhotoController::class, 'toggleStatus'])->name('toggle');

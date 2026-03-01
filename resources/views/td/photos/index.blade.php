@@ -23,11 +23,32 @@
                 <button @click="showUploadModal = true" class="flex-1 md:flex-none px-3 md:px-5 py-2 md:py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg md:rounded-xl hover:shadow-xl transition-all duration-300 text-xs md:text-sm font-bold flex items-center justify-center gap-1 md:gap-2 transform hover:scale-105">
                     <i class="fas fa-upload"></i><span>Upload Photos</span>
                 </button>
+                <button
+                    type="button"
+                    @click="submitBatchDelete()"
+                    :disabled="selectedPhotoIds.length === 0"
+                    :class="selectedPhotoIds.length === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-xl transform hover:scale-105'"
+                    class="flex-1 md:flex-none px-3 md:px-5 py-2 md:py-2.5 bg-gradient-to-r from-red-600 to-pink-600 text-white rounded-lg md:rounded-xl transition-all duration-300 text-xs md:text-sm font-bold flex items-center justify-center gap-1 md:gap-2"
+                >
+                    <i class="fas fa-trash"></i><span>Delete Selected</span>
+                </button>
                 <button class="px-3 md:px-5 py-2 md:py-2.5 bg-white text-gray-700 rounded-lg md:rounded-xl hover:shadow-xl transition-all duration-300 shadow-md border border-gray-200 text-xs md:text-sm font-bold flex items-center justify-center gap-1 md:gap-2 transform hover:scale-105">
                     <i class="fas fa-file-export"></i><span class="hidden sm:inline">Export</span>
                 </button>
             </div>
         </div>
+    </div>
+
+    <div x-show="selectedPhotoIds.length > 0" x-cloak class="mb-4 bg-red-50 border border-red-200 rounded-xl p-3 flex flex-wrap items-center gap-2">
+        <span class="text-sm font-semibold text-red-700">
+            <span x-text="selectedPhotoIds.length"></span> photo(s) selected
+        </span>
+        <button type="button" @click="selectFilteredPhotos()" class="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-semibold hover:bg-gray-50">
+            Select Filtered
+        </button>
+        <button type="button" @click="clearSelection()" class="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-semibold hover:bg-gray-50">
+            Clear
+        </button>
     </div>
 
     <!-- Animated Separator Line -->
@@ -137,6 +158,9 @@
             <div class="bg-white border rounded-2xl overflow-hidden shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105 group">
                 <div class="relative h-48">
                     <img :src="photo.photo_path" :alt="photo.title" class="w-full h-full object-cover">
+                    <div class="absolute top-2 left-2">
+                        <input type="checkbox" :checked="isSelected(photo.id)" @change="togglePhotoSelection(photo.id)" class="w-4 h-4 rounded border-white/80 text-purple-600 focus:ring-purple-500">
+                    </div>
                     <div class="absolute top-2 right-2 flex gap-2">
                         <span :class="typeBadgeClass(photo.type)" class="px-2 py-1 text-xs rounded-full font-semibold text-white">
                             <span x-text="formatType(photo.type)"></span>
@@ -181,6 +205,9 @@
             <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gradient-to-r from-purple-50 via-indigo-50 to-pink-50">
                     <tr>
+                        <th class="px-4 py-3 text-center text-xs font-bold text-gray-700 uppercase tracking-wider">
+                            <input type="checkbox" @change="toggleSelectFiltered($event.target.checked)" :checked="areFilteredSelected()" class="w-4 h-4 rounded text-purple-600 focus:ring-purple-500">
+                        </th>
                         <th class="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Photo</th>
                         <th class="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Title</th>
                         <th class="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Description</th>
@@ -194,6 +221,9 @@
                 <tbody class="bg-white divide-y divide-gray-200">
                     <template x-for="photo in filteredPhotos" :key="photo.id">
                         <tr class="hover:bg-gradient-to-r hover:from-purple-50 hover:to-indigo-50 transition-all duration-200">
+                            <td class="px-4 py-3 text-center">
+                                <input type="checkbox" :checked="isSelected(photo.id)" @change="togglePhotoSelection(photo.id)" class="w-4 h-4 rounded text-purple-600 focus:ring-purple-500">
+                            </td>
                             <td class="px-4 py-3">
                                 <img :src="photo.photo_path" :alt="photo.title" class="w-16 h-16 rounded-lg object-cover shadow-md">
                             </td>
@@ -237,7 +267,7 @@
                         </tr>
                     </template>
                     <tr x-show="filteredPhotos.length === 0">
-                        <td colspan="8" class="px-6 py-12 text-center">
+                        <td colspan="9" class="px-6 py-12 text-center">
                             <div class="flex flex-col items-center justify-center">
                                 <div class="bg-gradient-to-br from-purple-100 to-indigo-100 p-6 rounded-full mb-4">
                                     <i class="fas fa-images text-purple-400 text-5xl"></i>
@@ -387,6 +417,7 @@ function photoManager() {
         showUploadModal: false,
         uploadType: 'project',
         customType: '',
+        selectedPhotoIds: [],
         showEditModal: false,
         showDeleteModal: false,
         editPhotoId: null,
@@ -461,6 +492,85 @@ function photoManager() {
             this.filterType = 'all';
             this.filterStatus = 'all';
             this.filterPhotos();
+        },
+
+        isSelected(id) {
+            return this.selectedPhotoIds.includes(id);
+        },
+
+        togglePhotoSelection(id) {
+            if (this.isSelected(id)) {
+                this.selectedPhotoIds = this.selectedPhotoIds.filter(photoId => photoId !== id);
+                return;
+            }
+
+            this.selectedPhotoIds.push(id);
+        },
+
+        selectFilteredPhotos() {
+            const visibleIds = this.filteredPhotos.map(photo => photo.id);
+            this.selectedPhotoIds = Array.from(new Set([...this.selectedPhotoIds, ...visibleIds]));
+        },
+
+        toggleSelectFiltered(shouldSelect) {
+            if (shouldSelect) {
+                this.selectFilteredPhotos();
+                return;
+            }
+
+            const visibleIds = this.filteredPhotos.map(photo => photo.id);
+            this.selectedPhotoIds = this.selectedPhotoIds.filter(id => !visibleIds.includes(id));
+        },
+
+        areFilteredSelected() {
+            if (this.filteredPhotos.length === 0) {
+                return false;
+            }
+
+            const visibleIds = this.filteredPhotos.map(photo => photo.id);
+            return visibleIds.every(id => this.selectedPhotoIds.includes(id));
+        },
+
+        clearSelection() {
+            this.selectedPhotoIds = [];
+        },
+
+        submitBatchDelete() {
+            if (this.selectedPhotoIds.length === 0) {
+                return;
+            }
+
+            if (!confirm(`Delete ${this.selectedPhotoIds.length} selected photo(s)? This cannot be undone.`)) {
+                return;
+            }
+
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '{{ route('td.photos.batch-destroy') }}';
+
+            const token = document.querySelector('meta[name="csrf-token"]').content;
+            const tokenInput = document.createElement('input');
+            tokenInput.type = 'hidden';
+            tokenInput.name = '_token';
+            tokenInput.value = token;
+            form.appendChild(tokenInput);
+
+            const methodInput = document.createElement('input');
+            methodInput.type = 'hidden';
+            methodInput.name = '_method';
+            methodInput.value = 'DELETE';
+            form.appendChild(methodInput);
+
+            this.selectedPhotoIds.forEach(id => {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'photo_ids[]';
+                input.value = String(id);
+                form.appendChild(input);
+            });
+
+            document.body.appendChild(form);
+            form.submit();
         },
 
         editPhoto(photo) {

@@ -129,6 +129,27 @@ class PhotoController extends Controller
         return redirect()->route('td.photos.index')->with('success', 'Photo deleted successfully');
     }
 
+    public function batchDestroy(Request $request)
+    {
+        $validated = $request->validate([
+            'photo_ids' => 'required|array|min:1',
+            'photo_ids.*' => 'integer|exists:dashboard_photos,id',
+        ]);
+
+        $photoIds = array_values(array_unique($validated['photo_ids']));
+        $photos = DashboardPhoto::query()->whereIn('id', $photoIds)->get();
+
+        foreach ($photos as $photo) {
+            $this->deletePhotoFile($photo->photo_path);
+            $photo->delete();
+        }
+
+        $count = $photos->count();
+        $message = $count === 1 ? '1 photo deleted successfully.' : "{$count} photos deleted successfully.";
+
+        return redirect()->route('td.photos.index')->with('success', $message);
+    }
+
     public function toggleStatus($id)
     {
         $photo = DashboardPhoto::findOrFail($id);
