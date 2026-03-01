@@ -25,8 +25,17 @@ Route::get('/login', function () {
             ->whereNotNull('phone')
             ->value('phone');
     });
+
+    $recentRegisteredUser = null;
+    $registeredEmail = session('registered_email');
+    if (is_string($registeredEmail) && $registeredEmail !== '') {
+        $recentRegisteredUser = \App\Models\User::query()
+            ->select('name', 'email', 'role', 'is_active')
+            ->where('email', strtolower(trim($registeredEmail)))
+            ->first();
+    }
     
-    return view('auth.login', compact('roleStatuses', 'adminPhone')); 
+    return view('auth.login', compact('roleStatuses', 'adminPhone', 'recentRegisteredUser')); 
 })->name('login');
 
 Route::post('/login', [AuthController::class, 'login'])->name('login.post');

@@ -41,29 +41,56 @@
             @endif
 
             @if (session('register_success'))
-                <div class="mb-4 p-4 bg-gradient-to-r from-emerald-50 to-green-50 border-2 border-emerald-500 rounded-xl shadow-sm">
-                    <div class="flex items-start gap-3">
-                        <div class="mt-0.5">
-                            <i class="fas fa-check-circle text-emerald-600 text-xl"></i>
-                        </div>
-                        <div class="space-y-1">
-                            <p class="text-emerald-900 font-extrabold text-sm">
-                                Registration successful as {{ session('register_role') }} Role
-                            </p>
-                            <p class="text-emerald-800 text-xs font-semibold">
-                                Please select your role and sign in.
-                            </p>
-                            <p class="text-emerald-700 text-xs flex items-center gap-2">
-                                <i class="fas fa-check-circle text-emerald-600"></i>
-                                User role with a tick in green indicates an active role.
-                            </p>
+                @php
+                    $registeredName = $recentRegisteredUser->name ?? session('registered_name');
+                    $registeredRole = $recentRegisteredUser ? ucfirst((string) $recentRegisteredUser->role) : session('register_role');
+                    $isRegisteredUserActive = $recentRegisteredUser ? (bool) $recentRegisteredUser->is_active : true;
+                @endphp
+                <div class="mb-4 rounded-2xl overflow-hidden shadow-2xl border border-emerald-300">
+                    <div class="relative p-4 bg-gradient-to-br from-emerald-500 via-teal-500 to-cyan-500 text-white">
+                        <div class="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.3),transparent_45%)]"></div>
+                        <div class="relative">
+                            <div class="flex items-start gap-3">
+                                <div class="w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center shadow-lg">
+                                    <i class="fas fa-check-circle text-white text-xl"></i>
+                                </div>
+                                <div class="flex-1">
+                                    <p class="text-[11px] uppercase tracking-widest font-black text-emerald-100">After Registering</p>
+                                    <h3 class="text-base font-extrabold leading-tight mt-0.5">
+                                        Registration successful as {{ $registeredRole }} Role
+                                    </h3>
+                                    <p class="text-xs mt-2 text-emerald-50 font-semibold">
+                                        Please select your role and sign in.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div class="mt-3 grid grid-cols-1 gap-2 text-xs">
+                                <div class="bg-white/20 rounded-lg px-3 py-2 backdrop-blur-sm border border-white/30">
+                                    <p class="font-semibold text-emerald-50">User role with a tick in green means active.</p>
+                                    <p class="mt-1 text-emerald-100">
+                                        Status:
+                                        @if($isRegisteredUserActive)
+                                            <span class="font-bold text-green-100">[<i class="fas fa-check-circle"></i> Approved and Active]</span>
+                                        @else
+                                            <span class="font-bold text-yellow-100">[Pending Activation]</span>
+                                        @endif
+                                    </p>
+                                </div>
+                                @if($registeredName)
+                                    <div class="bg-white/20 rounded-lg px-3 py-2 backdrop-blur-sm border border-white/30">
+                                        <p class="font-bold">Welcome Back {{ $registeredName }}</p>
+                                        <p class="text-emerald-100">Sign in to your account</p>
+                                    </div>
+                                @endif
+                            </div>
                         </div>
                     </div>
                 </div>
             @endif
 
-            <h2 class="text-xl font-extrabold bg-gradient-to-r from-blue-700 to-purple-700 bg-clip-text text-transparent mb-1">
-                Welcome Back{{ session('registered_name') ? ', ' . session('registered_name') : '' }}
+            <h2 class="text-xl font-extrabold bg-gradient-to-r from-blue-700 via-indigo-700 to-purple-700 bg-clip-text text-transparent mb-1">
+                Welcome Back{{ ($recentRegisteredUser->name ?? session('registered_name')) ? ', ' . ($recentRegisteredUser->name ?? session('registered_name')) : '' }}
             </h2>
             <p class="text-gray-600 text-xs mb-3 font-semibold">Sign in to your account</p>
 
