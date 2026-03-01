@@ -1,7 +1,7 @@
 @extends('layouts.shareholder')
 
 @section('content')
-<div class="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-3 md:p-6" x-data="{ activeTab: '' }">
+<div class="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-3 md:p-6" x-data="{ activeTab: @js(request('tab', '')) }">
     <div class="mb-4 md:mb-6">
         <div class="flex items-center gap-2 md:gap-4">
             <div class="relative">
@@ -559,28 +559,30 @@
     <div x-show="activeTab === 'loans'" x-collapse class="mb-4">
         <div class="bg-gradient-to-br from-purple-50 via-pink-50 to-purple-50 rounded-2xl shadow-lg border border-purple-100 overflow-hidden mb-4">
             <form method="GET" x-data="{ showAdvanced: false }" class="bg-white/60 backdrop-blur-sm p-3">
+                <input type="hidden" name="tab" value="loans">
                 <div class="bg-white/80 rounded-xl p-2.5 border border-purple-100">
                     <div class="grid grid-cols-1 md:grid-cols-12 gap-2">
                         <div class="md:col-span-4 relative">
                             <i class="fas fa-search absolute left-2.5 top-1/2 transform -translate-y-1/2 text-purple-400 text-xs"></i>
-                            <input type="text" name="search" value="{{ request('search') }}" placeholder="Search loans..." class="w-full pl-8 pr-2 py-1.5 text-xs border border-purple-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all bg-white">
+                            <input type="text" name="loan_search" value="{{ request('loan_search', request('tab') === 'loans' ? request('search') : '') }}" placeholder="Search loans..." class="w-full pl-8 pr-2 py-1.5 text-xs border border-purple-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all bg-white">
                         </div>
                         <div class="md:col-span-2 relative">
                             <i class="fas fa-filter absolute left-2.5 top-1/2 transform -translate-y-1/2 text-pink-400 text-xs"></i>
-                            <select name="status" class="w-full pl-8 pr-2 py-1.5 text-xs border border-pink-200 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all appearance-none bg-white" @change="$el.form.submit()">
+                            <select name="loan_status" class="w-full pl-8 pr-2 py-1.5 text-xs border border-pink-200 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all appearance-none bg-white" @change="$el.form.submit()">
                                 <option value="">All Status</option>
-                                <option value="approved" {{ request('status') == 'approved' ? 'selected' : '' }}>Approved</option>
-                                <option value="pending" {{ request('status') == 'pending' ? 'selected' : '' }}>Pending</option>
+                                <option value="approved" {{ request('loan_status', request('tab') === 'loans' ? request('status') : '') == 'approved' ? 'selected' : '' }}>Approved</option>
+                                <option value="pending" {{ request('loan_status', request('tab') === 'loans' ? request('status') : '') == 'pending' ? 'selected' : '' }}>Pending</option>
+                                <option value="rejected" {{ request('loan_status', request('tab') === 'loans' ? request('status') : '') == 'rejected' ? 'selected' : '' }}>Rejected</option>
                             </select>
                         </div>
                         <div class="md:col-span-2 relative">
                             <i class="fas fa-sort-amount-down absolute left-2.5 top-1/2 transform -translate-y-1/2 text-indigo-400 text-xs"></i>
-                            <select name="sort" class="w-full pl-8 pr-2 py-1.5 text-xs border border-indigo-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all appearance-none bg-white" @change="$el.form.submit()">
+                            <select name="loan_sort" class="w-full pl-8 pr-2 py-1.5 text-xs border border-indigo-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all appearance-none bg-white" @change="$el.form.submit()">
                                 <option value="">Sort By</option>
-                                <option value="amount_high" {{ request('sort') == 'amount_high' ? 'selected' : '' }}>Amount (High-Low)</option>
-                                <option value="amount_low" {{ request('sort') == 'amount_low' ? 'selected' : '' }}>Amount (Low-High)</option>
-                                <option value="newest" {{ request('sort') == 'newest' ? 'selected' : '' }}>Newest First</option>
-                                <option value="oldest" {{ request('sort') == 'oldest' ? 'selected' : '' }}>Oldest First</option>
+                                <option value="amount_high" {{ request('loan_sort', request('tab') === 'loans' ? request('sort') : '') == 'amount_high' ? 'selected' : '' }}>Amount (High-Low)</option>
+                                <option value="amount_low" {{ request('loan_sort', request('tab') === 'loans' ? request('sort') : '') == 'amount_low' ? 'selected' : '' }}>Amount (Low-High)</option>
+                                <option value="newest" {{ request('loan_sort', request('tab') === 'loans' ? request('sort') : '') == 'newest' ? 'selected' : '' }}>Newest First</option>
+                                <option value="oldest" {{ request('loan_sort', request('tab') === 'loans' ? request('sort') : '') == 'oldest' ? 'selected' : '' }}>Oldest First</option>
                             </select>
                         </div>
                         <div class="md:col-span-1 relative">
@@ -593,22 +595,22 @@
                             <button type="submit" class="flex-1 px-2 py-1.5 text-xs bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:shadow-lg transition-all duration-300 font-semibold">
                                 <i class="fas fa-search mr-1"></i>Search
                             </button>
-                            <a href="{{ route('shareholder.financial') }}" class="px-2 py-1.5 text-xs bg-gradient-to-r from-gray-100 to-gray-200 text-gray-700 rounded-lg hover:shadow-md transition-all duration-300 font-semibold">
+                            <a href="{{ route('shareholder.financial', ['tab' => 'loans']) }}" class="px-2 py-1.5 text-xs bg-gradient-to-r from-gray-100 to-gray-200 text-gray-700 rounded-lg hover:shadow-md transition-all duration-300 font-semibold">
                                 <i class="fas fa-redo"></i>
                             </a>
                         </div>
                     </div>
                     <div x-show="showAdvanced" x-collapse class="mt-2 pt-2 border-t border-purple-100">
                         <div class="grid grid-cols-1 md:grid-cols-4 gap-2">
-                            <input type="date" name="date_from" value="{{ request('date_from') }}" placeholder="From" class="w-full px-2 py-1.5 text-xs border border-green-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white" @change="$el.form.submit()">
-                            <input type="date" name="date_to" value="{{ request('date_to') }}" placeholder="To" class="w-full px-2 py-1.5 text-xs border border-green-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white" @change="$el.form.submit()">
-                            <input type="number" name="amount_min" value="{{ request('amount_min') }}" placeholder="Min Amount" class="w-full px-2 py-1.5 text-xs border border-yellow-200 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent bg-white" @change="$el.form.submit()">
-                            <select name="per_page" class="w-full px-2 py-1.5 text-xs border border-purple-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent appearance-none bg-white" @change="$el.form.submit()">
-                                <option value="10" {{ request('per_page') == '10' ? 'selected' : '' }}>10 per page</option>
-                                <option value="15" {{ request('per_page') == '15' ? 'selected' : '' }}>15 per page</option>
-                                <option value="20" {{ request('per_page') == '20' ? 'selected' : '' }}>20 per page</option>
-                                <option value="50" {{ request('per_page') == '50' ? 'selected' : '' }}>50 per page</option>
-                                <option value="100" {{ request('per_page') == '100' ? 'selected' : '' }}>100 per page</option>
+                            <input type="date" name="loan_date_from" value="{{ request('loan_date_from', request('tab') === 'loans' ? request('date_from') : '') }}" placeholder="From" class="w-full px-2 py-1.5 text-xs border border-green-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white" @change="$el.form.submit()">
+                            <input type="date" name="loan_date_to" value="{{ request('loan_date_to', request('tab') === 'loans' ? request('date_to') : '') }}" placeholder="To" class="w-full px-2 py-1.5 text-xs border border-green-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white" @change="$el.form.submit()">
+                            <input type="number" name="loan_amount_min" value="{{ request('loan_amount_min', request('tab') === 'loans' ? request('amount_min') : '') }}" placeholder="Min Amount" class="w-full px-2 py-1.5 text-xs border border-yellow-200 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent bg-white" @change="$el.form.submit()">
+                            <select name="loan_per_page" class="w-full px-2 py-1.5 text-xs border border-purple-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent appearance-none bg-white" @change="$el.form.submit()">
+                                <option value="10" {{ request('loan_per_page', request('tab') === 'loans' ? request('per_page') : '10') == '10' ? 'selected' : '' }}>10 per page</option>
+                                <option value="15" {{ request('loan_per_page', request('tab') === 'loans' ? request('per_page') : '') == '15' ? 'selected' : '' }}>15 per page</option>
+                                <option value="20" {{ request('loan_per_page', request('tab') === 'loans' ? request('per_page') : '') == '20' ? 'selected' : '' }}>20 per page</option>
+                                <option value="50" {{ request('loan_per_page', request('tab') === 'loans' ? request('per_page') : '') == '50' ? 'selected' : '' }}>50 per page</option>
+                                <option value="100" {{ request('loan_per_page', request('tab') === 'loans' ? request('per_page') : '') == '100' ? 'selected' : '' }}>100 per page</option>
                             </select>
                         </div>
                     </div>

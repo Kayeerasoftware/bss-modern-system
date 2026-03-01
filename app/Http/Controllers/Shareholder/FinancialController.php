@@ -129,26 +129,70 @@ class FinancialController extends Controller
         
         $shares = $sharesQuery->paginate($request->per_page ?? 10)->appends($request->except('page'));
         
-        // Loans with search
+        // Loans with search (use dedicated loan_* filters to avoid cross-tab filter collisions)
         $loansQuery = Loan::where('member_id', $member->member_id);
-        
-        if ($request->filled('search')) {
-            $loansQuery->where(function($q) use ($request) {
-                $q->where('loan_id', 'like', "%{$request->search}%")
-                  ->orWhere('amount', 'like', "%{$request->search}%");
+
+        $loanSearch = $request->input('loan_search');
+        if ($loanSearch === null && $request->input('tab') === 'loans') {
+            $loanSearch = $request->input('search');
+        }
+
+        if (!empty($loanSearch)) {
+            $loansQuery->where(function($q) use ($loanSearch) {
+                $q->where('loan_id', 'like', "%{$loanSearch}%")
+                  ->orWhere('amount', 'like', "%{$loanSearch}%");
             });
         }
-        if ($request->filled('status')) $loansQuery->where('status', $request->status);
-        if ($request->filled('date_from')) $loansQuery->whereDate('created_at', '>=', $request->date_from);
-        if ($request->filled('date_to')) $loansQuery->whereDate('created_at', '<=', $request->date_to);
-        if ($request->filled('amount_min')) $loansQuery->where('amount', '>=', $request->amount_min);
-        
-        if ($request->sort == 'amount_high') $loansQuery->orderBy('amount', 'desc');
-        elseif ($request->sort == 'amount_low') $loansQuery->orderBy('amount', 'asc');
-        elseif ($request->sort == 'oldest') $loansQuery->oldest();
+
+        $loanStatus = $request->input('loan_status');
+        if ($loanStatus === null && $request->input('tab') === 'loans') {
+            $loanStatus = $request->input('status');
+        }
+        if (!empty($loanStatus)) {
+            $loansQuery->where('status', $loanStatus);
+        }
+
+        $loanDateFrom = $request->input('loan_date_from');
+        if ($loanDateFrom === null && $request->input('tab') === 'loans') {
+            $loanDateFrom = $request->input('date_from');
+        }
+        if (!empty($loanDateFrom)) {
+            $loansQuery->whereDate('created_at', '>=', $loanDateFrom);
+        }
+
+        $loanDateTo = $request->input('loan_date_to');
+        if ($loanDateTo === null && $request->input('tab') === 'loans') {
+            $loanDateTo = $request->input('date_to');
+        }
+        if (!empty($loanDateTo)) {
+            $loansQuery->whereDate('created_at', '<=', $loanDateTo);
+        }
+
+        $loanAmountMin = $request->input('loan_amount_min');
+        if ($loanAmountMin === null && $request->input('tab') === 'loans') {
+            $loanAmountMin = $request->input('amount_min');
+        }
+        if (!empty($loanAmountMin)) {
+            $loansQuery->where('amount', '>=', $loanAmountMin);
+        }
+
+        $loanSort = $request->input('loan_sort');
+        if ($loanSort === null && $request->input('tab') === 'loans') {
+            $loanSort = $request->input('sort');
+        }
+        if ($loanSort == 'amount_high') $loansQuery->orderBy('amount', 'desc');
+        elseif ($loanSort == 'amount_low') $loansQuery->orderBy('amount', 'asc');
+        elseif ($loanSort == 'oldest') $loansQuery->oldest();
         else $loansQuery->latest();
-        
-        $loans = $loansQuery->paginate($request->per_page ?? 10)->appends($request->except('page'));
+
+        $loanPerPage = (int) ($request->input('loan_per_page') ?? ($request->input('tab') === 'loans' ? $request->input('per_page', 10) : 10));
+        if (!in_array($loanPerPage, [10, 15, 20, 50, 100], true)) {
+            $loanPerPage = 10;
+        }
+
+        $loans = $loansQuery
+            ->paginate($loanPerPage, ['*'], 'loans_page')
+            ->appends($request->except('loans_page'));
         
         $quarterlyDividends = Dividend::where('member_id', $member->member_id)
             ->selectRaw('year, quarter, SUM(amount) as total')
