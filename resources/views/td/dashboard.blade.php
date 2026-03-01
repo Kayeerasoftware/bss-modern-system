@@ -12,7 +12,7 @@
                     <img src="{{ auth()->user()->profile_picture_url }}" alt="{{ auth()->user()->name }}" class="w-full h-full object-cover">
                 </div>
                 <div class="min-w-0">
-                <h1 class="text-sm sm:text-lg md:text-2xl font-bold text-white truncate">Welcome, <span class="text-black text-base sm:text-xl md:text-3xl">{{ auth()->user()->name }}</span> <span class="text-purple-200 font-normal text-xs sm:text-sm md:text-lg">(Technical Director)</span> 👋</h1>
+                <h1 class="text-sm sm:text-lg md:text-2xl font-bold text-white truncate">Welcome, <span class="text-black text-base sm:text-xl md:text-3xl">{{ auth()->user()->name }}</span> <span class="text-purple-200 font-normal text-xs sm:text-sm md:text-lg">(Technical Director)</span></h1>
                 <p class="text-purple-100 text-xs sm:text-sm mt-0.5 md:mt-1">Project & Technical Oversight Dashboard</p>
                 </div>
             </div>
@@ -144,7 +144,7 @@
                 <h3 class="text-lg font-bold text-gray-800 flex items-center">
                     <i class="fas fa-project-diagram text-indigo-600 mr-2"></i>Recent Projects
                 </h3>
-                <a href="{{ route('td.projects.index') }}" class="text-indigo-600 text-sm hover:underline font-semibold">View All →</a>
+                <a href="{{ route('td.projects.index') }}" class="text-indigo-600 text-sm hover:underline font-semibold">View All -></a>
             </div>
             <div class="space-y-3">
                 @forelse($recentProjects as $project)
@@ -177,21 +177,21 @@
                 <h3 class="text-lg font-bold text-gray-800 flex items-center">
                     <i class="fas fa-users text-purple-600 mr-2"></i>Recent Members
                 </h3>
-                <a href="{{ route('td.members.index') }}" class="text-purple-600 text-sm hover:underline font-semibold">View All →</a>
+                <a href="{{ route('td.members.index') }}" class="text-purple-600 text-sm hover:underline font-semibold">View All -></a>
             </div>
             <div class="space-y-3">
                 @forelse($recentMembers as $member)
                 <a href="{{ route('td.members.show', $member->id) }}" class="flex items-center space-x-3 p-3 hover:bg-purple-50 rounded-lg transition cursor-pointer">
                     @if($member->profile_picture_url)
-                        <img src="{{ $member->profile_picture_url }}" class="w-12 h-12 rounded-full object-cover ring-2 ring-purple-500 ring-offset-2" alt="{{ $member->full_name }}">
+                        <img src="{{ $member->profile_picture_url }}" class="w-12 h-12 rounded-full object-cover ring-2 ring-purple-500 ring-offset-2" alt="{{ $member->name }}">
                     @else
                         <div class="w-12 h-12 rounded-full bg-gradient-to-br from-purple-400 to-purple-600 flex items-center justify-center shadow-lg ring-2 ring-purple-500 ring-offset-2">
-                            <span class="text-white font-bold text-lg">{{ substr($member->full_name, 0, 1) }}</span>
+                            <span class="text-white font-bold text-lg">{{ substr($member->name, 0, 1) }}</span>
                         </div>
                     @endif
                     <div class="flex-1 min-w-0">
-                        <p class="text-sm font-semibold text-gray-900 truncate">{{ $member->full_name }}</p>
-                        <p class="text-xs text-gray-500">{{ $member->member_id }} • {{ $member->created_at->diffForHumans() }}</p>
+                        <p class="text-sm font-semibold text-gray-900 truncate">{{ $member->name }}</p>
+                        <p class="text-xs text-gray-500">{{ $member->member?->member_id ?? 'N/A' }} | {{ ucfirst((string) $member->role) }} | {{ $member->created_at->diffForHumans() }}</p>
                     </div>
                     <i class="fas fa-chevron-right text-gray-400"></i>
                 </a>

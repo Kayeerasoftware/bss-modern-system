@@ -25,4 +25,7 @@
     <div class="col-span-3 bg-white rounded-lg shadow p-6 text-center text-gray-500">No projects</div>
     @endforelse
 </div>
+<div class="mt-4">
+    {{ $projects->links() }}
+</div>
 @endsection

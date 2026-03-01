@@ -4,8 +4,8 @@ namespace App\Http\Controllers\TD;
 
 use App\Http\Controllers\Controller;
 use App\Models\Project;
-use App\Models\Member;
 use App\Models\Loan;
+use App\Models\User;
 use Illuminate\Http\Request;
 
 class ReportController extends Controller
@@ -46,14 +46,23 @@ class ReportController extends Controller
 
     public function members(Request $request)
     {
-        $query = Member::query();
+        $query = User::query()->with([
+            'member' => static function ($memberQuery) {
+                $memberQuery->withTrashed();
+            },
+        ]);
 
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
-                $q->where('member_id', 'like', "%{$search}%")
-                    ->orWhere('full_name', 'like', "%{$search}%")
+                $q->where('name', 'like', "%{$search}%")
                     ->orWhere('email', 'like', "%{$search}%");
+                $q->orWhereHas('member', function ($memberQuery) use ($search) {
+                    $memberQuery->withTrashed()
+                        ->where('member_id', 'like', "%{$search}%")
+                        ->orWhere('full_name', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%");
+                });
             });
         }
 
@@ -62,7 +71,18 @@ class ReportController extends Controller
         }
 
         if ($request->filled('status')) {
-            $query->where('status', $request->status);
+            $status = strtolower((string) $request->input('status'));
+            if ($status === 'deleted') {
+                $query->whereHas('member', static function ($memberQuery) {
+                    $memberQuery->onlyTrashed();
+                });
+            } elseif ($status === 'active') {
+                $query->where('is_active', true);
+            } elseif ($status === 'inactive') {
+                $query->where('is_active', false);
+            } elseif ($status === 'unlinked') {
+                $query->whereDoesntHave('member');
+            }
         }
 
         $members = $query->latest()->get();

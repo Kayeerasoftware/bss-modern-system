@@ -19,8 +19,8 @@ class DashboardController extends Controller
                 ->selectRaw('COUNT(*) as total_projects, SUM(CASE WHEN status = "active" THEN 1 ELSE 0 END) as active_projects, SUM(CASE WHEN status = "completed" THEN 1 ELSE 0 END) as completed_projects, SUM(CASE WHEN status = "pending" THEN 1 ELSE 0 END) as pending_projects')
                 ->first();
 
-            $memberSummary = Member::query()
-                ->selectRaw('COUNT(*) as total_members, SUM(CASE WHEN status = "active" THEN 1 ELSE 0 END) as active_members')
+            $memberSummary = User::query()
+                ->selectRaw('COUNT(*) as total_members, SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END) as active_members')
                 ->first();
 
             $loanSummary = Loan::query()
@@ -32,9 +32,16 @@ class DashboardController extends Controller
                 ->first();
 
             $userSummary = User::query()
-                ->whereHas('member')
                 ->selectRaw('COUNT(*) as total_users, SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END) as active_users')
                 ->first();
+
+            $linkedSummary = Member::query()
+                ->selectRaw('COUNT(DISTINCT user_id) as linked_members')
+                ->whereNotNull('user_id')
+                ->first();
+
+            $totalUsers = (int) ($userSummary->total_users ?? 0);
+            $linkedMembers = (int) ($linkedSummary->linked_members ?? 0);
 
             return [
                 'totalProjects' => (int) ($projectSummary->total_projects ?? 0),
@@ -47,8 +54,10 @@ class DashboardController extends Controller
                 'approvedLoans' => (int) ($loanSummary->approved_loans ?? 0),
                 'totalTransactions' => (int) ($txSummary->total_transactions ?? 0),
                 'todayTransactions' => (int) ($txSummary->today_transactions ?? 0),
-                'totalUsers' => (int) ($userSummary->total_users ?? 0),
+                'totalUsers' => $totalUsers,
                 'activeUsers' => (int) ($userSummary->active_users ?? 0),
+                'linkedMembers' => $linkedMembers,
+                'unlinkedUsers' => max($totalUsers - $linkedMembers, 0),
             ];
         });
 
@@ -56,9 +65,14 @@ class DashboardController extends Controller
             return Project::query()->latest()->take(5)->get();
         });
 
-        $recentMembers = Cache::remember('td_dashboard:recent_members:v1', now()->addSeconds(30), static function () {
-            return Member::query()
-                ->select('id', 'user_id', 'member_id', 'full_name', 'profile_picture', 'created_at')
+        $recentMembers = Cache::remember('td_dashboard:recent_members:v2', now()->addSeconds(30), static function () {
+            return User::query()
+                ->with([
+                    'member' => static function ($query) {
+                        $query->withTrashed();
+                    },
+                ])
+                ->select('id', 'name', 'email', 'role', 'profile_picture', 'created_at')
                 ->latest()
                 ->take(5)
                 ->get();

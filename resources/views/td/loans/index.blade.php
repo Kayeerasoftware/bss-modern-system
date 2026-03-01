@@ -20,10 +20,10 @@
             @forelse($loans as $loan)
             <tr>
                 <td class="px-6 py-4 whitespace-nowrap">{{ $loan->loan_id }}</td>
-                <td class="px-6 py-4 whitespace-nowrap">{{ $loan->member->name }}</td>
-                <td class="px-6 py-4 whitespace-nowrap font-bold">UGX {{ number_format($loan->amount) }}</td>
+                <td class="px-6 py-4 whitespace-nowrap">{{ $loan->member->full_name }}</td>
+                <td class="px-6 py-4 whitespace-nowrap font-bold">UGX {{ number_format((float) $loan->amount, 2) }}</td>
                 <td class="px-6 py-4 whitespace-nowrap">
-                    <span class="px-2 py-1 text-xs rounded-full bg-yellow-100 text-yellow-800">{{ ucfirst($loan->status) }}</span>
+                    <span class="px-2 py-1 text-xs rounded-full bg-yellow-100 text-yellow-800">{{ $loan->status_label }}</span>
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap">
                     <a href="{{ route('td.loans.show', $loan->id) }}" class="text-blue-600 hover:text-blue-900">View</a>
@@ -36,5 +36,8 @@
             @endforelse
         </tbody>
     </table>
+</div>
+<div class="mt-4">
+    {{ $loans->links() }}
 </div>
 @endsection

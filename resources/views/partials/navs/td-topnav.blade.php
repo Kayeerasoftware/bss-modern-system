@@ -113,7 +113,7 @@
     
     <!-- Menu -->
     <div class="py-1.5">
-        <a href="{{ route('admin.profile') }}" @click="showProfileDropdown = false" class="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 transition group">
+        <a href="{{ route('td.profile') }}" @click="showProfileDropdown = false" class="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 transition group">
             <div class="w-7 h-7 rounded-lg bg-blue-100 flex items-center justify-center group-hover:bg-blue-200 transition">
                 <i class="fas fa-user text-blue-600 text-xs"></i>
             </div>
@@ -125,11 +125,11 @@
             </div>
             <span class="font-medium text-xs">Go to Role Dashboard</span>
         </a>
-        <a href="{{ route('admin.system.settings') }}" @click="showProfileDropdown = false; activeLink = 'settings'" class="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-purple-50 transition group">
+        <a href="{{ route('td.profile') }}" @click="showProfileDropdown = false" class="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-purple-50 transition group">
             <div class="w-7 h-7 rounded-lg bg-purple-100 flex items-center justify-center group-hover:bg-purple-200 transition">
                 <i class="fas fa-cog text-purple-600 text-xs"></i>
             </div>
-            <span class="font-medium text-xs">Settings</span>
+            <span class="font-medium text-xs">Profile Settings</span>
         </a>
         <div class="flex items-center justify-between px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition">
             <div class="flex items-center gap-2">

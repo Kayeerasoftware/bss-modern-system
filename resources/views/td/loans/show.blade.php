@@ -13,11 +13,11 @@
         </div>
         <div class="flex justify-between">
             <span class="text-gray-600">Member:</span>
-            <span class="font-medium">{{ $loan->member->name }}</span>
+            <span class="font-medium">{{ $loan->member->full_name }}</span>
         </div>
         <div class="flex justify-between">
             <span class="text-gray-600">Amount:</span>
-            <span class="font-bold">UGX {{ number_format($loan->amount) }}</span>
+            <span class="font-bold">UGX {{ number_format((float) $loan->amount, 2) }}</span>
         </div>
         <div class="flex justify-between">
             <span class="text-gray-600">Interest Rate:</span>
