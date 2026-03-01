@@ -2,15 +2,21 @@
 
 namespace App\Http\Controllers\TD;
 
+use Cloudinary\Api\Upload\UploadApi;
+use Cloudinary\Configuration\Configuration;
 use App\Http\Controllers\Controller;
 use App\Models\DashboardPhoto;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Throwable;
 
 class PhotoController extends Controller
 {
+    private static bool $cloudinaryConfigured = false;
+
     public function index(Request $request)
     {
         $query = DashboardPhoto::query();
@@ -75,7 +81,7 @@ class PhotoController extends Controller
         $uploadedCount = 0;
 
         foreach ($files as $index => $file) {
-            $storedPath = $file->store('dashboard-photos', 'public');
+            $storedPath = $this->storePhoto($file, $type);
             $generatedTitle = pathinfo((string) $file->getClientOriginalName(), PATHINFO_FILENAME);
             $finalTitle = $baseTitle !== ''
                 ? (count($files) > 1 ? $baseTitle . ' #' . ($index + 1) : $baseTitle)
@@ -83,7 +89,7 @@ class PhotoController extends Controller
 
             DashboardPhoto::create([
                 'type' => $type,
-                'photo_path' => Storage::url($storedPath),
+                'photo_path' => $storedPath,
                 'title' => Str::limit($finalTitle, 255, ''),
                 'description' => $description,
                 'order' => $startOrder + $index,
@@ -115,10 +121,8 @@ class PhotoController extends Controller
     public function destroy($id)
     {
         $photo = DashboardPhoto::findOrFail($id);
-        
-        if ($photo->photo_path && Storage::disk('public')->exists(str_replace('/storage/', '', $photo->photo_path))) {
-            Storage::disk('public')->delete(str_replace('/storage/', '', $photo->photo_path));
-        }
+
+        $this->deletePhotoFile($photo->photo_path);
         
         $photo->delete();
 
@@ -145,5 +149,118 @@ class PhotoController extends Controller
 
         $slug = Str::slug($baseType, '_');
         return $slug !== '' ? Str::limit($slug, 50, '') : 'other';
+    }
+
+    private function storePhoto(UploadedFile $file, string $type): string
+    {
+        if ($this->isCloudinaryEnabled()) {
+            try {
+                $this->configureCloudinary();
+                $result = (new UploadApi())->upload($file->getRealPath(), [
+                    'folder' => 'bss/dashboard_photos/' . $type,
+                    'resource_type' => 'image',
+                    'overwrite' => true,
+                ]);
+
+                $url = (string) ($result['secure_url'] ?? $result['url'] ?? '');
+                if ($url !== '') {
+                    return $url;
+                }
+            } catch (Throwable $e) {
+                Log::error('Cloudinary dashboard photo upload failed. Falling back to local disk.', [
+                    'error' => $e->getMessage(),
+                    'type' => $type,
+                ]);
+            }
+        }
+
+        $localPath = $file->store('dashboard-photos', 'public');
+        return Storage::url($localPath);
+    }
+
+    private function deletePhotoFile(?string $photoPath): void
+    {
+        if (!$photoPath) {
+            return;
+        }
+
+        if (filter_var($photoPath, FILTER_VALIDATE_URL) && $this->isCloudinaryEnabled()) {
+            try {
+                $this->configureCloudinary();
+                $publicId = $this->extractCloudinaryPublicId($photoPath);
+                if ($publicId) {
+                    (new UploadApi())->destroy($publicId, [
+                        'resource_type' => 'image',
+                        'invalidate' => true,
+                    ]);
+                    return;
+                }
+            } catch (Throwable $e) {
+                Log::warning('Failed to delete dashboard photo from Cloudinary.', [
+                    'error' => $e->getMessage(),
+                    'photo_path' => $photoPath,
+                ]);
+            }
+        }
+
+        $normalizedPath = ltrim(str_replace('/storage/', '', $photoPath), '/');
+        if ($normalizedPath !== '') {
+            Storage::disk('public')->delete($normalizedPath);
+        }
+    }
+
+    private function isCloudinaryEnabled(): bool
+    {
+        return trim((string) env('CLOUDINARY_URL', '')) !== '';
+    }
+
+    private function configureCloudinary(): void
+    {
+        if (self::$cloudinaryConfigured) {
+            return;
+        }
+
+        Configuration::instance(trim((string) env('CLOUDINARY_URL', '')));
+        self::$cloudinaryConfigured = true;
+    }
+
+    private function extractCloudinaryPublicId(string $url): ?string
+    {
+        $path = parse_url($url, PHP_URL_PATH);
+        if (!$path) {
+            return null;
+        }
+
+        $segments = array_values(array_filter(explode('/', trim($path, '/'))));
+        $uploadIndex = array_search('upload', $segments, true);
+        if ($uploadIndex === false) {
+            return null;
+        }
+
+        $assetSegments = array_slice($segments, $uploadIndex + 1);
+        if ($assetSegments === []) {
+            return null;
+        }
+
+        $versionIndex = null;
+        foreach ($assetSegments as $idx => $segment) {
+            if (preg_match('/^v\d+$/', $segment)) {
+                $versionIndex = $idx;
+                break;
+            }
+        }
+
+        if ($versionIndex !== null) {
+            $assetSegments = array_slice($assetSegments, $versionIndex + 1);
+        }
+
+        if ($assetSegments === []) {
+            return null;
+        }
+
+        $last = array_pop($assetSegments);
+        $assetSegments[] = pathinfo($last, PATHINFO_FILENAME);
+
+        return implode('/', $assetSegments);
     }
 }
