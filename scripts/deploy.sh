@@ -5,7 +5,7 @@ echo "Deploying BSS System..."
 git pull origin master
 
 composer install --no-dev --optimize-autoloader
-php artisan deploy:seed-imported-migrations --no-interaction || true
+php scripts/render-seed-migrations.php || true
 php artisan migrate --force --no-interaction
 
 php artisan config:cache
