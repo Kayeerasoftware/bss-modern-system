@@ -31,7 +31,7 @@ class ApiController extends Controller
                 $viewStats = app(DashboardStatsService::class)->get();
                 return [
                     'totalMembers' => (int) ($viewStats['total_members'] ?? Member::count()),
-                    'totalSavings' => (float) ($viewStats['total_system_balance'] ?? DB::table('savings_accounts')->sum('current_balance')),
+                    'totalSavings' => (float) ($viewStats['total_system_balance'] ?? table_sum_or_zero('savings_accounts', 'current_balance')),
                     'activeLoans' => (int) ($viewStats['active_loans_count'] ?? Loan::query()
                         ->when(true, function ($q) {
                             $approvedStatusId = \App\Models\LoanStatus::query()->where('name', 'approved')->value('id');
@@ -41,7 +41,7 @@ class ApiController extends Controller
                         })
                         ->count()),
                     'totalProjects' => Project::count(),
-                    'totalBalance' => (float) ($viewStats['total_system_balance'] ?? (DB::table('savings_accounts')->sum('current_balance') - (float) Loan::query()->sum('balance_due'))),
+                    'totalBalance' => (float) ($viewStats['total_system_balance'] ?? (table_sum_or_zero('savings_accounts', 'current_balance') - (float) Loan::query()->sum('balance_due'))),
                     'pendingLoans' => (int) ($viewStats['pending_loans_count'] ?? Loan::status('pending')->count()),
                     'completedProjects' => Project::where('status', 'completed')->count(),
                     'monthlyDeposits' => Transaction::query()

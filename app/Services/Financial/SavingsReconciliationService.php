@@ -34,9 +34,9 @@ class SavingsReconciliationService
         $amountSql = $this->getAmountSql();
         $categoryNames = $this->getCategoryNames();
 
-        $accountsBalancesSub = DB::table('savings_accounts')
-            ->selectRaw('member_id, SUM(current_balance) as balance')
-            ->groupBy('member_id');
+        $accountsBalancesSub = Schema::hasTable('savings_accounts')
+            ? DB::table('savings_accounts')->selectRaw('member_id, SUM(current_balance) as balance')->groupBy('member_id')
+            : DB::table('members')->selectRaw('NULL as member_id, 0 as balance')->whereRaw('1 = 0');
 
         $membersBalancesSub = $memberBalanceColumn
             ? DB::table('members')->selectRaw("id as member_id, COALESCE({$memberBalanceColumn}, 0) as balance")
@@ -95,9 +95,10 @@ class SavingsReconciliationService
         $amountSql = $this->getAmountSql();
         $categoryNames = $this->getCategoryNames();
 
-        $accountsBalancesSub = DB::table('savings_accounts')
-            ->selectRaw('member_id, SUM(current_balance) as balance')
-            ->groupBy('member_id');
+        $hasSavingsAccounts = Schema::hasTable('savings_accounts');
+        $accountsBalancesSub = $hasSavingsAccounts
+            ? DB::table('savings_accounts')->selectRaw('member_id, SUM(current_balance) as balance')->groupBy('member_id')
+            : DB::table('members')->selectRaw('NULL as member_id, 0 as balance')->whereRaw('1 = 0');
 
         $membersBalancesSub = $memberBalanceColumn
             ? DB::table('members')->selectRaw("id as member_id, COALESCE({$memberBalanceColumn}, 0) as balance")
@@ -114,7 +115,7 @@ class SavingsReconciliationService
 
         $combinedBalancesSub = $this->getCombinedBalancesSubquery();
 
-        $totalAccounts = (float) DB::query()->fromSub($accountsBalancesSub, 'acc')->sum('balance');
+        $totalAccounts = $hasSavingsAccounts ? (float) DB::query()->fromSub($accountsBalancesSub, 'acc')->sum('balance') : 0.0;
         $totalMembers = $memberBalanceColumn ? (float) DB::table('members')->sum($memberBalanceColumn) : 0.0;
         $totalTransactions = (float) DB::query()->fromSub($txnBalancesSub, 'txn')->sum('balance');
         $totalReconciled = (float) DB::query()->fromSub($combinedBalancesSub, 'balances')->sum('reported_balance');
@@ -183,10 +184,15 @@ class SavingsReconciliationService
         $amountSql = $this->getAmountSql();
         $categoryNames = $this->getCategoryNames();
 
-        $accountBalance = (float) DB::table('savings_accounts')
-            ->where('member_id', $memberId)
-            ->sum('current_balance');
-        $accountCount = (int) DB::table('savings_accounts')->where('member_id', $memberId)->count();
+        if (Schema::hasTable('savings_accounts')) {
+            $accountBalance = (float) DB::table('savings_accounts')
+                ->where('member_id', $memberId)
+                ->sum('current_balance');
+            $accountCount = (int) DB::table('savings_accounts')->where('member_id', $memberId)->count();
+        } else {
+            $accountBalance = 0.0;
+            $accountCount = 0;
+        }
 
         $memberBalance = 0.0;
         if ($memberBalanceColumn) {

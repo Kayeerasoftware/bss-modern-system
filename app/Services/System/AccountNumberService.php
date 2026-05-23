@@ -3,6 +3,7 @@
 namespace App\Services\System;
 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class AccountNumberService
 {
@@ -31,10 +32,12 @@ class AccountNumberService
      */
     public static function generateSavingsAccountNumber(): string
     {
-        $lastNumber = DB::table('savings_accounts')
-            ->where('account_number', 'LIKE', 'SAV-BSS-C15-%')
-            ->orderByRaw('CAST(SUBSTRING(account_number, -4) AS UNSIGNED) DESC')
-            ->value('account_number');
+        $lastNumber = Schema::hasTable('savings_accounts')
+            ? DB::table('savings_accounts')
+                ->where('account_number', 'LIKE', 'SAV-BSS-C15-%')
+                ->orderByRaw('CAST(SUBSTRING(account_number, -4) AS UNSIGNED) DESC')
+                ->value('account_number')
+            : null;
         
         if ($lastNumber) {
             $lastSequence = (int) substr($lastNumber, -4);

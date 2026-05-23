@@ -43,7 +43,7 @@ class FinancialController extends Controller
         $totalExpenses = $withdrawals + $transfers;
         $netProfit = $totalRevenue - $totalExpenses;
 
-        $totalAssets = (float) DB::table('savings_accounts')->sum('current_balance');
+        $totalAssets = (float) table_sum_or_zero('savings_accounts', 'current_balance');
         if ($totalAssets == 0.0) {
             $totalAssets = (float) DB::table('transactions')
                 ->join('transaction_categories as tc', 'transactions.category_id', '=', 'tc.id')

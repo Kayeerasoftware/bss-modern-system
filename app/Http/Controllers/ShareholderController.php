@@ -11,7 +11,6 @@ use Illuminate\Http\Request;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Facades\Schema;
 
 class ShareholderController extends Controller
 {
@@ -125,7 +124,9 @@ class ShareholderController extends Controller
         }
 
         $dividends = MemberDividend::where('member_id', $memberId)->sum('net_amount');
-        $savings = (float) DB::table('savings_accounts')->where('member_id', $memberId)->sum('current_balance');
+        $savings = Schema::hasTable('savings_accounts')
+            ? (float) DB::table('savings_accounts')->where('member_id', $memberId)->sum('current_balance')
+            : 0.0;
 
         if ($savings == 0.0) {
             return 0;

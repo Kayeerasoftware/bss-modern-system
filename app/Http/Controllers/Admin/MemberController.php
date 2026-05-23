@@ -114,7 +114,7 @@ class MemberController extends Controller
         $statsBaseQuery = clone $query;
         
         // Calculate total savings directly from completed transactions.
-        $totalSavings = (float) DB::table('savings_accounts')->sum('current_balance');
+        $totalSavings = (float) table_sum_or_zero('savings_accounts', 'current_balance');
         
         $memberStats = [
             'totalMembers' => (clone $statsBaseQuery)->count(),

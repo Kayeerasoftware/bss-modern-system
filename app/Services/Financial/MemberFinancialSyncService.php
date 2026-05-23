@@ -17,8 +17,13 @@ class MemberFinancialSyncService
         $loanOutstanding = $this->loanOutstanding($member->id);
 
         $netSavings = $transactionTotals['total_deposits'] - $transactionTotals['total_withdrawals'];
-        $accountBalance = (float) DB::table('savings_accounts')->where('member_id', $member->id)->sum('current_balance');
-        $accountCount = (int) DB::table('savings_accounts')->where('member_id', $member->id)->count();
+        if (Schema::hasTable('savings_accounts')) {
+            $accountBalance = (float) DB::table('savings_accounts')->where('member_id', $member->id)->sum('current_balance');
+            $accountCount = (int) DB::table('savings_accounts')->where('member_id', $member->id)->count();
+        } else {
+            $accountBalance = 0.0;
+            $accountCount = 0;
+        }
         $availableBalance = $accountCount > 0 ? $accountBalance : $netSavings;
 
         $netSavings = max($netSavings, 0);

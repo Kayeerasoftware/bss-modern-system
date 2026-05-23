@@ -392,6 +392,10 @@ class Member extends Authenticatable
 
     public function getSavingsBalanceAttribute(): float
     {
+        if (! Schema::hasTable('savings_accounts')) {
+            return 0.0;
+        }
+
         return (float) DB::table('savings_accounts')
             ->where('member_id', $this->id)
             ->sum('current_balance');

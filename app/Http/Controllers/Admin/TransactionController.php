@@ -585,7 +585,7 @@ class TransactionController extends Controller
         $summary = [
             'total_income' => Transaction::whereHas('transactionType', fn ($q) => $q->where('name', 'deposit'))->sum('amount'),
             'total_expenses' => Transaction::whereHas('transactionType', fn ($q) => $q->where('name', 'withdrawal'))->sum('amount'),
-            'net_balance' => (float) \Illuminate\Support\Facades\DB::table('savings_accounts')->sum('current_balance'),
+            'net_balance' => (float) table_sum_or_zero('savings_accounts', 'current_balance'),
             'total_transactions' => \App\Models\Transaction::count(),
         ];
         

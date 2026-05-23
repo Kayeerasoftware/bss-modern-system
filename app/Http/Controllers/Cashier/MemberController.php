@@ -35,7 +35,7 @@ class MemberController extends Controller
         $memberStats = [
             'totalMembers' => (clone $statsBaseQuery)->count(),
             'activeMembers' => (clone $statsBaseQuery)->where('membership_status', 'active')->count(),
-            'totalBalance' => (float) \Illuminate\Support\Facades\DB::table('savings_accounts')->sum('current_balance'),
+            'totalBalance' => (float) table_sum_or_zero('savings_accounts', 'current_balance'),
             'newThisMonth' => (clone $statsBaseQuery)->where('created_at', '>=', now()->startOfMonth())->count(),
         ];
 

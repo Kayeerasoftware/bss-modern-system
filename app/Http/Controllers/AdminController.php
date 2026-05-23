@@ -37,7 +37,7 @@ class AdminController extends Controller
             $viewStats = app(DashboardStatsService::class)->get();
             $memberSummary = (object) [
                 'total_members' => (int) Member::query()->count(),
-                'total_savings' => (float) DB::table('savings_accounts')->sum('current_balance'),
+                'total_savings' => (float) table_sum_or_zero('savings_accounts', 'current_balance'),
                 'client_count' => (int) DB::table('member_roles')->join('roles', 'roles.id', '=', 'member_roles.role_id')->where('roles.name', 'client')->count(),
                 'shareholder_count' => (int) DB::table('member_roles')->join('roles', 'roles.id', '=', 'member_roles.role_id')->where('roles.name', 'shareholder')->count(),
                 'cashier_count' => (int) DB::table('member_roles')->join('roles', 'roles.id', '=', 'member_roles.role_id')->where('roles.name', 'cashier')->count(),

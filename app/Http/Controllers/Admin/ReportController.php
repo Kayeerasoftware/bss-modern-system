@@ -30,7 +30,7 @@ class ReportController extends Controller
                 ->whereHas('transactionType', fn ($q) => $q->where('name', 'withdrawal'))
                 ->sum('amount');
 
-            $netBalance = (float) DB::table('savings_accounts')->sum('current_balance');
+            $netBalance = (float) table_sum_or_zero('savings_accounts', 'current_balance');
             $recon = app(SavingsReconciliationService::class)->getSystemSummary(1000);
 
             return [
