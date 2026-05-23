@@ -12,6 +12,7 @@ use App\Models\Transaction;
 use App\Models\ProjectStatus;
 use App\Models\Project;
 use App\Models\User;
+use App\Models\Setting;
 use App\Services\DashboardStatsService;
 use App\Services\ProfilePictureStorageService;
 use App\Services\AuditLogService;
@@ -150,7 +151,7 @@ class AdminController extends Controller
             'condolence' => Transaction::query()->ofType('condolence')->sum('amount'),
         ];
 
-        $totalSavings = (float) DB::table('savings_accounts')->sum('current_balance');
+        $totalSavings = (float) table_sum_or_zero('savings_accounts', 'current_balance');
         $recon = app(SavingsReconciliationService::class)->getSystemSummary(1000);
         $totalLoans = (float) Loan::sum('principal_amount');
         $totalDeposits = (float) Transaction::query()->ofType('deposit')->sum('amount');
@@ -201,23 +202,22 @@ class AdminController extends Controller
 
     public function getSettings()
     {
-        $settings = DB::table('settings')->pluck('setting_value', 'setting_key');
         return response()->json([
-            'interest_rate' => $settings['interest_rate'] ?? 5.5,
-            'min_savings' => $settings['min_savings'] ?? 50000,
-            'max_loan' => $settings['max_loan'] ?? 5000000,
-            'loan_fee' => $settings['loan_fee'] ?? 2.5,
-            'system_name' => $settings['system_name'] ?? 'BSS Investment Group',
-            'currency' => $settings['currency'] ?? 'UGX',
-            'timezone' => $settings['timezone'] ?? 'Africa/Kampala',
-            'date_format' => $settings['date_format'] ?? 'Y-m-d',
-            'email_notifications' => ($settings['email_notifications'] ?? 'true') === 'true',
-            'sms_notifications' => ($settings['sms_notifications'] ?? 'false') === 'true',
-            'loan_approval_notify' => ($settings['loan_approval_notify'] ?? 'true') === 'true',
-            'transaction_notify' => ($settings['transaction_notify'] ?? 'true') === 'true',
-            'session_timeout' => $settings['session_timeout'] ?? 30,
-            'password_min_length' => $settings['password_min_length'] ?? 8,
-            'two_factor_auth' => ($settings['two_factor_auth'] ?? 'false') === 'true',
+            'interest_rate' => Setting::get('interest_rate', 5.5),
+            'min_savings' => Setting::get('min_savings', 50000),
+            'max_loan' => Setting::get('max_loan', 5000000),
+            'loan_fee' => Setting::get('loan_fee', 2.5),
+            'system_name' => Setting::get('system_name', 'BSS Investment Group'),
+            'currency' => Setting::get('currency', 'UGX'),
+            'timezone' => Setting::get('timezone', 'Africa/Kampala'),
+            'date_format' => Setting::get('date_format', 'Y-m-d'),
+            'email_notifications' => (string) Setting::get('email_notifications', 'true') === 'true',
+            'sms_notifications' => (string) Setting::get('sms_notifications', 'false') === 'true',
+            'loan_approval_notify' => (string) Setting::get('loan_approval_notify', 'true') === 'true',
+            'transaction_notify' => (string) Setting::get('transaction_notify', 'true') === 'true',
+            'session_timeout' => Setting::get('session_timeout', 30),
+            'password_min_length' => Setting::get('password_min_length', 8),
+            'two_factor_auth' => (string) Setting::get('two_factor_auth', 'false') === 'true',
         ]);
     }
 
@@ -241,10 +241,7 @@ class AdminController extends Controller
                 if (is_bool($value)) {
                     $value = $value ? 'true' : 'false';
                 }
-                DB::table('settings')->updateOrInsert(
-                    ['setting_key' => $key],
-                    ['setting_value' => $value, 'updated_at' => now()]
-                );
+                Setting::set($key, $value);
             }
             
             AuditLogService::log(auth()->user() ?? 'System', 'settings_updated', 'System settings were modified', [
@@ -324,7 +321,7 @@ class AdminController extends Controller
         $totalLoans = $approvedStatusId
             ? (float) Loan::where('status_id', $approvedStatusId)->sum('principal_amount')
             : 0.0;
-        $totalSavings = (float) DB::table('savings_accounts')->sum('current_balance');
+        $totalSavings = (float) table_sum_or_zero('savings_accounts', 'current_balance');
         $loanRepayments = (float) Transaction::query()->ofType('loan_payment')->sum('amount');
         
         $netBalance = $totalSavings + $totalDeposits - $totalWithdrawals - $totalLoans + $loanRepayments;
@@ -641,7 +638,7 @@ class AdminController extends Controller
                 break;
                 
             case 'financial':
-                $totalSavings = (float) DB::table('savings_accounts')->sum('current_balance');
+                $totalSavings = (float) table_sum_or_zero('savings_accounts', 'current_balance');
                 $totalLoans = (float) Loan::sum('principal_amount');
                 $totalDeposits = (float) Transaction::query()->ofType('deposit')->sum('amount');
                 $totalWithdrawals = (float) Transaction::query()->ofType('withdrawal')->sum('amount');
@@ -658,7 +655,7 @@ class AdminController extends Controller
                 
                 $totalMembers = Member::count();
                 $activeMembers = Member::where('membership_status', 'active')->count();
-                $avgSavings = (float) DB::table('savings_accounts')->avg('current_balance');
+                $avgSavings = (float) table_average_or_zero('savings_accounts', 'current_balance');
                 
                 $loanInterest = $totalLoans * 0.055;
                 $processingFees = $totalLoans * 0.025;

@@ -7,6 +7,7 @@ return new class extends Migration
 {
     public function up(): void
     {
+        DB::statement('DROP TRIGGER IF EXISTS `after_user_insert`');
         DB::unprepared(<<<'SQL'
 CREATE TRIGGER after_user_insert
 AFTER INSERT ON users
@@ -40,6 +41,7 @@ BEGIN
 END
 SQL);
 
+        DB::statement('DROP TRIGGER IF EXISTS `before_member_delete`');
         DB::unprepared(<<<'SQL'
 CREATE TRIGGER before_member_delete
 BEFORE DELETE ON members
@@ -50,6 +52,7 @@ BEGIN
 END
 SQL);
 
+        DB::statement('DROP TRIGGER IF EXISTS `after_transaction_complete`');
         DB::unprepared(<<<'SQL'
 CREATE TRIGGER after_transaction_complete
 AFTER UPDATE ON transactions
@@ -81,6 +84,7 @@ BEGIN
 END
 SQL);
 
+        DB::statement('DROP TRIGGER IF EXISTS `before_member_address_insert`');
         DB::unprepared(<<<'SQL'
 CREATE TRIGGER before_member_address_insert
 BEFORE INSERT ON member_addresses
@@ -95,6 +99,7 @@ BEGIN
 END
 SQL);
 
+        DB::statement('DROP TRIGGER IF EXISTS `before_member_address_update`');
         DB::unprepared(<<<'SQL'
 CREATE TRIGGER before_member_address_update
 BEFORE UPDATE ON member_addresses
@@ -110,6 +115,7 @@ BEGIN
 END
 SQL);
 
+        DB::statement('DROP TRIGGER IF EXISTS `after_loan_repayment`');
         DB::unprepared(<<<'SQL'
 CREATE TRIGGER after_loan_repayment
 AFTER INSERT ON loan_repayments
@@ -131,6 +137,7 @@ BEGIN
 END
 SQL);
 
+        DB::statement('DROP TRIGGER IF EXISTS `before_user_delete`');
         DB::unprepared(<<<'SQL'
 CREATE TRIGGER before_user_delete
 BEFORE DELETE ON users
@@ -147,6 +154,7 @@ BEGIN
 END
 SQL);
 
+        DB::statement('DROP TRIGGER IF EXISTS `after_transaction_insert`');
         DB::unprepared(<<<'SQL'
 CREATE TRIGGER after_transaction_insert
 AFTER INSERT ON transactions

@@ -46,8 +46,8 @@ php artisan storage:link || true
 # Run migrations before warming caches so boot-time commands see the latest schema.
 # Defaults to on for Render deployments, but can still be disabled explicitly.
 if [[ "${RUN_MIGRATIONS:-true}" == "true" ]]; then
-  php scripts/render-seed-migrations.php || true
-  php artisan migrate --force --no-interaction || exit 1
+  php scripts/render-seed-migrations.php
+  php artisan migrate --force --no-interaction
 fi
 
 php artisan config:cache || true

@@ -47,3 +47,20 @@ if (!function_exists('table_sum_or_zero')) {
         }
     }
 }
+
+if (!function_exists('table_average_or_zero')) {
+    function table_average_or_zero(string $table, string $column, float|int $default = 0): float|int
+    {
+        try {
+            if (!\Illuminate\Support\Facades\Schema::hasTable($table)) {
+                return $default;
+            }
+
+            $value = \Illuminate\Support\Facades\DB::table($table)->avg($column);
+
+            return $value === null ? $default : (float) $value;
+        } catch (\Throwable) {
+            return $default;
+        }
+    }
+}

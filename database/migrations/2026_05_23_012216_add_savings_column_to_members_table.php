@@ -11,9 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('members', function (Blueprint $table) {
-            $table->unsignedBigInteger('savings_transaction_id')->nullable()->after('membership_status');
-        });
+        if (!Schema::hasColumn('members', 'savings_transaction_id')) {
+            Schema::table('members', function (Blueprint $table) {
+                $table->unsignedBigInteger('savings_transaction_id')->nullable()->after('membership_status');
+            });
+        }
     }
 
     /**
@@ -21,8 +23,10 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('members', function (Blueprint $table) {
-            $table->dropColumn('savings_transaction_id');
-        });
+        if (Schema::hasColumn('members', 'savings_transaction_id')) {
+            Schema::table('members', function (Blueprint $table) {
+                $table->dropColumn('savings_transaction_id');
+            });
+        }
     }
 };
