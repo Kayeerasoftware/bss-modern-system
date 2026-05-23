@@ -18,5 +18,8 @@ elif [[ -e "${link_path}" ]]; then
   rm -rf "${link_path}"
 fi
 
-mkdir -p "${target_path}"
+if [[ ! -e "${target_path}" ]]; then
+  mkdir -p "${target_path}"
+fi
+
 ln -s "${target_path}" "${link_path}"
