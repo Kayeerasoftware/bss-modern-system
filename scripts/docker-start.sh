@@ -10,6 +10,8 @@ if [[ -n "${AIVEN_CA_PEM:-}" ]]; then
   export MYSQL_ATTR_SSL_CA="storage/certs/aiven-ca.pem"
 fi
 
+source scripts/render-db-check.sh
+
 if [[ -z "${APP_KEY:-}" ]]; then
   echo "ERROR: APP_KEY is missing. Set APP_KEY in Render env vars."
   exit 1
@@ -46,8 +48,12 @@ php artisan storage:link || true
 # Run migrations before warming caches so boot-time commands see the latest schema.
 # Defaults to on for Render deployments, but can still be disabled explicitly.
 if [[ "${RUN_MIGRATIONS:-true}" == "true" ]]; then
-  php artisan deploy:seed-imported-migrations --no-interaction
-  php artisan migrate --force --no-interaction || exit 1
+  if render_detect_imported_schema; then
+    echo "Imported database schema detected; seeding migration history and skipping migrate on boot."
+    php artisan deploy:seed-imported-migrations --no-interaction || true
+  else
+    php artisan migrate --force --no-interaction || exit 1
+  fi
 fi
 
 php artisan config:cache || true
