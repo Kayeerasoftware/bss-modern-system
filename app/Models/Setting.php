@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 
 class Setting extends Model
 {
@@ -14,6 +16,11 @@ class Setting extends Model
 
     public static function get($key, $default = null)
     {
+        $columns = self::settingColumns();
+        if ($columns === null) {
+            return $default;
+        }
+
         if (array_key_exists($key, self::$runtimeCache)) {
             return self::$runtimeCache[$key];
         }
@@ -21,16 +28,19 @@ class Setting extends Model
         $resolved = Cache::remember(
             'setting:'.$key,
             now()->addMinutes(5),
-            static function () use ($key, $default) {
-                $setting = self::query()->where('setting_key', $key)->first();
+            static function () use ($key, $default, $columns) {
+                $setting = self::query()
+                    ->where($columns['key'], $key)
+                    ->first();
 
                 if (!$setting) {
                     return $default;
                 }
 
                 // Try to decode JSON, return original value if not JSON
-                $decoded = json_decode($setting->setting_value, true);
-                return json_last_error() === JSON_ERROR_NONE ? $decoded : $setting->setting_value;
+                $rawValue = $setting->{$columns['value']} ?? null;
+                $decoded = json_decode((string) $rawValue, true);
+                return json_last_error() === JSON_ERROR_NONE ? $decoded : $rawValue;
             }
         );
 
@@ -41,11 +51,19 @@ class Setting extends Model
 
     public static function set($key, $value)
     {
+        $columns = self::settingColumns();
+        if ($columns === null) {
+            return null;
+        }
+
         $storedValue = is_array($value) || is_object($value)
             ? json_encode($value)
             : $value;
 
-        $result = self::updateOrCreate(['setting_key' => $key], ['setting_value' => $storedValue]);
+        $result = self::updateOrCreate(
+            [$columns['key'] => $key],
+            [$columns['value'] => $storedValue]
+        );
 
         Cache::forget('setting:'.$key);
         Cache::forget('setting:all');
@@ -56,6 +74,11 @@ class Setting extends Model
 
     public static function all_settings()
     {
+        $columns = self::settingColumns();
+        if ($columns === null) {
+            return [];
+        }
+
         if (array_key_exists('__all', self::$runtimeCache)) {
             return self::$runtimeCache['__all'];
         }
@@ -63,13 +86,19 @@ class Setting extends Model
         $resolved = Cache::remember(
             'setting:all',
             now()->addMinutes(5),
-            static function () {
+            static function () use ($columns) {
                 $settings = self::query()->get();
                 $result = [];
 
                 foreach ($settings as $setting) {
-                    $decoded = json_decode($setting->setting_value, true);
-                    $result[$setting->setting_key] = json_last_error() === JSON_ERROR_NONE ? $decoded : $setting->setting_value;
+                    $key = $setting->{$columns['key']} ?? null;
+                    if ($key === null) {
+                        continue;
+                    }
+
+                    $rawValue = $setting->{$columns['value']} ?? null;
+                    $decoded = json_decode((string) $rawValue, true);
+                    $result[$key] = json_last_error() === JSON_ERROR_NONE ? $decoded : $rawValue;
                 }
 
                 return $result;
@@ -79,5 +108,27 @@ class Setting extends Model
         self::$runtimeCache['__all'] = $resolved;
 
         return $resolved;
+    }
+
+    private static function settingColumns(): ?array
+    {
+        if (!Schema::hasTable('settings')) {
+            return null;
+        }
+
+        $keyCandidates = ['setting_key', 'key', 'name', 'setting_name'];
+        $valueCandidates = ['setting_value', 'value', 'setting', 'option_value'];
+
+        $keyColumn = collect($keyCandidates)->first(static fn (string $column): bool => Schema::hasColumn('settings', $column));
+        $valueColumn = collect($valueCandidates)->first(static fn (string $column): bool => Schema::hasColumn('settings', $column));
+
+        if ($keyColumn === null || $valueColumn === null) {
+            return null;
+        }
+
+        return [
+            'key' => $keyColumn,
+            'value' => $valueColumn,
+        ];
     }
 }
