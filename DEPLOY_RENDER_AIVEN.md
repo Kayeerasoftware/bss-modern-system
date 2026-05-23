@@ -91,7 +91,7 @@ Render will run:
 - start web: `bash scripts/render-start.sh`
 - start worker: `bash scripts/render-worker.sh`
 
-If the Render database was imported from `bss_system_fixed.sql`, the web start script will first seed Laravel's `migrations` history so the normal `php artisan migrate` step does not try to recreate tables that already exist.
+If the Render database was imported from `bss_system_fixed.sql` or another existing Aiven database, the web start script now seeds the older migration history first, then runs `php artisan migrate` so new migrations are applied without dropping existing data.
 
 ## 6.1 Import production data (recommended)
 
