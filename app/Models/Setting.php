@@ -7,7 +7,9 @@ use Illuminate\Support\Facades\Cache;
 
 class Setting extends Model
 {
-    protected $fillable = ['key', 'value'];
+    protected $table = 'settings';
+    protected $primaryKey = 'id';
+    protected $fillable = ['setting_key', 'setting_value', 'setting_type', 'category', 'display_name', 'description', 'is_public', 'sort_order'];
     private static array $runtimeCache = [];
 
     public static function get($key, $default = null)
@@ -20,15 +22,15 @@ class Setting extends Model
             'setting:'.$key,
             now()->addMinutes(5),
             static function () use ($key, $default) {
-                $setting = self::query()->where('key', $key)->first();
+                $setting = self::query()->where('setting_key', $key)->first();
 
                 if (!$setting) {
                     return $default;
                 }
 
                 // Try to decode JSON, return original value if not JSON
-                $decoded = json_decode($setting->value, true);
-                return json_last_error() === JSON_ERROR_NONE ? $decoded : $setting->value;
+                $decoded = json_decode($setting->setting_value, true);
+                return json_last_error() === JSON_ERROR_NONE ? $decoded : $setting->setting_value;
             }
         );
 
@@ -43,7 +45,7 @@ class Setting extends Model
             ? json_encode($value)
             : $value;
 
-        $result = self::updateOrCreate(['key' => $key], ['value' => $storedValue]);
+        $result = self::updateOrCreate(['setting_key' => $key], ['setting_value' => $storedValue]);
 
         Cache::forget('setting:'.$key);
         Cache::forget('setting:all');
@@ -66,8 +68,8 @@ class Setting extends Model
                 $result = [];
 
                 foreach ($settings as $setting) {
-                    $decoded = json_decode($setting->value, true);
-                    $result[$setting->key] = json_last_error() === JSON_ERROR_NONE ? $decoded : $setting->value;
+                    $decoded = json_decode($setting->setting_value, true);
+                    $result[$setting->setting_key] = json_last_error() === JSON_ERROR_NONE ? $decoded : $setting->setting_value;
                 }
 
                 return $result;

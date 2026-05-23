@@ -95,7 +95,7 @@
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-green-100 text-[8px] md:text-[10px] font-medium mb-0.5">Total Savings</p>
-                    <h3 class="text-base md:text-xl font-bold">{{ number_format($memberStats['totalSavings'] ?? $members->sum('savings')) }}</h3>
+                    <h3 class="text-base md:text-xl font-bold">UGX {{ number_format($memberStats['totalSavings'], 0) }}</h3>
                 </div>
                 <div class="bg-white/20 p-1.5 md:p-2 rounded-lg backdrop-blur-sm">
                     <i class="fas fa-piggy-bank text-sm md:text-lg"></i>

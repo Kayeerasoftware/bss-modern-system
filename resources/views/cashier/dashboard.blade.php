@@ -39,7 +39,7 @@
                 <i class="fas fa-history text-blue-600 mr-2 text-sm md:text-base"></i>
                 <span class="text-sm md:text-base">Recent Transactions</span>
             </h3>
-            <a href="{{ route('cashier.transactions.index') }}" class="text-blue-600 text-xs md:text-sm hover:underline font-semibold">View All →</a>
+            <a href="{{ route('cashier.transactions.index') }}" class="text-blue-600 text-xs md:text-sm hover:underline font-semibold">View All &rarr;</a>
         </div>
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
@@ -74,6 +74,62 @@
                     @empty
                     <tr>
                         <td colspan="5" class="px-6 py-8 text-center text-gray-500 text-sm">No transactions today</td>
+                    </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="mt-4 bg-white rounded-xl md:rounded-2xl shadow-xl p-4 md:p-6 hover:shadow-2xl transition border border-gray-100">
+        <div class="flex justify-between items-center mb-3 md:mb-4">
+            <h3 class="text-base md:text-lg font-bold text-gray-800 flex items-center">
+                <i class="fas fa-hand-holding-heart text-pink-600 mr-2 text-sm md:text-base"></i>
+                <span class="text-sm md:text-base">Recent Fundraising Campaigns</span>
+            </h3>
+            <a href="{{ route('cashier.fundraising.index') }}" class="text-pink-600 text-xs md:text-sm hover:underline font-semibold">View All &rarr;</a>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-3 md:px-6 py-2 md:py-3 text-left text-xs font-medium text-gray-500 uppercase">Campaign</th>
+                        <th class="px-3 md:px-6 py-2 md:py-3 text-left text-xs font-medium text-gray-500 uppercase">Target</th>
+                        <th class="px-3 md:px-6 py-2 md:py-3 text-left text-xs font-medium text-gray-500 uppercase">Raised</th>
+                        <th class="px-3 md:px-6 py-2 md:py-3 text-left text-xs font-medium text-gray-500 uppercase">Progress</th>
+                        <th class="px-3 md:px-6 py-2 md:py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    @forelse($recentFundraisings as $campaign)
+                    <tr class="hover:bg-pink-50 transition">
+                        <td class="px-3 md:px-6 py-2 md:py-4">
+                            <div class="font-semibold text-sm text-gray-900">{{ $campaign->title }}</div>
+                            <div class="text-xs text-gray-500">{{ $campaign->campaign_id }}</div>
+                        </td>
+                        <td class="px-3 md:px-6 py-2 md:py-4 whitespace-nowrap text-xs md:text-sm font-semibold text-gray-700">
+                            UGX {{ number_format($campaign->target_amount, 0) }}
+                        </td>
+                        <td class="px-3 md:px-6 py-2 md:py-4 whitespace-nowrap text-xs md:text-sm font-semibold text-green-600">
+                            UGX {{ number_format($campaign->raised_amount, 0) }}
+                        </td>
+                        <td class="px-3 md:px-6 py-2 md:py-4 whitespace-nowrap">
+                            <div class="flex items-center gap-2">
+                                <div class="w-24 bg-gray-200 rounded-full h-2">
+                                    <div class="bg-gradient-to-r from-pink-500 to-orange-500 h-2 rounded-full" style="width: {{ min($campaign->progress_percentage, 100) }}%"></div>
+                                </div>
+                                <span class="text-xs font-bold text-gray-700">{{ number_format($campaign->progress_percentage, 1) }}%</span>
+                            </div>
+                        </td>
+                        <td class="px-3 md:px-6 py-2 md:py-4 whitespace-nowrap">
+                            <span class="px-2 py-1 text-xs rounded-full font-semibold {{ ($campaign->status ?? 'active') === 'active' ? 'bg-green-100 text-green-800' : (($campaign->status ?? '') === 'completed' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800') }}">
+                                {{ ucfirst($campaign->status ?? 'Active') }}
+                            </span>
+                        </td>
+                    </tr>
+                    @empty
+                    <tr>
+                        <td colspan="5" class="px-6 py-8 text-center text-gray-500 text-sm">No fundraising campaigns yet</td>
                     </tr>
                     @endforelse
                 </tbody>

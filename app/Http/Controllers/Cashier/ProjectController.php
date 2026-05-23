@@ -20,7 +20,7 @@ class ProjectController extends Controller
         }
 
         if ($request->filled('status')) {
-            $query->where('status', $request->status);
+            $query->whereHas('statusRelation', fn ($q) => $q->where('name', $request->status));
         }
 
         if ($request->filled('date_from')) {

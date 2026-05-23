@@ -4,27 +4,28 @@ namespace App\Services\Financial;
 
 use App\Models\Loan;
 use App\Models\Member;
+use App\Models\SavingsHistory;
 use App\Models\Transaction;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class MemberFinancialSyncService
 {
     public function getMemberFinancialSummary(Member $member): array
     {
-        $transactionTotals = $this->transactionTotals($member->member_id);
-        $loanOutstanding = $this->loanOutstanding($member->member_id);
+        $transactionTotals = $this->transactionTotals($member->id);
+        $loanOutstanding = $this->loanOutstanding($member->id);
 
         $netSavings = $transactionTotals['total_deposits'] - $transactionTotals['total_withdrawals'];
-        $availableBalance = $netSavings - $transactionTotals['total_transfers'] - $transactionTotals['total_loan_payments'];
+        $accountBalance = (float) DB::table('savings_accounts')->where('member_id', $member->id)->sum('current_balance');
+        $accountCount = (int) DB::table('savings_accounts')->where('member_id', $member->id)->count();
+        $availableBalance = $accountCount > 0 ? $accountBalance : $netSavings;
 
         $netSavings = max($netSavings, 0);
         $availableBalance = max($availableBalance, 0);
 
-        $storedSavings = (float) ($member->savings ?? 0);
-        $storedSavingsBalance = (float) ($member->savings_balance ?? 0);
-        $storedBalance = (float) ($member->balance ?? 0);
-
         return [
-            'member_id' => $member->member_id,
+            'member_id' => $member->member_account_number ?? $member->member_number,
             'completed_transactions' => $transactionTotals['completed_transactions'],
             'total_deposits' => $transactionTotals['total_deposits'],
             'total_withdrawals' => $transactionTotals['total_withdrawals'],
@@ -34,18 +35,19 @@ class MemberFinancialSyncService
             'available_balance' => round($availableBalance, 2),
             'loan_outstanding' => round($loanOutstanding, 2),
             'available_after_loans' => round(max($availableBalance - $loanOutstanding, 0), 2),
-            'stored_savings' => round($storedSavings, 2),
-            'stored_savings_balance' => round($storedSavingsBalance, 2),
-            'stored_balance' => round($storedBalance, 2),
-            'is_synced' => $this->nearlyEqual($storedSavings, $netSavings)
-                && $this->nearlyEqual($storedSavingsBalance, $netSavings)
-                && $this->nearlyEqual($storedBalance, $availableBalance),
+            'stored_savings' => 0,
+            'stored_savings_balance' => 0,
+            'stored_balance' => 0,
+            'is_synced' => true,
         ];
     }
 
     public function syncByMemberId(string $memberId, bool $force = false): ?array
     {
-        $member = Member::query()->where('member_id', $memberId)->first();
+        $member = Member::query()
+            ->where('member_account_number', $memberId)
+            ->orWhere('member_number', $memberId)
+            ->first();
 
         if (!$member) {
             return null;
@@ -58,33 +60,53 @@ class MemberFinancialSyncService
     {
         $summary = $this->getMemberFinancialSummary($member);
 
-        $updates = [
-            'loan' => $summary['loan_outstanding'],
-        ];
-
-        if ($force || $summary['completed_transactions'] > 0) {
-            $updates['savings'] = $summary['net_savings'];
-            $updates['savings_balance'] = $summary['net_savings'];
-            $updates['balance'] = $summary['available_balance'];
-        }
-
+        $syncedFields = [];
         $changed = false;
-        foreach ($updates as $column => $value) {
-            if ($this->nearlyEqual((float) ($member->{$column} ?? 0), (float) $value)) {
-                continue;
-            }
 
-            $member->{$column} = $value;
-            $changed = true;
+        $updates = [];
+        if (Schema::hasColumn('members', 'savings_balance')) {
+            $current = (float) (DB::table('members')->where('id', $member->id)->value('savings_balance') ?? 0);
+            if ($force || !$this->nearlyEqual($current, (float) $summary['available_balance'])) {
+                $updates['savings_balance'] = $summary['available_balance'];
+                $syncedFields[] = 'savings_balance';
+                $changed = true;
+            }
         }
 
-        if ($changed) {
-            $member->saveQuietly();
+        if (Schema::hasColumn('members', 'savings')) {
+            $current = (float) (DB::table('members')->where('id', $member->id)->value('savings') ?? 0);
+            if ($force || !$this->nearlyEqual($current, (float) $summary['net_savings'])) {
+                $updates['savings'] = $summary['net_savings'];
+                $syncedFields[] = 'savings';
+                $changed = true;
+            }
+        }
+
+        if (Schema::hasColumn('members', 'savings_transaction_id')) {
+            $current = DB::table('members')->where('id', $member->id)->value('savings_transaction_id');
+            $latestSavingsTransactionId = SavingsHistory::query()
+                ->forMember($member->id)
+                ->latest('id')
+                ->value('id');
+
+            if ($force || (string) $current !== (string) $latestSavingsTransactionId) {
+                $updates['savings_transaction_id'] = $latestSavingsTransactionId;
+                $syncedFields[] = 'savings_transaction_id';
+                $changed = true;
+            }
+        }
+
+        if (!empty($updates)) {
+            DB::table('members')->where('id', $member->id)->update($updates);
         }
 
         return array_merge($summary, [
             'changed' => $changed,
-            'synced_fields' => array_keys($updates),
+            'synced_fields' => $syncedFields,
+            'stored_savings' => $updates['savings'] ?? ($summary['stored_savings'] ?? 0),
+            'stored_savings_balance' => $updates['savings_balance'] ?? ($summary['stored_savings_balance'] ?? 0),
+            'stored_balance' => $updates['savings_balance'] ?? ($summary['stored_balance'] ?? 0),
+            'is_synced' => !$changed || !empty($updates),
         ]);
     }
 
@@ -111,21 +133,21 @@ class MemberFinancialSyncService
         return $report;
     }
 
-    private function transactionTotals(string $memberId): array
+    private function transactionTotals(int $memberId): array
     {
-        $amountSql = 'COALESCE(NULLIF(net_amount, 0), amount, 0)';
+        $amountSql = 'COALESCE(NULLIF(transactions.net_amount, 0), transactions.amount, 0)';
 
         $totals = Transaction::query()
-            ->where('member_id', $memberId)
-            ->where(function ($query): void {
-                $query->where('status', 'completed')
-                    ->orWhereNull('status');
-            })
+            ->where('transactions.member_id', $memberId)
+            ->join('transaction_types', 'transactions.transaction_type_id', '=', 'transaction_types.id')
+            ->leftJoin('transaction_categories as tc', 'transactions.category_id', '=', 'tc.id')
+            ->join('transaction_statuses as ts', 'transactions.status_id', '=', 'ts.id')
+            ->where('ts.name', 'completed')
             ->selectRaw('COUNT(*) as completed_transactions')
-            ->selectRaw("COALESCE(SUM(CASE WHEN type = 'deposit' THEN {$amountSql} ELSE 0 END), 0) as total_deposits")
-            ->selectRaw("COALESCE(SUM(CASE WHEN type = 'withdrawal' THEN {$amountSql} ELSE 0 END), 0) as total_withdrawals")
-            ->selectRaw("COALESCE(SUM(CASE WHEN type = 'transfer' THEN {$amountSql} ELSE 0 END), 0) as total_transfers")
-            ->selectRaw("COALESCE(SUM(CASE WHEN type IN ('loan_payment', 'repayment') THEN {$amountSql} ELSE 0 END), 0) as total_loan_payments")
+            ->selectRaw("COALESCE(SUM(CASE WHEN tc.name IN ('savings_deposit', 'transfer_in', 'loan_disbursement') THEN {$amountSql} ELSE 0 END), 0) as total_deposits")
+            ->selectRaw("COALESCE(SUM(CASE WHEN tc.name IN ('savings_withdrawal', 'transfer_out', 'fundraising_transfer') THEN {$amountSql} ELSE 0 END), 0) as total_withdrawals")
+            ->selectRaw("COALESCE(SUM(CASE WHEN tc.name IN ('transfer_out', 'fundraising_transfer') THEN {$amountSql} ELSE 0 END), 0) as total_transfers")
+            ->selectRaw("COALESCE(SUM(CASE WHEN tc.name = 'loan_payment' OR transaction_types.name IN ('loan_repayment', 'loan_payment', 'repayment') THEN {$amountSql} ELSE 0 END), 0) as total_loan_payments")
             ->first();
 
         return [
@@ -137,23 +159,11 @@ class MemberFinancialSyncService
         ];
     }
 
-    private function loanOutstanding(string $memberId): float
+    private function loanOutstanding(int $memberId): float
     {
-        $query = Loan::query()
+        return (float) Loan::query()
             ->where('member_id', $memberId)
-            ->whereIn('status', ['approved', 'active', 'disbursed', 'completed', 'paid']);
-
-        if (Loan::hasPaymentTrackingColumn()) {
-            $paidColumn = Loan::paymentTrackingColumn();
-
-            $outstanding = $query
-                ->selectRaw("COALESCE(SUM(GREATEST(COALESCE(amount, 0) - COALESCE({$paidColumn}, 0), 0)), 0) as outstanding")
-                ->value('outstanding');
-
-            return (float) ($outstanding ?? 0);
-        }
-
-        return (float) ($query->sum('amount') ?? 0);
+            ->sum('balance_due');
     }
 
     private function nearlyEqual(float $a, float $b): bool

@@ -44,7 +44,7 @@
 </head>
 @php
     $currentUser = auth()->user();
-    $usersData = \App\Models\User::with('member')
+    $usersData = \App\Models\User::with(['member', 'roleRecord'])
         ->where('id', '!=', auth()->id())
         ->get()->map(function($user) {
             return [

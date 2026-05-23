@@ -15,20 +15,21 @@ class ProjectController extends Controller
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
-                $q->where('project_id', 'like', "%{$search}%")
+                $q->where('project_number', 'like', "%{$search}%")
                     ->orWhere('name', 'like', "%{$search}%")
                     ->orWhere('description', 'like', "%{$search}%")
-                    ->orWhere('manager', 'like', "%{$search}%")
-                    ->orWhere('location', 'like', "%{$search}%");
+                    ->orWhere('location_text', 'like', "%{$search}%");
             });
         }
 
         if ($request->filled('status')) {
-            $query->where('status', $request->status);
+            $query->whereHas('statusRelation', fn ($q) => $q->where('name', $request->status));
         }
 
         if ($request->filled('category')) {
-            $query->where('category', $request->category);
+            if (is_numeric($request->category)) {
+                $query->where('category_id', $request->category);
+            }
         }
 
         if ($request->filled('date_from')) {
@@ -36,7 +37,7 @@ class ProjectController extends Controller
         }
 
         if ($request->filled('date_to')) {
-            $query->whereDate('end_date', '<=', $request->date_to);
+            $query->whereDate('expected_end_date', '<=', $request->date_to);
         }
 
         $projects = $query->latest()->paginate(15)->appends($request->query());
@@ -52,7 +53,7 @@ class ProjectController extends Controller
     public function updateProgress(Request $request, $id)
     {
         $project = Project::findOrFail($id);
-        $project->update(['progress' => $request->progress]);
+        $project->update(['progress_percentage' => $request->progress]);
         return back()->with('success', 'Project progress updated');
     }
 }

@@ -7,7 +7,6 @@ use App\Models\Member;
 use App\Models\Loan;
 use App\Models\Transaction;
 use App\Models\Project;
-use App\Models\Deposit;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
@@ -17,36 +16,40 @@ class AnalyticsController extends Controller
     {
         try {
             // Basic statistics
-            $totalSavings = Member::sum('savings') ?: 0;
-            $totalLoans = Loan::where('status', 'approved')->sum('amount') ?: 0;
+            $totalSavings = Member::transactionSavingsTotal() ?: 0;
+            $totalLoans = Loan::status('approved')->sum('amount') ?: 0;
             $totalMembers = Member::count() ?: 0;
             $activeProjects = Project::where('status', '!=', 'completed')->count() ?: 0;
 
             // Top savers
-            $topSavers = Member::orderBy('savings', 'desc')
+            $topSavers = Member::query()
+                ->withTransactionSavings()
+                ->orderByRaw('COALESCE(member_transaction_savings.transaction_savings, 0) desc')
                 ->take(5)
-                ->get(['member_id', 'full_name', 'savings']);
+                ->get();
 
             // Member distribution by role
-            $membersByRole = Member::select('role', DB::raw('count(*) as count'))
-                ->groupBy('role')
+            $membersByRole = DB::table('member_roles')
+                ->join('roles', 'roles.id', '=', 'member_roles.role_id')
+                ->selectRaw('LOWER(roles.name) as role, COUNT(DISTINCT member_roles.member_id) as count')
+                ->groupBy('roles.name')
                 ->get();
 
             // Loan status distribution
-            $loansByStatus = Loan::select('status', DB::raw('count(*) as count'))
-                ->groupBy('status')
+            $loansByStatus = Loan::select('status_id', DB::raw('count(*) as count'))
+                ->groupBy('status_id')
                 ->get();
 
             // Monthly transaction trends (last 6 months)
             $monthlyTransactions = [];
             for ($i = 5; $i >= 0; $i--) {
                 $month = Carbon::now()->subMonths($i);
-                $deposits = Transaction::where('type', 'deposit')
+                $deposits = Transaction::query()->ofType('deposit')
                     ->whereYear('created_at', $month->year)
                     ->whereMonth('created_at', $month->month)
                     ->sum('amount') ?: 0;
                 
-                $withdrawals = Transaction::where('type', 'withdrawal')
+                $withdrawals = Transaction::query()->ofType('withdrawal')
                     ->whereYear('created_at', $month->year)
                     ->whereMonth('created_at', $month->month)
                     ->sum('amount') ?: 0;
@@ -59,7 +62,16 @@ class AnalyticsController extends Controller
             }
 
             // Project progress data
-            $projects = Project::select('name', 'progress', 'budget', 'status')->get();
+            $projects = Project::query()
+                ->select('id', 'name', 'progress_percentage', 'budget_amount', 'status_id')
+                ->get()
+                ->map(fn (Project $project) => [
+                    'id' => $project->id,
+                    'name' => $project->name,
+                    'progress' => $project->progress,
+                    'budget' => $project->budget,
+                    'status' => $project->status,
+                ]);
 
             // Financial performance over time (quarterly)
             $quarterlyPerformance = [];
@@ -104,10 +116,9 @@ class AnalyticsController extends Controller
 
     private function calculateTotalAssets($date)
     {
-        // Calculate total assets up to the given date
-        $savings = Member::where('created_at', '<=', $date)->sum('savings') ?: 0;
+        $savings = $this->savingsBalanceAtDate($date);
         $loans = Loan::where('created_at', '<=', $date)
-            ->where('status', 'approved')
+            ->status('approved')
             ->sum('amount') ?: 0;
         
         return $savings + $loans;
@@ -115,13 +126,13 @@ class AnalyticsController extends Controller
 
     private function calculateMemberSavings($date)
     {
-        return Member::where('created_at', '<=', $date)->sum('savings') ?: 0;
+        return $this->savingsBalanceAtDate($date);
     }
 
     private function calculateLoanPortfolio($date)
     {
         return Loan::where('created_at', '<=', $date)
-            ->where('status', 'approved')
+            ->status('approved')
             ->sum('amount') ?: 0;
     }
 
@@ -181,7 +192,7 @@ class AnalyticsController extends Controller
 
     private function getLoanRepaymentAnalysis()
     {
-        $totalLoans = Loan::where('status', 'approved')->count();
+        $totalLoans = Loan::status('approved')->count();
         
         if ($totalLoans == 0) {
             return [
@@ -195,23 +206,23 @@ class AnalyticsController extends Controller
             return [
                 'on_time' => 0,
                 'late' => 0,
-                'defaulted' => Loan::where('status', 'rejected')->count(),
-            ];
+            'defaulted' => Loan::status('rejected')->count(),
+        ];
         }
 
         $paidColumn = Loan::paymentTrackingColumn();
 
         // Simplified analysis - in real implementation, you'd track payment dates
-        $onTime = Loan::where('status', 'approved')
+        $onTime = Loan::status('approved')
             ->where($paidColumn, '>', 0)
             ->count();
         
-        $late = Loan::where('status', 'approved')
+        $late = Loan::status('approved')
             ->where($paidColumn, 0)
             ->where('created_at', '<', Carbon::now()->subMonths(1))
             ->count();
         
-        $defaulted = Loan::where('status', 'rejected')->count();
+        $defaulted = Loan::status('rejected')->count();
 
         return [
             'on_time' => $onTime,
@@ -223,11 +234,14 @@ class AnalyticsController extends Controller
     public function getFinancialSummary()
     {
         return response()->json([
-            'total_savings' => Member::sum('savings') ?: 0,
+            'total_savings' => Member::transactionSavingsTotal() ?: 0,
             'total_loans' => Loan::sum('amount') ?: 0,
-            'total_deposits' => Deposit::sum('amount') ?: 0,
+            'total_deposits' => Transaction::query()->ofType('deposit')->sum('amount') ?: 0,
             'total_transactions' => Transaction::sum('amount') ?: 0,
-            'average_savings' => Member::avg('savings') ?: 0,
+            'average_savings' => (float) (Member::query()
+                ->withTransactionSavings()
+                ->selectRaw('AVG(COALESCE(member_transaction_savings.transaction_savings, 0)) as avg_savings')
+                ->value('avg_savings') ?? 0),
             'loan_default_rate' => $this->calculateDefaultRate(),
             'growth_rate' => $this->calculateGrowthRate()
         ]);
@@ -237,14 +251,22 @@ class AnalyticsController extends Controller
     {
         return response()->json([
             'total_members' => Member::count(),
-            'members_by_role' => Member::select('role', DB::raw('count(*) as count'))
-                ->groupBy('role')
+            'members_by_role' => DB::table('member_roles')
+                ->join('roles', 'roles.id', '=', 'member_roles.role_id')
+                ->selectRaw('LOWER(roles.name) as role, COUNT(DISTINCT member_roles.member_id) as count')
+                ->groupBy('roles.name')
                 ->get(),
-            'members_by_location' => Member::select('location', DB::raw('count(*) as count'))
-                ->groupBy('location')
+            'members_by_location' => Member::query()
+                ->leftJoin('nationalities', 'nationalities.id', '=', 'members.nationality_id')
+                ->selectRaw('COALESCE(nationalities.name, "Unknown") as location, COUNT(*) as count')
+                ->groupBy('nationalities.name')
                 ->get(),
-            'average_savings_by_role' => Member::select('role', DB::raw('avg(savings) as avg_savings'))
-                ->groupBy('role')
+            'average_savings_by_role' => Member::query()
+                ->withTransactionSavings()
+                ->leftJoin('member_roles', 'member_roles.member_id', '=', 'members.id')
+                ->leftJoin('roles', 'roles.id', '=', 'member_roles.role_id')
+                ->selectRaw('LOWER(COALESCE(roles.name, "unassigned")) as role, AVG(COALESCE(member_transaction_savings.transaction_savings, 0)) as avg_savings')
+                ->groupBy('roles.name')
                 ->get()
         ]);
     }
@@ -267,18 +289,39 @@ class AnalyticsController extends Controller
         $totalLoans = Loan::count();
         if ($totalLoans == 0) return 0;
         
-        $defaultedLoans = Loan::where('status', 'rejected')->count();
+        $defaultedLoans = Loan::status('rejected')->count();
         return ($defaultedLoans / $totalLoans) * 100;
     }
 
     private function calculateGrowthRate()
     {
-        $currentMonth = Member::whereMonth('created_at', Carbon::now()->month)->sum('savings');
-        $lastMonth = Member::whereMonth('created_at', Carbon::now()->subMonth()->month)->sum('savings');
+        $currentMonth = $this->savingsBalanceAtDate(Carbon::now()->endOfMonth());
+        $lastMonth = $this->savingsBalanceAtDate(Carbon::now()->subMonthNoOverflow()->endOfMonth());
         
         if ($lastMonth == 0) return 0;
         
         return (($currentMonth - $lastMonth) / $lastMonth) * 100;
+    }
+
+    private function savingsBalanceAtDate(Carbon|string|null $date = null): float
+    {
+        $query = Transaction::query()
+            ->join('transaction_types as tt', 'transactions.transaction_type_id', '=', 'tt.id')
+            ->join('transaction_statuses as ts', 'transactions.status_id', '=', 'ts.id')
+            ->join('transaction_categories as tc', 'transactions.category_id', '=', 'tc.id')
+            ->where('ts.name', 'completed')
+            ->whereNull('transactions.deleted_at')
+            ->where('tc.affects_savings', 1);
+
+        if ($date !== null) {
+            $query->whereDate('transactions.created_at', '<=', $date);
+        }
+
+        $amountSql = 'COALESCE(NULLIF(transactions.net_amount, 0), transactions.amount, 0)';
+
+        return (float) ($query
+            ->selectRaw("COALESCE(SUM(CASE WHEN tt.impact = 'credit' THEN {$amountSql} ELSE -{$amountSql} END), 0) as balance")
+            ->value('balance') ?? 0);
     }
 
     private function calculateProjectCompletionRate()

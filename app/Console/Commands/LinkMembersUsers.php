@@ -29,14 +29,16 @@ class LinkMembersUsers extends Command
                 $this->info("Linked {$member->full_name} to existing user");
                 $linked++;
             } else {
-                $user = User::create([
-                    'name' => $member->full_name,
-                    'email' => $member->email,
-                    'password' => Hash::make('password123'),
-                    'role' => $member->role,
-                    'is_active' => true,
-                    'profile_picture' => $member->profile_picture
-                ]);
+                $user = User::withoutEvents(function () use ($member) {
+                    return User::create([
+                        'name' => $member->full_name,
+                        'email' => $member->email,
+                        'password' => Hash::make('password123'),
+                        'role' => $member->role,
+                        'is_active' => true,
+                        'profile_picture' => $member->profile_picture
+                    ]);
+                });
                 $member->user_id = $user->id;
                 $member->save();
                 $this->info("Created user for {$member->full_name}");

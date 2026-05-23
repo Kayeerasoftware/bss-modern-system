@@ -9,7 +9,7 @@ class Kernel extends ConsoleKernel
 {
     protected function schedule(Schedule $schedule)
     {
-        //
+        $schedule->command('savings:accrue-interest')->dailyAt('00:10');
     }
 
     protected function commands()

@@ -60,7 +60,7 @@ class SystemHealthController extends Controller
             'info' => [
                 'phpVersion' => PHP_VERSION,
                 'laravelVersion' => app()->version(),
-                'dbType' => 'SQLite',
+                'dbType' => config('database.default'),
                 'environment' => config('app.env'),
                 'debug' => config('app.debug'),
                 'timezone' => config('app.timezone')
@@ -109,7 +109,7 @@ class SystemHealthController extends Controller
     private function getTableCount()
     {
         try {
-            $tables = DB::select("SELECT COUNT(*) as count FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'");
+            $tables = DB::select("SELECT COUNT(*) as count FROM information_schema.tables WHERE table_schema = DATABASE()");
             return $tables[0]->count ?? 0;
         } catch (\Exception $e) {
             return 0;
@@ -174,26 +174,14 @@ class SystemHealthController extends Controller
     private function getBackupInfo()
     {
         $backups = DB::table('backups')->get();
-        $totalSize = 0;
-        
-        foreach ($backups as $backup) {
-            if (preg_match('/(\d+\.?\d*)\s*(KB|MB|GB)/', $backup->size, $matches)) {
-                $size = floatval($matches[1]);
-                $unit = $matches[2];
-                
-                if ($unit === 'KB') $size = $size / 1024;
-                if ($unit === 'GB') $size = $size * 1024;
-                
-                $totalSize += $size;
-            }
-        }
+        $totalSizeBytes = (float) $backups->sum('file_size');
         
         $lastBackup = $backups->sortByDesc('created_at')->first();
         
         return [
             'lastBackup' => $lastBackup ? date('M d, Y g:i A', strtotime($lastBackup->created_at)) : 'Never',
             'totalBackups' => $backups->count(),
-            'totalSize' => number_format($totalSize, 2) . ' MB',
+            'totalSize' => $this->formatBytes($totalSizeBytes),
             'status' => $backups->count() > 0 ? 'healthy' : 'warning'
         ];
     }
@@ -203,28 +191,35 @@ class SystemHealthController extends Controller
         $activities = [];
         
         $recentTransactions = DB::table('transactions')
-            ->orderBy('created_at', 'desc')
+            ->leftJoin('transaction_types', 'transaction_types.id', '=', 'transactions.transaction_type_id')
+            ->select('transactions.transaction_number', 'transactions.created_at', 'transaction_types.name as type')
+            ->orderBy('transactions.created_at', 'desc')
             ->limit(3)
             ->get();
         
         foreach ($recentTransactions as $transaction) {
             $activities[] = [
                 'type' => 'success',
-                'message' => ucfirst($transaction->type) . ' transaction processed: ' . $transaction->transaction_id,
+                'message' => ucfirst((string) ($transaction->type ?? 'transaction')) . ' processed: ' . $transaction->transaction_number,
                 'timestamp' => date('M d, Y g:i A', strtotime($transaction->created_at))
             ];
         }
         
         $recentLoans = DB::table('loans')
-            ->where('status', '!=', 'pending')
-            ->orderBy('updated_at', 'desc')
+            ->leftJoin('loan_statuses', 'loan_statuses.id', '=', 'loans.status_id')
+            ->select('loans.loan_number', 'loan_statuses.name as status', 'loans.updated_at')
+            ->where(function ($query) {
+                $query->whereNull('loan_statuses.name')
+                    ->orWhere('loan_statuses.name', '!=', 'pending');
+            })
+            ->orderBy('loans.updated_at', 'desc')
             ->limit(2)
             ->get();
         
         foreach ($recentLoans as $loan) {
             $activities[] = [
                 'type' => $loan->status === 'approved' ? 'success' : 'warning',
-                'message' => 'Loan ' . $loan->status . ': ' . $loan->loan_id,
+                'message' => 'Loan ' . ($loan->status ?? 'updated') . ': ' . $loan->loan_number,
                 'timestamp' => date('M d, Y g:i A', strtotime($loan->updated_at))
             ];
         }

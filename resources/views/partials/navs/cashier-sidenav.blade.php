@@ -57,7 +57,7 @@
             <a href="{{ route('cashier.loans.index') }}" class="nav-item flex items-center space-x-2 px-2 py-2 rounded-lg transition text-xs {{ request()->routeIs('cashier.loans.*') ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-orange-50 hover:text-orange-600' }}" data-search="loans">
                 <i class="fas fa-hand-holding-usd w-3 text-xs"></i><span>Loans</span>
             </a>
-            <a href="{{ route('admin.loan-applications.index') }}" class="nav-item flex items-center space-x-2 px-2 py-2 rounded-lg transition text-xs {{ request()->routeIs('admin.loan-applications.*') ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-orange-50 hover:text-orange-600' }}" data-search="loan applications">
+            <a href="{{ route('cashier.loan-applications.index') }}" class="nav-item flex items-center space-x-2 px-2 py-2 rounded-lg transition text-xs {{ request()->routeIs('cashier.loan-applications.*') ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-orange-50 hover:text-orange-600' }}" data-search="loan applications">
                 <i class="fas fa-file-invoice-dollar w-3 text-xs"></i><span>Loan Apps</span>
             </a>
             <a href="{{ route('cashier.fundraising.index') }}" class="nav-item flex items-center space-x-2 px-2 py-2 rounded-lg transition text-xs {{ request()->routeIs('cashier.fundraising.*') ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-orange-50 hover:text-orange-600' }}" data-search="fundraising">
@@ -65,6 +65,9 @@
             </a>
             <a href="{{ route('cashier.financial.index') }}" class="nav-item flex items-center space-x-2 px-2 py-2 rounded-lg transition text-xs {{ request()->routeIs('cashier.financial.*') ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-orange-50 hover:text-orange-600' }}" data-search="financial">
                 <i class="fas fa-dollar-sign w-3 text-xs"></i><span>Financial</span>
+            </a>
+            <a href="{{ route('cashier.savings.index') }}" class="nav-item flex items-center space-x-2 px-2 py-2 rounded-lg transition text-xs {{ request()->routeIs('cashier.savings.*') ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-orange-50 hover:text-orange-600' }}" data-search="savings">
+                <i class="fas fa-piggy-bank w-3 text-xs"></i><span>Savings</span>
             </a>
             <a href="{{ route('cashier.projects.index') }}" class="nav-item flex items-center space-x-2 px-2 py-2 rounded-lg transition text-xs {{ request()->routeIs('cashier.projects.*') ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-orange-50 hover:text-orange-600' }}" data-search="projects">
                 <i class="fas fa-project-diagram w-3 text-xs"></i><span>Projects</span>

@@ -59,7 +59,7 @@
                         </div>
                         <div class="flex-1">
                             <p class="text-xs text-gray-500 font-semibold">Email</p>
-                            <p class="text-sm font-bold text-gray-800">{{ $member->email }}</p>
+                            <p class="text-sm font-bold text-gray-800">{{ $member->email ?? 'N/A' }}</p>
                         </div>
                     </div>
 
@@ -69,7 +69,7 @@
                         </div>
                         <div class="flex-1">
                             <p class="text-xs text-gray-500 font-semibold">Contact</p>
-                            <p class="text-sm font-bold text-gray-800">{{ $member->contact }}</p>
+                            <p class="text-sm font-bold text-gray-800">{{ $member->primary_phone ?? 'N/A' }}</p>
                         </div>
                     </div>
 
@@ -79,7 +79,7 @@
                         </div>
                         <div class="flex-1">
                             <p class="text-xs text-gray-500 font-semibold">Location</p>
-                            <p class="text-sm font-bold text-gray-800">{{ $member->location }}</p>
+                            <p class="text-sm font-bold text-gray-800">{{ $member->place_of_birth ?? 'N/A' }}</p>
                         </div>
                     </div>
 
@@ -89,7 +89,7 @@
                         </div>
                         <div class="flex-1">
                             <p class="text-xs text-gray-500 font-semibold">Occupation</p>
-                            <p class="text-sm font-bold text-gray-800">{{ $member->occupation }}</p>
+                            <p class="text-sm font-bold text-gray-800">{{ $member->occupation ?? 'N/A' }}</p>
                         </div>
                     </div>
 
@@ -119,23 +119,23 @@
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl p-4 text-white text-center transform hover:scale-105 transition-all">
                         <i class="fas fa-piggy-bank text-3xl mb-2 opacity-80"></i>
-                        <p class="text-2xl font-bold">{{ number_format($member->savings, 2) }}</p>
+                        <p class="text-2xl font-bold">{{ number_format($financialSummary['net_savings'] ?? 0, 2) }}</p>
                         <p class="text-xs opacity-80">Savings</p>
                     </div>
                     <div class="bg-gradient-to-br from-green-500 to-green-600 rounded-2xl p-4 text-white text-center transform hover:scale-105 transition-all">
                         <i class="fas fa-wallet text-3xl mb-2 opacity-80"></i>
-                        <p class="text-2xl font-bold">{{ number_format($member->savings_balance, 2) }}</p>
+                        <p class="text-2xl font-bold">{{ number_format($financialSummary['available_balance'] ?? 0, 2) }}</p>
                         <p class="text-xs opacity-80">Savings Balance</p>
                     </div>
                     <div class="bg-gradient-to-br from-red-500 to-red-600 rounded-2xl p-4 text-white text-center transform hover:scale-105 transition-all">
                         <i class="fas fa-hand-holding-usd text-3xl mb-2 opacity-80"></i>
-                        <p class="text-2xl font-bold">{{ number_format($member->loan, 2) }}</p>
-                        <p class="text-xs opacity-80">Loan</p>
+                        <p class="text-2xl font-bold">{{ number_format($financialSummary['loan_outstanding'] ?? 0, 2) }}</p>
+                        <p class="text-xs opacity-80">Loan Outstanding</p>
                     </div>
                     <div class="bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl p-4 text-white text-center transform hover:scale-105 transition-all">
                         <i class="fas fa-money-check-alt text-3xl mb-2 opacity-80"></i>
-                        <p class="text-2xl font-bold">{{ number_format($member->balance, 2) }}</p>
-                        <p class="text-xs opacity-80">Balance</p>
+                        <p class="text-2xl font-bold">{{ number_format($financialSummary['available_after_loans'] ?? 0, 2) }}</p>
+                        <p class="text-xs opacity-80">Available After Loans</p>
                     </div>
                 </div>
             </div>

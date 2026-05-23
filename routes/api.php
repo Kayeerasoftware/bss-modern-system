@@ -88,6 +88,7 @@ Route::prefix('loans')->name('api.loans.')->group(function () {
     Route::delete('/{id}', [LoanController::class, 'destroy']);
     Route::post('/{id}/approve', [LoanController::class, 'approve']);
     Route::post('/{id}/reject', [LoanController::class, 'reject']);
+    Route::post('/{id}/disburse', [LoanController::class, 'disburse']);
     Route::post('/{id}/repayment', [LoanController::class, 'recordRepayment']);
 });
 

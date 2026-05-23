@@ -8,7 +8,7 @@ return [
     |--------------------------------------------------------------------------
     */
 
-    'system_name' => env('BSS_SYSTEM_NAME', 'Business Support System'),
+    'system_name' => env('BSS_SYSTEM_NAME', 'BSS Investment Group'),
     
     'currency' => env('BSS_CURRENCY', 'UGX'),
     

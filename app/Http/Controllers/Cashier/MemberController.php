@@ -15,26 +15,27 @@ class MemberController extends Controller
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
-                $q->where('member_id', 'like', "%{$search}%")
+                $q->where('member_account_number', 'like', "%{$search}%")
+                    ->orWhere('member_number', 'like', "%{$search}%")
                     ->orWhere('full_name', 'like', "%{$search}%")
                     ->orWhere('email', 'like', "%{$search}%")
-                    ->orWhere('contact', 'like', "%{$search}%");
+                    ->orWhere('primary_phone', 'like', "%{$search}%");
             });
         }
 
         if ($request->filled('role')) {
-            $query->where('role', $request->role);
+            $query->whereHas('roles', fn ($q) => $q->where('name', $request->role));
         }
 
         if ($request->filled('status')) {
-            $query->where('status', $request->status);
+            $query->where('membership_status', $request->status);
         }
 
         $statsBaseQuery = clone $query;
         $memberStats = [
             'totalMembers' => (clone $statsBaseQuery)->count(),
-            'activeMembers' => (clone $statsBaseQuery)->where('status', 'active')->count(),
-            'totalBalance' => (float) ((clone $statsBaseQuery)->sum('balance')),
+            'activeMembers' => (clone $statsBaseQuery)->where('membership_status', 'active')->count(),
+            'totalBalance' => (float) \Illuminate\Support\Facades\DB::table('savings_accounts')->sum('current_balance'),
             'newThisMonth' => (clone $statsBaseQuery)->where('created_at', '>=', now()->startOfMonth())->count(),
         ];
 

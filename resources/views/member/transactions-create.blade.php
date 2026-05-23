@@ -14,7 +14,7 @@
 
     <form action="{{ route('shareholder.transactions.store') }}" method="POST" class="max-w-6xl mx-auto">
         @csrf
-        <input type="hidden" name="member_id" value="{{ $member->member_id }}">
+        <input type="hidden" name="member_id" value="{{ $member->id }}">
 
         <div class="bg-white rounded-3xl shadow-2xl overflow-hidden border border-gray-100">
             <div class="bg-gradient-to-r from-purple-600 via-pink-600 to-indigo-600 p-8 text-center">

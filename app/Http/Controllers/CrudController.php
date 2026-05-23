@@ -6,10 +6,17 @@ use Illuminate\Http\Request;
 use App\Models\Member;
 use App\Models\Loan;
 use App\Models\Transaction;
+use App\Models\TransactionCategory;
+use App\Models\TransactionStatus;
+use App\Models\TransactionType;
+use App\Models\PaymentMethod;
+use App\Models\Currency;
 use App\Models\Project;
 use App\Models\Share;
 use App\Models\SavingsHistory;
 use App\Models\User;
+use App\Services\Financial\TransactionPostingService;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 
 class CrudController extends Controller
@@ -52,16 +59,18 @@ class CrudController extends Controller
                 $memberId = 'BSS' . str_pad($maxNum + 1, 3, '0', STR_PAD_LEFT);
             }
 
-            $user = User::create([
-                'name' => $validated['full_name'],
-                'email' => $validated['email'],
-                'password' => Hash::make('password123'),
-                'role' => $validated['role'],
-                'status' => 'active',
-                'is_active' => true,
-                'phone' => $validated['contact'],
-                'location' => $validated['location'],
-            ]);
+            $user = User::withoutEvents(function () use ($validated) {
+                return User::create([
+                    'name' => $validated['full_name'],
+                    'email' => $validated['email'],
+                    'password' => Hash::make('password123'),
+                    'role' => $validated['role'],
+                    'status' => 'active',
+                    'is_active' => true,
+                    'phone' => $validated['contact'],
+                    'location' => $validated['location'],
+                ]);
+            });
 
             $member = Member::create([
                 'member_id' => $memberId,
@@ -103,11 +112,11 @@ class CrudController extends Controller
                 'occupation' => 'nullable|string|max:255',
                 'contact' => 'nullable|string|max:20',
                 'role' => 'nullable|in:client,shareholder,cashier,td,ceo',
-                'savings' => 'nullable|numeric|min:0',
                 'loan' => 'nullable|numeric|min:0'
             ];
 
             $validated = $request->validate($rules);
+            unset($validated['savings']);
             $member->update(array_filter($validated));
 
             return response()->json(['success' => true, 'member' => $member->fresh()]);
@@ -136,7 +145,16 @@ class CrudController extends Controller
             \DB::table('loans')->where('member_id', $memberId)->delete();
             \DB::table('transactions')->where('member_id', $memberId)->delete();
             \DB::table('shares')->where('member_id', $memberId)->delete();
-            \DB::table('savings_history')->where('member_id', $memberId)->delete();
+            $resolvedMemberId = resolve_member_id($memberId);
+            if ($resolvedMemberId) {
+                \DB::table('savings_transactions')
+                    ->whereIn('savings_account_id', function ($query) use ($resolvedMemberId) {
+                        $query->select('id')
+                            ->from('savings_accounts')
+                            ->where('member_id', $resolvedMemberId);
+                    })
+                    ->delete();
+            }
             \DB::table('dividends')->where('member_id', $memberId)->delete();
             \DB::table('portfolio_performances')->where('member_id', $memberId)->delete();
             \DB::table('chat_messages')->where('sender_id', $memberId)->orWhere('receiver_id', $memberId)->delete();
@@ -170,22 +188,49 @@ class CrudController extends Controller
     public function createLoan(Request $request)
     {
         $validated = $request->validate([
-            'member_id' => 'required|exists:members,member_id',
+            'member_id' => 'required|string',
             'amount' => 'required|numeric|min:1000',
             'purpose' => 'required|string|max:255',
             'repayment_months' => 'required|integer|min:1|max:60'
         ]);
 
-        $loan = Loan::create([
-            'loan_id' => 'LOAN' . str_pad(Loan::count() + 1, 3, '0', STR_PAD_LEFT),
-            'member_id' => $validated['member_id'],
-            'amount' => $validated['amount'],
-            'purpose' => $validated['purpose'],
-            'repayment_months' => $validated['repayment_months'],
-            'interest' => $validated['amount'] * 0.05, // 5% interest
-            'monthly_payment' => ($validated['amount'] * 1.05) / $validated['repayment_months'],
-            'status' => 'pending'
-        ]);
+        $memberId = resolve_member_id($validated['member_id']);
+        if (!$memberId) {
+            return response()->json(['success' => false, 'message' => 'Invalid member'], 422);
+        }
+
+        $loanTypeId = \App\Models\LoanType::query()->where('is_active', 1)->value('id')
+            ?? \App\Models\LoanType::query()->value('id');
+        $pendingStatusId = \App\Models\LoanStatus::query()->where('name', 'pending')->value('id');
+        $interestRate = 5.0;
+        $totalInterest = round($validated['amount'] * ($interestRate / 100), 2);
+
+        $loan = null;
+        DB::transaction(function () use ($memberId, $loanTypeId, $pendingStatusId, $validated, $interestRate, $totalInterest, &$loan): void {
+            $application = \App\Models\LoanApplication::create([
+                'member_id' => $memberId,
+                'loan_type_id' => $loanTypeId,
+                'requested_amount' => $validated['amount'],
+                'requested_tenure_months' => $validated['repayment_months'],
+                'purpose' => $validated['purpose'],
+                'status_id' => $pendingStatusId,
+                'submission_date' => now(),
+            ]);
+
+            $loan = Loan::create([
+                'application_id' => $application->id,
+                'member_id' => $memberId,
+                'loan_type_id' => $loanTypeId,
+                'principal_amount' => $validated['amount'],
+                'interest_rate' => $interestRate,
+                'total_interest' => $totalInterest,
+                'repayment_months' => $validated['repayment_months'],
+                'application_date' => now()->toDateString(),
+                'status_id' => $pendingStatusId,
+                'notes' => $validated['purpose'],
+            ]);
+            $application->update(['converted_to_loan_id' => $loan->id]);
+        });
 
         return response()->json(['success' => true, 'loan' => $loan]);
     }
@@ -204,15 +249,19 @@ class CrudController extends Controller
             }
         }
         
+        $approvedStatusId = \App\Models\LoanStatus::query()->where('name', 'approved')->value('id');
         $loan->update([
-            'status' => 'approved',
-            'updated_by' => $updater
+            'status_id' => $approvedStatusId ?? $loan->status_id,
         ]);
 
-        // Update member's loan balance
-        $member = Member::where('member_id', $loan->member_id)->first();
-        if ($member) {
-            $member->increment('loan', $loan->amount);
+        if ($loan->application_id) {
+            \App\Models\LoanApplication::query()
+                ->whereKey($loan->application_id)
+                ->update([
+                    'status_id' => $approvedStatusId ?? $loan->status_id,
+                    'decision_by' => auth()->id(),
+                    'decision_date' => now(),
+                ]);
         }
 
         return response()->json(['success' => true, 'loan' => $loan]);
@@ -232,10 +281,20 @@ class CrudController extends Controller
             }
         }
         
+        $rejectedStatusId = \App\Models\LoanStatus::query()->where('name', 'rejected')->value('id');
         $loan->update([
-            'status' => 'rejected',
-            'updated_by' => $updater
+            'status_id' => $rejectedStatusId ?? $loan->status_id,
         ]);
+
+        if ($loan->application_id) {
+            \App\Models\LoanApplication::query()
+                ->whereKey($loan->application_id)
+                ->update([
+                    'status_id' => $rejectedStatusId ?? $loan->status_id,
+                    'decision_by' => auth()->id(),
+                    'decision_date' => now(),
+                ]);
+        }
         return response()->json(['success' => true, 'loan' => $loan]);
     }
 
@@ -253,10 +312,20 @@ class CrudController extends Controller
             }
         }
         
+        $pendingStatusId = \App\Models\LoanStatus::query()->where('name', 'pending')->value('id');
         $loan->update([
-            'status' => 'pending',
-            'updated_by' => $updater
+            'status_id' => $pendingStatusId ?? $loan->status_id,
         ]);
+
+        if ($loan->application_id) {
+            \App\Models\LoanApplication::query()
+                ->whereKey($loan->application_id)
+                ->update([
+                    'status_id' => $pendingStatusId ?? $loan->status_id,
+                    'decision_by' => auth()->id(),
+                    'decision_date' => now(),
+                ]);
+        }
         return response()->json(['success' => true, 'loan' => $loan]);
     }
 
@@ -265,22 +334,46 @@ class CrudController extends Controller
         $loan = Loan::findOrFail($id);
 
         $validated = $request->validate([
-            'member_id' => 'exists:members,member_id',
+            'member_id' => 'nullable|string',
             'amount' => 'numeric|min:1000',
             'purpose' => 'string|max:255',
             'repayment_months' => 'integer|min:1|max:60',
             'status' => 'in:pending,approved,rejected'
         ]);
 
-        $loan->update($validated);
+        $payload = [];
+        if (isset($validated['member_id'])) {
+            $resolvedMemberId = resolve_member_id($validated['member_id']);
+            if (!$resolvedMemberId) {
+                return response()->json(['success' => false, 'message' => 'Invalid member'], 422);
+            }
+            $payload['member_id'] = $resolvedMemberId;
+        }
+        if (isset($validated['amount'])) {
+            $payload['principal_amount'] = $validated['amount'];
+        }
+        if (isset($validated['repayment_months'])) {
+            $payload['repayment_months'] = $validated['repayment_months'];
+        }
+        if (isset($validated['purpose'])) {
+            $payload['notes'] = $validated['purpose'];
+        }
+        if (isset($validated['status'])) {
+            $statusId = \App\Models\LoanStatus::query()->where('name', $validated['status'])->value('id');
+            $payload['status_id'] = $statusId ?? $loan->status_id;
+        }
+
+        if (!empty($payload)) {
+            $loan->update($payload);
+        }
         return response()->json(['success' => true, 'loan' => $loan]);
     }
 
     public function deleteLoan($id)
     {
         $loan = Loan::findOrFail($id);
-        $loanId = $loan->loan_id;
-        $amount = $loan->amount;
+        $loanId = $loan->loan_number ?? $loan->id;
+        $amount = $loan->principal_amount ?? 0;
         $loan->delete();
         
         \DB::table('audit_logs')->insert([
@@ -331,39 +424,88 @@ class CrudController extends Controller
     }
 
     // Transaction CRUD Operations
-    public function createTransaction(Request $request)
+    public function createTransaction(Request $request, TransactionPostingService $postingService)
     {
         $validated = $request->validate([
-            'member_id' => 'required|exists:members,member_id',
+            'member_id' => 'required|string',
             'amount' => 'required|numeric|min:1',
             'type' => 'required|in:deposit,withdrawal,transfer,loan_payment',
             'description' => 'nullable|string'
         ]);
 
-        $member = Member::where('member_id', $validated['member_id'])->first();
+        $resolvedMemberId = resolve_member_id($validated['member_id']);
+        $member = $resolvedMemberId ? Member::find($resolvedMemberId) : null;
+        if (!$member) {
+            return response()->json(['success' => false, 'message' => 'Invalid member'], 400);
+        }
 
         // Check sufficient balance for withdrawal/transfer
-        if (in_array($validated['type'], ['withdrawal', 'transfer']) && $member->savings < $validated['amount']) {
+        if (in_array($validated['type'], ['withdrawal', 'transfer'], true) && $member->savings_balance < $validated['amount']) {
             return response()->json(['success' => false, 'message' => 'Insufficient balance'], 400);
         }
 
-        $transaction = Transaction::create([
-            'transaction_id' => 'TXN' . \Illuminate\Support\Str::random(6),
-            'member_id' => $validated['member_id'],
-            'amount' => $validated['amount'],
-            'type' => $validated['type'],
-            'description' => $validated['description'] ?? $validated['type']
-        ]);
+        $transactionTypeId = TransactionType::query()->where('name', $validated['type'])->value('id')
+            ?? TransactionType::query()->value('id');
+        $statusId = TransactionStatus::query()->where('name', 'completed')->value('id')
+            ?? TransactionStatus::query()->value('id');
+        $categoryName = match ($validated['type']) {
+            'deposit' => 'savings_deposit',
+            'withdrawal' => 'savings_withdrawal',
+            'transfer' => 'transfer_out',
+            'loan_payment' => 'loan_payment',
+            default => 'savings_deposit',
+        };
+        $categoryId = TransactionCategory::query()->where('name', $categoryName)->value('id')
+            ?? TransactionCategory::query()->where('transaction_type_id', $transactionTypeId)->value('id')
+            ?? TransactionCategory::query()->value('id');
+        $paymentMethodId = PaymentMethod::query()->where('name', 'cash')->value('id') ?? PaymentMethod::query()->value('id');
+        $currencyId = Currency::query()->where('code', 'UGX')->value('id') ?? Currency::query()->value('id');
 
-        // Update member balance
-        if ($validated['type'] === 'deposit') {
-            $member->increment('savings', $validated['amount']);
-            $member->increment('balance', $validated['amount']);
-        } elseif (in_array($validated['type'], ['withdrawal', 'transfer'])) {
-            $member->decrement('savings', $validated['amount']);
-            $member->decrement('balance', $validated['amount']);
-        } elseif ($validated['type'] === 'loan_payment') {
-            $member->decrement('loan', $validated['amount']);
+        $balanceBefore = (float) ($member->balance ?? 0);
+        $netAmount = (float) $validated['amount'];
+        $impact = TransactionType::query()->whereKey($transactionTypeId)->value('impact');
+        $balanceAfter = $impact === 'credit'
+            ? $balanceBefore + $netAmount
+            : $balanceBefore - $netAmount;
+
+        $transaction = null;
+        try {
+            DB::transaction(function () use (
+                $resolvedMemberId,
+                $transactionTypeId,
+                $categoryId,
+                $statusId,
+                $validated,
+                $currencyId,
+                $paymentMethodId,
+                $balanceBefore,
+                $balanceAfter,
+                $netAmount,
+                $postingService,
+                &$transaction
+            ): void {
+                $transaction = Transaction::create([
+                    'member_id' => $resolvedMemberId,
+                    'transaction_type_id' => $transactionTypeId,
+                    'category_id' => $categoryId,
+                    'status_id' => $statusId,
+                    'amount' => $validated['amount'],
+                    'net_amount' => $netAmount,
+                    'currency_id' => $currencyId,
+                    'balance_before' => $balanceBefore,
+                    'balance_after' => $balanceAfter,
+                    'payment_method_id' => $paymentMethodId,
+                    'description' => $validated['description'] ?? $validated['type'],
+                    'transaction_date' => now(),
+                    'value_date' => now(),
+                    'processed_by' => auth()->id() ?? \App\Models\User::query()->value('id'),
+                    'processed_at' => now(),
+                ]);
+
+                $postingService->applyCategoryUpdates($transaction, $validated);
+            });
+        } catch (\RuntimeException $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
         }
 
         return response()->json(['success' => true, 'transaction' => $transaction]);
@@ -475,7 +617,8 @@ class CrudController extends Controller
     // Get all data for specific member
     public function getMemberData($memberId)
     {
-        $member = Member::where('member_id', $memberId)->first();
+        $resolvedMemberId = resolve_member_id($memberId);
+        $member = $resolvedMemberId ? Member::find($resolvedMemberId) : null;
 
         if (!$member) {
             return response()->json(['error' => 'Member not found'], 404);
@@ -483,10 +626,12 @@ class CrudController extends Controller
 
         $data = [
             'member' => $member,
-            'loans' => Loan::where('member_id', $memberId)->get(),
-            'transactions' => Transaction::where('member_id', $memberId)->latest()->get(),
-            'shares' => Share::where('member_id', $memberId)->first(),
-            'savings_history' => SavingsHistory::where('member_id', $memberId)->orderBy('transaction_date')->get()
+            'loans' => Loan::where('member_id', $member->id)->get(),
+            'transactions' => Transaction::where('member_id', $member->id)->latest()->get(),
+            'shares' => Share::where('member_id', $member->id)->first(),
+            'savings_history' => (resolve_member_id($memberId)
+                ? SavingsHistory::forMember((int) resolve_member_id($memberId))->orderBy('created_at')->get()
+                : collect())
         ];
 
         return response()->json($data);

@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Shareholder;
 
 use App\Http\Controllers\Controller;
-use App\Models\Dividend;
 use App\Models\Member;
+use App\Models\MemberDividend;
 use Illuminate\Http\Request;
 
 class DividendController extends Controller
@@ -13,15 +13,18 @@ class DividendController extends Controller
     {
         $user = auth()->user();
         $member = Member::where('user_id', $user->id)->first();
-        $query = Dividend::where('member_id', $member?->member_id);
+        $query = MemberDividend::with('dividend')
+            ->where('member_id', $member?->id);
 
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
-                $q->where('amount', 'like', "%{$search}%")
-                    ->orWhere('year', 'like', "%{$search}%")
-                    ->orWhere('quarter', 'like', "%{$search}%")
-                    ->orWhere('status', 'like', "%{$search}%");
+                $q->where('net_amount', 'like', "%{$search}%")
+                    ->orWhere('status', 'like', "%{$search}%")
+                    ->orWhereHas('dividend', function ($dividendQuery) use ($search) {
+                        $dividendQuery->where('year', 'like', "%{$search}%")
+                            ->orWhere('quarter', 'like', "%{$search}%");
+                    });
             });
         }
 
@@ -30,11 +33,11 @@ class DividendController extends Controller
         }
 
         if ($request->filled('date_from')) {
-            $query->whereDate('created_at', '>=', $request->date_from);
+            $query->whereRaw('DATE(COALESCE(paid_at, created_at)) >= ?', [$request->date_from]);
         }
 
         if ($request->filled('date_to')) {
-            $query->whereDate('created_at', '<=', $request->date_to);
+            $query->whereRaw('DATE(COALESCE(paid_at, created_at)) <= ?', [$request->date_to]);
         }
 
         $dividends = $query->latest()->paginate(10)->appends($request->query());

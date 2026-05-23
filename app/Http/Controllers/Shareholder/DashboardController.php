@@ -3,12 +3,14 @@
 namespace App\Http\Controllers\Shareholder;
 
 use App\Http\Controllers\Controller;
-use App\Models\Dividend;
+use App\Models\MemberDividend;
 use App\Models\InvestmentOpportunity;
 use App\Models\Loan;
+use App\Models\LoanStatus;
 use App\Models\Member;
 use App\Models\PortfolioPerformance;
 use App\Models\Project;
+use App\Models\ProjectStatus;
 use App\Models\Share;
 use App\Models\Transaction;
 use Carbon\Carbon;
@@ -16,6 +18,8 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class DashboardController extends Controller
 {
@@ -72,19 +76,21 @@ class DashboardController extends Controller
             $dividendQuery = $this->dividendQuery($member);
             $transactionQuery = $this->transactionQuery($member);
             $performanceQuery = $this->performanceQuery($member);
+            $performanceSeriesQuery = $performanceQuery ? clone $performanceQuery : null;
+            $performancePctQuery = $performanceQuery ? clone $performanceQuery : null;
             $loanQuery = $this->loanQuery($member);
 
             $shareValueSeries = $this->aggregateByPeriod(
                 clone $shareQuery,
                 'COALESCE(purchase_date, created_at)',
-                'shares_owned * share_value',
+                'shares_count * current_value',
                 $year,
                 $periods
             );
             $shareUnitsSeries = $this->aggregateByPeriod(
                 clone $shareQuery,
                 'COALESCE(purchase_date, created_at)',
-                'shares_owned',
+                'shares_count',
                 $year,
                 $periods
             );
@@ -92,35 +98,35 @@ class DashboardController extends Controller
 
             $dividendPaidSeries = $this->aggregateByPeriod(
                 (clone $dividendQuery)->where('status', 'paid'),
-                'COALESCE(payment_date, created_at)',
-                'amount',
+                'COALESCE(paid_at, created_at)',
+                'net_amount',
                 $year,
                 $periods
             );
             $dividendPendingSeries = $this->aggregateByPeriod(
                 (clone $dividendQuery)->where('status', 'pending'),
-                'COALESCE(payment_date, created_at)',
-                'amount',
+                'COALESCE(paid_at, created_at)',
+                'net_amount',
                 $year,
                 $periods
             );
 
             $depositSeries = $this->aggregateByPeriod(
-                (clone $transactionQuery)->where('type', 'deposit'),
+                (clone $transactionQuery)->ofType('deposit'),
                 'created_at',
                 'amount',
                 $year,
                 $periods
             );
             $withdrawalSeries = $this->aggregateByPeriod(
-                (clone $transactionQuery)->where('type', 'withdrawal'),
+                (clone $transactionQuery)->ofType('withdrawal'),
                 'created_at',
                 'amount',
                 $year,
                 $periods
             );
             $loanPaymentSeries = $this->aggregateByPeriod(
-                (clone $transactionQuery)->whereIn('type', ['loan_payment', 'repayment']),
+                (clone $transactionQuery)->whereHas('transactionType', fn (Builder $q) => $q->whereIn('name', ['loan_payment', 'repayment'])),
                 'created_at',
                 'amount',
                 $year,
@@ -129,14 +135,14 @@ class DashboardController extends Controller
             $netCashSeries = $this->deriveNetCashSeries($depositSeries, $withdrawalSeries, $loanPaymentSeries);
 
             $portfolioValueSeries = $this->latestValueByPeriod(
-                clone $performanceQuery,
+                $performanceSeriesQuery,
                 'period',
                 'portfolio_value',
                 $year,
                 $periods
             );
             $performancePctSeries = $this->latestValueByPeriod(
-                clone $performanceQuery,
+                $performancePctQuery,
                 'period',
                 'performance_percentage',
                 $year,
@@ -145,30 +151,34 @@ class DashboardController extends Controller
             $projectRoiSeries = $this->aggregateByPeriod(
                 Project::query(),
                 'created_at',
-                'COALESCE(roi, 0)',
+                'COALESCE(actual_roi, expected_roi, 0)',
                 $year,
                 $periods,
                 'avg'
             );
 
-            $totalShareUnits = (int) (clone $shareQuery)->sum('shares_owned');
-            $shareValue = (float) (clone $shareQuery)->selectRaw('COALESCE(SUM(shares_owned * share_value), 0) as total')->value('total');
-            $latestPortfolioValue = (float) ((clone $performanceQuery)->orderByDesc('period')->value('portfolio_value') ?? 0);
-            $latestPerformancePct = (float) ((clone $performanceQuery)->orderByDesc('period')->value('performance_percentage') ?? 0);
+            $totalShareUnits = (int) (clone $shareQuery)->sum('shares_count');
+            $shareValue = (float) (clone $shareQuery)->selectRaw('COALESCE(SUM(shares_count * current_value), 0) as total')->value('total');
+            $latestPortfolioValue = $performanceQuery
+                ? (float) ((clone $performanceQuery)->orderByDesc('period')->value('portfolio_value') ?? 0)
+                : 0.0;
+            $latestPerformancePct = $performanceQuery
+                ? (float) ((clone $performanceQuery)->orderByDesc('period')->value('performance_percentage') ?? 0)
+                : 0.0;
 
-            $dividendsPaid = (float) (clone $dividendQuery)->where('status', 'paid')->sum('amount');
-            $dividendsPending = (float) (clone $dividendQuery)->where('status', 'pending')->sum('amount');
+            $dividendsPaid = (float) (clone $dividendQuery)->where('status', 'paid')->sum('net_amount');
+            $dividendsPending = (float) (clone $dividendQuery)->where('status', 'pending')->sum('net_amount');
             $dividendsTotal = $dividendsPaid + $dividendsPending;
             $dividendsYtd = (float) (clone $dividendQuery)
                 ->where('status', 'paid')
-                ->whereRaw('YEAR(COALESCE(payment_date, created_at)) = ?', [now()->year])
-                ->sum('amount');
+                ->whereRaw('YEAR(COALESCE(paid_at, created_at)) = ?', [now()->year])
+                ->sum('net_amount');
 
             $trailingYearStart = now()->subMonths(12);
             $dividendsTrailingYear = (float) (clone $dividendQuery)
                 ->where('status', 'paid')
-                ->whereRaw('COALESCE(payment_date, created_at) >= ?', [$trailingYearStart])
-                ->sum('amount');
+                ->whereRaw('COALESCE(paid_at, created_at) >= ?', [$trailingYearStart])
+                ->sum('net_amount');
 
             $savingsBalance = (float) ($member->savings_balance ?? $member->savings ?? 0);
             $loanOutstanding = (float) ($member->loan ?? 0);
@@ -177,23 +187,41 @@ class DashboardController extends Controller
             $averageSharePrice = $totalShareUnits > 0 ? ($shareValue / $totalShareUnits) : 0;
             $dividendYieldPct = $shareValue > 0 ? (($dividendsTrailingYear / $shareValue) * 100) : 0;
 
-            $deposits30 = (float) (clone $transactionQuery)->where('type', 'deposit')->where('created_at', '>=', now()->subDays(30))->sum('amount');
-            $withdrawals30 = (float) (clone $transactionQuery)->where('type', 'withdrawal')->where('created_at', '>=', now()->subDays(30))->sum('amount');
-            $loanPayments30 = (float) (clone $transactionQuery)->whereIn('type', ['loan_payment', 'repayment'])->where('created_at', '>=', now()->subDays(30))->sum('amount');
+            $deposits30 = (float) (clone $transactionQuery)->ofType('deposit')->where('created_at', '>=', now()->subDays(30))->sum('amount');
+            $withdrawals30 = (float) (clone $transactionQuery)->ofType('withdrawal')->where('created_at', '>=', now()->subDays(30))->sum('amount');
+            $loanPayments30 = (float) (clone $transactionQuery)->whereHas('transactionType', fn (Builder $q) => $q->whereIn('name', ['loan_payment', 'repayment']))
+                ->where('created_at', '>=', now()->subDays(30))
+                ->sum('amount');
             $netCashFlow30 = $deposits30 - $withdrawals30 - $loanPayments30;
 
-            $activeLoans = (int) (clone $loanQuery)->whereIn('status', ['approved', 'pending'])->count();
+            $approvedLoanStatusId = LoanStatus::query()->where('name', 'approved')->value('id');
+            $pendingLoanStatusId = LoanStatus::query()->where('name', 'pending')->value('id');
+            $activeLoanStatusIds = array_values(array_filter([$approvedLoanStatusId, $pendingLoanStatusId]));
+            $activeLoans = (int) (clone $loanQuery)
+                ->when($activeLoanStatusIds !== [], fn (Builder $q) => $q->whereIn('status_id', $activeLoanStatusIds))
+                ->count();
             $recentTransactions = (int) (clone $transactionQuery)->where('created_at', '>=', now()->subDays(30))->count();
 
-            $activeProjects = (int) Project::query()->where('status', 'active')->count();
-            $completedProjects = (int) Project::query()->where(function (Builder $query): void {
-                $query->where('status', 'completed')->orWhere('progress', '>=', 100);
+            $activeStatusId = ProjectStatus::query()->where('name', 'active')->value('id');
+            $completedStatusId = ProjectStatus::query()->where('name', 'completed')->value('id');
+
+            $activeProjects = (int) ($activeStatusId ? Project::query()->where('status_id', $activeStatusId)->count() : 0);
+            $completedProjects = (int) Project::query()->where(function (Builder $query) use ($completedStatusId): void {
+                if ($completedStatusId) {
+                    $query->where('status_id', $completedStatusId);
+                }
+                $query->orWhere('progress_percentage', '>=', 100);
             })->count();
             $totalProjects = (int) Project::query()->count();
-            $avgProjectRoi = (float) (Project::query()->avg('roi') ?? 0);
+            $avgProjectRoi = (float) (Project::query()->avg('actual_roi') ?? 0);
 
-            $activeOpportunities = (int) InvestmentOpportunity::query()->where('status', 'active')->count();
-            $opportunityTarget = (float) InvestmentOpportunity::query()->where('status', 'active')->sum('target_amount');
+            $activeInvestmentStatusId = DB::table('investment_statuses')->where('name', 'active')->value('id');
+            $activeOpportunities = (int) InvestmentOpportunity::query()
+                ->when($activeInvestmentStatusId, fn (Builder $q) => $q->where('status_id', $activeInvestmentStatusId))
+                ->count();
+            $opportunityTarget = (float) InvestmentOpportunity::query()
+                ->when($activeInvestmentStatusId, fn (Builder $q) => $q->where('status_id', $activeInvestmentStatusId))
+                ->sum('target_amount');
 
             $portfolioChangePct = $this->percentageChange($portfolioValueSeries);
             $insights = $this->buildInsights($labels, $netCashSeries, $dividendPaidSeries, $portfolioValueSeries);
@@ -276,9 +304,18 @@ class DashboardController extends Controller
                     'riskSummary' => [
                         'labels' => ['Low Risk', 'Medium Risk', 'High Risk'],
                         'values' => [
-                            (int) InvestmentOpportunity::query()->where('status', 'active')->where('risk_level', 'low')->count(),
-                            (int) InvestmentOpportunity::query()->where('status', 'active')->where('risk_level', 'medium')->count(),
-                            (int) InvestmentOpportunity::query()->where('status', 'active')->where('risk_level', 'high')->count(),
+                            (int) InvestmentOpportunity::query()
+                                ->when($activeInvestmentStatusId, fn (Builder $q) => $q->where('status_id', $activeInvestmentStatusId))
+                                ->whereIn('risk_level_id', (array) DB::table('investment_risk_levels')->where('name', 'low')->pluck('id')->all())
+                                ->count(),
+                            (int) InvestmentOpportunity::query()
+                                ->when($activeInvestmentStatusId, fn (Builder $q) => $q->where('status_id', $activeInvestmentStatusId))
+                                ->whereIn('risk_level_id', (array) DB::table('investment_risk_levels')->where('name', 'medium')->pluck('id')->all())
+                                ->count(),
+                            (int) InvestmentOpportunity::query()
+                                ->when($activeInvestmentStatusId, fn (Builder $q) => $q->where('status_id', $activeInvestmentStatusId))
+                                ->whereIn('risk_level_id', (array) DB::table('investment_risk_levels')->where('name', 'high')->pluck('id')->all())
+                                ->count(),
                         ],
                     ],
                 ],
@@ -287,12 +324,28 @@ class DashboardController extends Controller
                     'dividends' => $this->recentDividends($dividendQuery),
                     'shares' => $this->recentShares($shareQuery),
                     'transactions' => $this->recentTransactions($transactionQuery),
-                    'projects' => Project::query()->latest()->take(6)->get(['id', 'name', 'status', 'progress', 'roi', 'budget', 'created_at']),
-                    'opportunities' => InvestmentOpportunity::query()
-                        ->where('status', 'active')
+                    'projects' => Project::query()
+                        ->select('id', 'name', 'status_id', 'progress_percentage', 'actual_roi', 'budget_amount', 'created_at')
                         ->latest()
                         ->take(6)
-                        ->get(['id', 'title', 'expected_roi', 'risk_level', 'deadline', 'target_amount', 'minimum_investment']),
+                        ->get()
+                        ->each
+                        ->append(['status', 'progress', 'roi', 'budget']),
+                    'opportunities' => InvestmentOpportunity::query()
+                        ->leftJoin('investment_risk_levels as irl', 'investment_opportunities.risk_level_id', '=', 'irl.id')
+                        ->when($activeInvestmentStatusId, fn (Builder $q) => $q->where('investment_opportunities.status_id', $activeInvestmentStatusId))
+                        ->orderByDesc('investment_opportunities.created_at')
+                        ->take(6)
+                        ->get([
+                            'investment_opportunities.id',
+                            'investment_opportunities.title',
+                            'investment_opportunities.expected_roi',
+                            'investment_opportunities.risk_level_id',
+                            'investment_opportunities.deadline_date',
+                            'investment_opportunities.target_amount',
+                            'investment_opportunities.minimum_investment',
+                            DB::raw('irl.name as risk_level'),
+                        ]),
                 ],
             ];
         });
@@ -322,7 +375,7 @@ class DashboardController extends Controller
 
     private function dividendQuery(Member $member): Builder
     {
-        return Dividend::query()->whereIn('member_id', $this->memberIdentifiers($member));
+        return MemberDividend::query()->whereIn('member_id', $this->memberIdentifiers($member));
     }
 
     private function transactionQuery(Member $member): Builder
@@ -330,8 +383,12 @@ class DashboardController extends Controller
         return Transaction::query()->whereIn('member_id', $this->memberIdentifiers($member));
     }
 
-    private function performanceQuery(Member $member): Builder
+    private function performanceQuery(Member $member): ?Builder
     {
+        if (!Schema::hasTable('portfolio_performances')) {
+            return null;
+        }
+
         return PortfolioPerformance::query()->whereIn('member_id', $this->memberIdentifiers($member));
     }
 
@@ -344,31 +401,8 @@ class DashboardController extends Controller
     {
         $identifiers = [];
 
-        if (!empty($member->member_id)) {
-            $identifiers[] = (string) $member->member_id;
-        }
-
         if (!empty($member->id)) {
             $identifiers[] = (string) $member->id;
-        }
-
-        $digits = null;
-        if (preg_match('/(\d{1,8})$/', (string) ($member->member_id ?? ''), $matches)) {
-            $digits = ltrim($matches[1], '0');
-            if ($digits === '') {
-                $digits = '0';
-            }
-        }
-
-        if ($digits !== null) {
-            $number = (int) $digits;
-            if ($number > 0) {
-                $padded4 = str_pad((string) $number, 4, '0', STR_PAD_LEFT);
-                $padded6 = str_pad((string) $number, 6, '0', STR_PAD_LEFT);
-                $identifiers[] = 'BSS' . $padded4;
-                $identifiers[] = 'BSS-C15-' . $padded4;
-                $identifiers[] = 'MEM' . $padded6;
-            }
         }
 
         return array_values(array_unique(array_filter($identifiers)));
@@ -413,12 +447,16 @@ class DashboardController extends Controller
     }
 
     private function latestValueByPeriod(
-        Builder $query,
+        ?Builder $query,
         string $dateColumn,
         string $valueColumn,
         string $year,
         array $periods
     ): array {
+        if ($query === null) {
+            return array_fill(0, count($periods), 0.0);
+        }
+
         if ($year !== 'all') {
             $query->whereYear($dateColumn, (int) $year);
         }
@@ -522,15 +560,15 @@ class DashboardController extends Controller
 
     private function recentDividends(Builder $query)
     {
-        return $query->select('id', 'amount', 'status', 'payment_date', 'created_at', 'year', 'quarter')
-            ->orderByRaw('COALESCE(payment_date, created_at) DESC')
+        return $query->select('id', 'net_amount', 'status', 'paid_at', 'created_at')
+            ->orderByRaw('COALESCE(paid_at, created_at) DESC')
             ->take(6)
             ->get();
     }
 
     private function recentShares(Builder $query)
     {
-        return $query->select('id', 'shares_owned', 'share_value', 'purchase_date', 'created_at', 'certificate_number')
+        return $query->select('id', 'shares_count', 'current_value', 'purchase_date', 'created_at', 'certificate_number')
             ->orderByRaw('COALESCE(purchase_date, created_at) DESC')
             ->take(6)
             ->get();
@@ -538,7 +576,7 @@ class DashboardController extends Controller
 
     private function recentTransactions(Builder $query)
     {
-        return $query->select('id', 'transaction_id', 'type', 'amount', 'status', 'created_at', 'description')
+        return $query->select('id', 'transaction_number', 'transaction_type_id', 'status_id', 'amount', 'created_at', 'description')
             ->latest('created_at')
             ->take(8)
             ->get();

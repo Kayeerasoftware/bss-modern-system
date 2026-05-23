@@ -9,23 +9,41 @@ class Dividend extends Model
 {
     use HasFactory;
 
+    protected $table = 'dividends';
+
     protected $fillable = [
-        'member_id',
-        'amount',
+        'dividend_number',
+        'share_class_id',
+        'amount_per_share',
+        'total_shares_eligible',
+        'year',
+        'quarter',
+        'period_start',
+        'period_end',
+        'declaration_date',
+        'record_date',
         'payment_date',
-        'dividend_rate',
-        'shares_eligible',
-        'status'
+        'total_paid',
+        'total_withheld',
+        'withholding_tax_rate',
+        'status_id',
+        'declared_by',
+        'approved_by',
+        'approved_at',
+        'notes',
     ];
 
     protected $casts = [
+        'period_start' => 'date',
+        'period_end' => 'date',
+        'declaration_date' => 'date',
+        'record_date' => 'date',
         'payment_date' => 'date',
-        'dividend_rate' => 'decimal:2',
-        'amount' => 'decimal:2'
+        'approved_at' => 'datetime',
     ];
 
-    public function member()
+    public function memberDividends()
     {
-        return $this->belongsTo(Member::class, 'member_id', 'member_id');
+        return $this->hasMany(MemberDividend::class, 'dividend_id');
     }
 }

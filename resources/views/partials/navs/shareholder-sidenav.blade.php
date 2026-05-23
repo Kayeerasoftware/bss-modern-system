@@ -62,6 +62,9 @@
             <a href="{{ route('shareholder.financial') }}" class="nav-item flex items-center space-x-2 px-2 py-2 rounded-lg transition text-xs {{ request()->routeIs('shareholder.financial') ? 'bg-purple-100 text-purple-700' : 'text-gray-700 hover:bg-pink-50 hover:text-pink-600' }}" data-search="financial">
                 <i class="fas fa-dollar-sign w-3 text-xs"></i><span>Financial</span>
             </a>
+            <a href="{{ route('shareholder.financial', ['tab' => 'savings']) }}" class="nav-item flex items-center space-x-2 px-2 py-2 rounded-lg transition text-xs {{ request()->routeIs('shareholder.financial') && request('tab') === 'savings' ? 'bg-purple-100 text-purple-700' : 'text-gray-700 hover:bg-pink-50 hover:text-pink-600' }}" data-search="savings">
+                <i class="fas fa-piggy-bank w-3 text-xs"></i><span>Savings</span>
+            </a>
             <a href="{{ route('shareholder.projects.index') }}" class="nav-item flex items-center space-x-2 px-2 py-2 rounded-lg transition text-xs {{ request()->routeIs('shareholder.projects.*') ? 'bg-purple-100 text-purple-700' : 'text-gray-700 hover:bg-pink-50 hover:text-pink-600' }}" data-search="projects">
                 <i class="fas fa-project-diagram w-3 text-xs"></i><span>Projects</span>
             </a>

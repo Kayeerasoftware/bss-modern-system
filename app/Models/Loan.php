@@ -3,287 +3,317 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
-use Illuminate\Support\Facades\Schema;
 
 class Loan extends Model
 {
     use HasFactory, SoftDeletes;
 
-    protected static ?bool $hasPaidAmountColumnCache = null;
-    protected static ?bool $hasAmountPaidColumnCache = null;
-    protected static ?bool $hasApprovedAtColumnCache = null;
-
     public const STATUS_PENDING = 'pending';
     public const STATUS_APPROVED = 'approved';
+    public const STATUS_DISBURSED = 'disbursed';
     public const STATUS_REJECTED = 'rejected';
+    public const STATUS_COMPLETED = 'completed';
 
-    public const VALID_STATUSES = [
-        self::STATUS_PENDING,
-        self::STATUS_APPROVED,
-        self::STATUS_REJECTED,
-    ];
+    protected static ?array $statusNameCache = null;
+    protected static ?array $statusDisplayCache = null;
 
-    public const LEGACY_STATUS_ALIASES = [
-        'active' => self::STATUS_APPROVED,
-        'disbursed' => self::STATUS_APPROVED,
-        'completed' => self::STATUS_APPROVED,
-        'paid' => self::STATUS_APPROVED,
-        'defaulted' => self::STATUS_REJECTED,
-    ];
+    protected $table = 'loans';
 
     protected $fillable = [
-        'loan_id', 'member_id', 'amount', 'purpose', 'applicant_comment', 'repayment_months',
-        'interest_rate', 'interest', 'processing_fee', 'monthly_payment', 'paid_amount', 'status',
-        'updated_by', 'approved_at',
-        'guarantor_1_name', 'guarantor_1_phone', 'guarantor_2_name', 'guarantor_2_phone',
-        'settings_min_interest_rate', 'settings_max_interest_rate', 'settings_min_loan_amount',
-        'settings_max_loan_amount', 'settings_max_loan_to_savings_ratio', 'settings_min_repayment_months',
-        'settings_max_repayment_months', 'settings_default_repayment_months', 'settings_processing_fee_percentage',
-        'settings_late_payment_penalty', 'settings_grace_period_days', 'settings_auto_approve_amount',
-        'settings_require_guarantors', 'settings_guarantors_required', 'settings_email_notifications',
-        'settings_sms_notifications', 'settings_payment_reminder_days'
+        'loan_number',
+        'application_id',
+        'member_id',
+        'loan_type_id',
+        'principal_amount',
+        'interest_rate',
+        'interest_type',
+        'total_interest',
+        'repayment_months',
+        'repayment_frequency',
+        'processing_fee',
+        'insurance_fee',
+        'legal_fee',
+        'other_fees',
+        'guarantor1_id',
+        'guarantor2_id',
+        'has_collateral',
+        'collateral_details',
+        'application_date',
+        'approval_date',
+        'disbursement_date',
+        'first_payment_date',
+        'completed_date',
+        'disbursement_transaction_id',
+        'disbursement_method_id',
+        'amount_paid',
+        'last_payment_date',
+        'last_payment_amount',
+        'payments_made',
+        'status_id',
+        'approved_by',
+        'approved_at',
+        'approved_ip',
+        'disbursed_by',
+        'disbursed_at',
+        'closed_by',
+        'closed_at',
+        'closed_reason',
+        'is_defaulted',
+        'defaulted_date',
+        'default_amount',
+        'days_overdue',
+        'last_reminder_sent',
+        'is_restructured',
+        'original_loan_id',
+        'restructure_date',
+        'restructure_reason',
+        'notes',
+        'metadata',
+        'deleted_by',
+        'deleted_reason',
     ];
 
     protected $casts = [
-        'amount' => 'decimal:2',
-        'interest_rate' => 'decimal:2',
-        'interest' => 'decimal:2',
-        'processing_fee' => 'decimal:2',
-        'monthly_payment' => 'decimal:2',
-        'paid_amount' => 'decimal:2',
+        'application_date' => 'date',
+        'approval_date' => 'date',
+        'disbursement_date' => 'date',
+        'first_payment_date' => 'date',
+        'completed_date' => 'date',
         'approved_at' => 'datetime',
-    ];
-
-    protected $appends = [
-        'duration',
-        'amount_paid',
-        'remaining_balance',
-        'balance',
-        'status_label',
+        'disbursed_at' => 'datetime',
+        'closed_at' => 'datetime',
+        'defaulted_date' => 'date',
+        'last_reminder_sent' => 'datetime',
+        'restructure_date' => 'date',
+        'has_collateral' => 'boolean',
+        'is_defaulted' => 'boolean',
+        'is_restructured' => 'boolean',
+        'collateral_details' => 'array',
+        'metadata' => 'array',
+        'principal_amount' => 'decimal:2',
+        'interest_rate' => 'decimal:2',
+        'total_interest' => 'decimal:2',
+        'processing_fee' => 'decimal:2',
+        'insurance_fee' => 'decimal:2',
+        'legal_fee' => 'decimal:2',
+        'other_fees' => 'decimal:2',
+        'amount_paid' => 'decimal:2',
+        'last_payment_amount' => 'decimal:2',
+        'default_amount' => 'decimal:2',
     ];
 
     protected static function booted(): void
     {
         static::creating(function (Loan $loan): void {
-            if (!empty($loan->loan_id)) {
+            if (!empty($loan->loan_number)) {
                 return;
             }
 
             do {
-                $loan->loan_id = 'LOAN' . strtoupper(Str::random(8));
-            } while (self::where('loan_id', $loan->loan_id)->exists());
+                $loan->loan_number = 'LOAN-' . now()->format('Ym') . '-' . strtoupper(Str::random(4));
+            } while (self::where('loan_number', $loan->loan_number)->exists());
         });
     }
 
     public function member()
     {
-        return $this->belongsTo(Member::class, 'member_id', 'member_id')
-            ->withDefault([
-                'member_id' => 'N/A',
-                'full_name' => 'Unknown Member',
-                'email' => null,
-                'contact' => null,
-                'profile_picture' => null,
-            ]);
+        return $this->belongsTo(Member::class, 'member_id');
     }
 
-    public function scopeFilterStatus($query, ?string $status)
+    public function loanApplication()
     {
-        if (!$status) {
-            return $query;
-        }
-
-        if ($status === 'repaid') {
-            if (!self::hasPaymentTrackingColumn()) {
-                return $query->whereRaw('1 = 0');
-            }
-
-            $paidColumn = self::paymentTrackingColumn();
-            return $query->where('status', self::STATUS_APPROVED)
-                ->whereRaw('(COALESCE(amount, 0) + COALESCE(interest, 0) + COALESCE(processing_fee, 0)) <= COALESCE(' . $paidColumn . ', 0)');
-        }
-
-        return $query->whereIn('status', self::mapStatusForQuery($status));
+        return $this->belongsTo(LoanApplication::class, 'application_id');
     }
 
-    public static function normalizeStatus(?string $status): string
+    public function statusRelation()
     {
-        $value = strtolower(trim((string) $status));
-
-        if ($value === '') {
-            return self::STATUS_PENDING;
-        }
-
-        if (array_key_exists($value, self::LEGACY_STATUS_ALIASES)) {
-            $value = self::LEGACY_STATUS_ALIASES[$value];
-        }
-
-        return in_array($value, self::VALID_STATUSES, true) ? $value : self::STATUS_PENDING;
+        return $this->belongsTo(LoanStatus::class, 'status_id');
     }
 
-    public static function mapStatusForQuery(string $status): array
+    public function getLoanIdAttribute(): ?string
     {
-        $value = strtolower(trim($status));
-        $mapped = self::LEGACY_STATUS_ALIASES[$value] ?? $value;
+        return $this->loan_number;
+    }
 
-        return in_array($mapped, self::VALID_STATUSES, true) ? [$mapped] : self::VALID_STATUSES;
+    public function setLoanIdAttribute($value): void
+    {
+        $this->loan_number = $value;
+    }
+
+    public function getAmountAttribute(): ?float
+    {
+        return $this->principal_amount;
+    }
+
+    public function setAmountAttribute($value): void
+    {
+        $this->principal_amount = $value;
+    }
+
+    public function getPurposeAttribute(): ?string
+    {
+        return $this->loanApplication?->purpose ?? $this->notes;
+    }
+
+    public function getStatusAttribute(): ?string
+    {
+        if ($this->relationLoaded('statusRelation')) {
+            return $this->statusRelation?->name;
+        }
+
+        return self::statusNameForId($this->status_id);
+    }
+
+    public function getStatusLabelAttribute(): ?string
+    {
+        $label = null;
+        if ($this->relationLoaded('statusRelation')) {
+            $label = $this->statusRelation?->display_name
+                ?? $this->statusRelation?->name;
+        }
+
+        if (!$label) {
+            $label = self::statusDisplayForId($this->status_id);
+        }
+
+        if (!$label) {
+            $label = $this->getStatusAttribute();
+        }
+
+        return $label ? ucwords(str_replace('_', ' ', (string) $label)) : null;
     }
 
     public function setStatusAttribute($value): void
     {
-        $this->attributes['status'] = self::normalizeStatus($value);
+        $this->status_id = self::resolveStatusId($value);
     }
 
-    public function setDurationAttribute($value): void
+    public function scopeStatus(Builder $query, $status): Builder
     {
-        $this->attributes['repayment_months'] = (int) $value;
-    }
-
-    public function getDurationAttribute(): int
-    {
-        return (int) ($this->attributes['repayment_months'] ?? 0);
-    }
-
-    public function setAmountPaidAttribute($value): void
-    {
-        $this->setPaidTrackingValue($value);
-    }
-
-    public function setPaidAmountAttribute($value): void
-    {
-        $this->setPaidTrackingValue($value);
-    }
-
-    public function getAmountPaidAttribute(): float
-    {
-        if (array_key_exists('amount_paid', $this->attributes)) {
-            return (float) ($this->attributes['amount_paid'] ?? 0);
+        if ($status === null || $status === '') {
+            return $query;
         }
 
-        return (float) ($this->attributes['paid_amount'] ?? 0);
-    }
-
-    public function setApprovedByAttribute($value): void
-    {
-        $this->attributes['updated_by'] = $value;
-    }
-
-    public function getApprovedByAttribute(): ?string
-    {
-        return $this->attributes['updated_by'] ?? null;
-    }
-
-    public function setApprovedDateAttribute($value): void
-    {
-        if (self::hasApprovedAtColumn()) {
-            $this->attributes['approved_at'] = $value;
-        }
-    }
-
-    public function getApprovedDateAttribute()
-    {
-        return $this->approved_at;
-    }
-
-    public function setApplicationDateAttribute($value): void
-    {
-        $this->attributes['created_at'] = $value;
-    }
-
-    public function getApplicationDateAttribute()
-    {
-        return $this->created_at;
-    }
-
-    public function getPaidAmountAttribute(): float
-    {
-        if (array_key_exists('paid_amount', $this->attributes)) {
-            return (float) ($this->attributes['paid_amount'] ?? 0);
+        $statusId = self::resolveStatusId($status);
+        if (!$statusId) {
+            return $query->whereRaw('1=0');
         }
 
-        return (float) ($this->attributes['amount_paid'] ?? 0);
+        return $query->where('status_id', $statusId);
+    }
+
+    public function scopeFilterStatus(Builder $query, $status): Builder
+    {
+        return $this->scopeStatus($query, $status);
     }
 
     public function getRemainingBalanceAttribute(): float
     {
-        $total = (float) ($this->amount ?? 0) + (float) ($this->interest ?? 0) + (float) ($this->processing_fee ?? 0);
-        $remaining = $total - $this->paid_amount;
+        $balance = $this->balance_due;
+        if ($balance !== null) {
+            return (float) $balance;
+        }
 
-        return $remaining > 0 ? $remaining : 0.0;
+        $total = (float) ($this->total_amount ?? 0);
+        $paid = (float) ($this->amount_paid ?? 0);
+        return max($total - $paid, 0.0);
     }
 
     public function getBalanceAttribute(): float
     {
-        return $this->remaining_balance;
+        return $this->getRemainingBalanceAttribute();
     }
 
-    public function getStatusLabelAttribute(): string
+    public function getPaidAmountAttribute(): float
     {
-        if ($this->status === self::STATUS_APPROVED && $this->remaining_balance <= 0) {
-            return 'Repaid';
+        return (float) ($this->amount_paid ?? 0);
+    }
+
+    public function setPaidAmountAttribute($value): void
+    {
+        $this->amount_paid = $value;
+    }
+
+    public function getInterestAttribute(): float
+    {
+        if ($this->total_interest !== null) {
+            return (float) $this->total_interest;
         }
 
-        return Str::title((string) $this->status);
+        return (float) ($this->interest_amount ?? 0);
     }
 
-    public static function hasPaidAmountColumn(): bool
+    public function setInterestAttribute($value): void
     {
-        if (self::$hasPaidAmountColumnCache === null) {
-            self::$hasPaidAmountColumnCache = Schema::hasColumn('loans', 'paid_amount');
+        $this->total_interest = $value;
+    }
+
+    public function getMonthlyPaymentAttribute(): float
+    {
+        $raw = $this->getRawOriginal('monthly_payment');
+        if ($raw !== null) {
+            return (float) $raw;
         }
 
-        return self::$hasPaidAmountColumnCache;
+        $total = (float) ($this->total_amount ?? 0);
+        $months = (int) ($this->repayment_months ?? 0);
+        return $months > 0 ? round($total / $months, 2) : 0.0;
     }
 
-    public static function hasAmountPaidColumn(): bool
+    public function setMonthlyPaymentAttribute($value): void
     {
-        if (self::$hasAmountPaidColumnCache === null) {
-            self::$hasAmountPaidColumnCache = Schema::hasColumn('loans', 'amount_paid');
+        // monthly_payment is generated in the database; ignore writes.
+        unset($this->attributes['monthly_payment']);
+    }
+
+    protected static function resolveStatusId($value): ?int
+    {
+        if (empty($value)) {
+            return null;
         }
 
-        return self::$hasAmountPaidColumnCache;
-    }
-
-    public static function hasPaymentTrackingColumn(): bool
-    {
-        return self::hasPaidAmountColumn() || self::hasAmountPaidColumn();
-    }
-
-    public static function paymentTrackingColumn(): string
-    {
-        return self::hasPaidAmountColumn() ? 'paid_amount' : 'amount_paid';
-    }
-
-    public static function hasApprovedAtColumn(): bool
-    {
-        if (self::$hasApprovedAtColumnCache === null) {
-            self::$hasApprovedAtColumnCache = Schema::hasColumn('loans', 'approved_at');
+        if (is_numeric($value)) {
+            return (int) $value;
         }
 
-        return self::$hasApprovedAtColumnCache;
+        $statusId = LoanStatus::query()->where('name', strtolower((string) $value))->value('id');
+
+        return $statusId ? (int) $statusId : null;
     }
 
-    public function setApprovedAtAttribute($value): void
+    protected static function statusNameForId(?int $statusId): ?string
     {
-        if (self::hasApprovedAtColumn()) {
-            $this->attributes['approved_at'] = $value;
+        if (!$statusId) {
+            return null;
         }
+
+        if (self::$statusNameCache === null) {
+            self::$statusNameCache = LoanStatus::query()
+                ->pluck('name', 'id')
+                ->all();
+        }
+
+        return self::$statusNameCache[$statusId] ?? null;
     }
 
-    protected function setPaidTrackingValue($value): void
+    protected static function statusDisplayForId(?int $statusId): ?string
     {
-        $normalized = max((float) $value, 0);
-
-        if (self::hasPaidAmountColumn()) {
-            $this->attributes['paid_amount'] = $normalized;
-            return;
+        if (!$statusId) {
+            return null;
         }
 
-        if (self::hasAmountPaidColumn()) {
-            $this->attributes['amount_paid'] = $normalized;
+        if (self::$statusDisplayCache === null) {
+            self::$statusDisplayCache = LoanStatus::query()
+                ->select('id', 'display_name', 'name')
+                ->get()
+                ->mapWithKeys(fn ($row) => [$row->id => $row->display_name ?: $row->name])
+                ->all();
         }
+
+        return self::$statusDisplayCache[$statusId] ?? null;
     }
 }

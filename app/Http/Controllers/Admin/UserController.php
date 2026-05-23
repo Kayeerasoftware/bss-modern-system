@@ -12,38 +12,38 @@ class UserController extends Controller
 {
     public function index(Request $request)
     {
-        $query = User::query()->whereHas('member');
+        $query = User::query()
+            ->with(['member', 'roleRecord'])
+            ->whereHas('member');
 
         if ($request->search) {
             $query->where(function($q) use ($request) {
-                $q->where('name', 'like', "%{$request->search}%")
+                $q->where('username', 'like', "%{$request->search}%")
                   ->orWhere('email', 'like', "%{$request->search}%")
-                  ->orWhere('phone', 'like', "%{$request->search}%")
                   ->orWhereHas('member', function ($memberQuery) use ($request) {
-                      $memberQuery->where('member_id', 'like', "%{$request->search}%")
+                      $memberQuery->where('member_account_number', 'like', "%{$request->search}%")
+                          ->orWhere('member_number', 'like', "%{$request->search}%")
                           ->orWhere('full_name', 'like', "%{$request->search}%");
                   });
             });
         }
 
         if ($request->role) {
-            $query->whereHas('member', function ($memberQuery) use ($request) {
-                $memberQuery->where('role', $request->role);
-            });
+            $query->whereHas('roleRecord', fn ($roleQuery) => $roleQuery->where('name', $request->role));
         }
 
         if ($request->filled('status')) {
-            $query->where('is_active', (bool) $request->status)
+            $query->where('status', ((bool) $request->status) ? 'active' : 'inactive')
                 ->whereHas('member', function ($memberQuery) use ($request) {
-                    $memberQuery->where('status', ((bool) $request->status) ? 'active' : 'inactive');
+                    $memberQuery->where('membership_status', ((bool) $request->status) ? 'active' : 'inactive');
                 });
         }
 
         $statsBaseQuery = clone $query;
         $userStats = [
             'totalUsers' => (clone $statsBaseQuery)->count(),
-            'activeUsers' => (clone $statsBaseQuery)->where('is_active', true)->count(),
-            'admins' => (clone $statsBaseQuery)->whereHas('member', fn ($memberQuery) => $memberQuery->where('role', 'admin'))->count(),
+            'activeUsers' => (clone $statsBaseQuery)->where('status', 'active')->count(),
+            'admins' => (clone $statsBaseQuery)->whereHas('roleRecord', fn ($roleQuery) => $roleQuery->where('name', 'admin'))->count(),
             'newThisMonth' => (clone $statsBaseQuery)->where('created_at', '>=', now()->startOfMonth())->count(),
         ];
 
@@ -92,37 +92,31 @@ class UserController extends Controller
         $validated['role'] = $defaultRole;
         $createData = $validated;
         unset($createData['roles'], $createData['default_role']);
-        $user = User::create($createData);
+        $createData['username'] = $createData['name'];
+        unset($createData['name'], $createData['phone'], $createData['location']);
+        $user = User::withoutEvents(function () use ($createData) {
+            return User::create($createData);
+        });
 
         // Assign multiple roles
         if (!empty($selectedRoles)) {
             $user->syncRoles($selectedRoles);
         }
 
-        // Auto-create member with BSS-C15-000x format
-        $lastMember = Member::withTrashed()
-            ->where('member_id', 'like', 'BSS-C15-%')
-            ->orderBy('member_id', 'desc')
-            ->first();
-        
-        if ($lastMember && preg_match('/BSS-C15-(\d+)/', $lastMember->member_id, $matches)) {
-            $nextNumber = intval($matches[1]) + 1;
-        } else {
-            $nextNumber = 1;
+        $member = new Member();
+        $member->user_id = $user->id;
+        $member->member_number = generate_member_id();
+        $member->member_account_number = $member->member_number;
+        $member->full_name = $validated['name'];
+        $member->email = $user->email;
+        $member->primary_phone = $validated['phone'] ?? null;
+        $member->place_of_birth = $validated['location'] ?? null;
+        $member->occupation = '';
+        $member->membership_status = 'active';
+        if (!empty($validated['profile_picture'])) {
+            $member->profile_picture = $validated['profile_picture'];
         }
-        
-        $member = Member::create([
-            'member_id' => 'BSS-C15-' . str_pad($nextNumber, 4, '0', STR_PAD_LEFT),
-            'full_name' => $user->name,
-            'email' => $user->email,
-            'contact' => $user->phone ?? '',
-            'location' => $user->location ?? '',
-            'occupation' => '',
-            'password' => $user->password,
-            'role' => $user->role,
-            'profile_picture' => $user->profile_picture,
-            'user_id' => $user->id,
-        ]);
+        $member->save();
 
         // Sync member roles
         if (!empty($selectedRoles)) {
@@ -183,6 +177,8 @@ class UserController extends Controller
         $updateData = $validated;
         unset($updateData['roles'], $updateData['default_role']);
         $updateData['role'] = $defaultRole;
+        $updateData['username'] = $updateData['name'];
+        unset($updateData['name'], $updateData['phone'], $updateData['location']);
         $user->update($updateData);
 
         // Sync roles
@@ -192,22 +188,17 @@ class UserController extends Controller
 
         // Sync member
         if ($user->member) {
-            $memberData = [
-                'full_name' => $user->name,
-                'email' => $user->email,
-                'contact' => $user->phone ?? '',
-                'location' => $user->location ?? '',
-                'role' => $user->role,
-            ];
+            $member = $user->member;
+            $member->full_name = $validated['name'];
+            $member->email = $user->email;
+            $member->primary_phone = $validated['phone'] ?? $member->primary_phone;
+            $member->place_of_birth = $validated['location'] ?? $member->place_of_birth;
             if (isset($validated['profile_picture'])) {
-                $memberData['profile_picture'] = $validated['profile_picture'];
+                $member->profile_picture = $validated['profile_picture'];
             }
-            if ($request->filled('password')) {
-                $memberData['password'] = $validated['password'];
-            }
-            $user->member->update($memberData);
+            $member->save();
             if (!empty($selectedRoles)) {
-                $user->member->syncRoles($selectedRoles);
+                $member->syncRoles($selectedRoles);
             }
         }
 

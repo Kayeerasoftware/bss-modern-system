@@ -37,7 +37,7 @@ class PhotoController extends Controller
             $query->where('is_active', $request->status === 'active');
         }
 
-        $photos = $query->orderBy('order')->orderBy('created_at', 'desc')->get();
+        $photos = $query->orderBy('display_order')->orderBy('created_at', 'desc')->get();
         $photoTypes = $photos->pluck('type')->filter()->unique()->values();
         $projectPhotos = $photos->where('type', 'project');
         $meetingPhotos = $photos->where('type', 'meeting');
@@ -55,6 +55,7 @@ class PhotoController extends Controller
             'photos.*' => 'image|max:5120',
             'title' => 'nullable|string|max:255',
             'description' => 'nullable|string',
+            'display_order' => 'nullable|integer|min:0',
             'order' => 'nullable|integer|min:0',
         ]);
 
@@ -77,7 +78,7 @@ class PhotoController extends Controller
 
         $baseTitle = trim((string) $request->input('title', ''));
         $description = $request->input('description');
-        $startOrder = (int) $request->input('order', 0);
+        $startOrder = (int) $request->input('display_order', $request->input('order', 0));
         $uploadedCount = 0;
 
         foreach ($files as $index => $file) {
@@ -92,7 +93,7 @@ class PhotoController extends Controller
                 'photo_path' => $storedPath,
                 'title' => Str::limit($finalTitle, 255, ''),
                 'description' => $description,
-                'order' => $startOrder + $index,
+                'display_order' => $startOrder + $index,
                 'is_active' => true,
             ]);
             $uploadedCount++;
@@ -109,11 +110,17 @@ class PhotoController extends Controller
         $request->validate([
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
+            'display_order' => 'nullable|integer',
             'order' => 'nullable|integer',
             'is_active' => 'boolean'
         ]);
 
-        $photo->update($request->only(['title', 'description', 'order', 'is_active']));
+        $updateData = $request->only(['title', 'description', 'display_order', 'is_active']);
+        if ($request->filled('order') && !$request->filled('display_order')) {
+            $updateData['display_order'] = $request->input('order');
+        }
+
+        $photo->update($updateData);
 
         return redirect()->route('td.photos.index')->with('success', 'Photo updated successfully');
     }

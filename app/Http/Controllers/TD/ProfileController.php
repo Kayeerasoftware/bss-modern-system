@@ -17,10 +17,22 @@ class ProfileController extends Controller
     public function update(Request $request)
     {
         $user = auth()->user();
-        $user->update($request->only(['name', 'email', 'phone']));
 
-        if ($user->member && $request->filled('phone')) {
-            $user->member->update(['contact' => $request->phone]);
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|max:255|unique:users,email,' . $user->id,
+            'phone' => 'nullable|string|max:20',
+        ]);
+
+        $user->username = $validated['name'];
+        $user->email = $validated['email'];
+        $user->save();
+
+        if ($user->member) {
+            $user->member->update([
+                'primary_phone' => $validated['phone'] ?? null,
+                'email' => $validated['email'],
+            ]);
         }
 
         if ($request->expectsJson()) {

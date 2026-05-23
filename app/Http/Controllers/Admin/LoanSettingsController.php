@@ -4,18 +4,29 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\LoanSetting;
+use App\Models\Setting;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Schema;
 
 class LoanSettingsController extends Controller
 {
     public function index()
     {
+        if (!Schema::hasTable('loan_settings')) {
+            return redirect()->route('admin.system.settings')->with('error', 'Loan settings table is missing. Please run migrations.');
+        }
+
         $settings = LoanSetting::first() ?? new LoanSetting();
         return view('admin.loan-settings', ['settings' => $settings->toArray()]);
     }
 
     public function update(Request $request)
     {
+        if (!Schema::hasTable('loan_settings')) {
+            return redirect()->route('admin.system.settings')->with('error', 'Loan settings table is missing. Please run migrations.');
+        }
+
         $validated = $request->validate([
             'is_loan_available' => 'nullable|boolean',
             'default_interest_rate' => 'required|numeric|min:0|max:100',
@@ -48,6 +59,11 @@ class LoanSettingsController extends Controller
         } else {
             LoanSetting::create($validated);
         }
+
+        foreach ($validated as $key => $value) {
+            Setting::set($key, $value);
+        }
+        Cache::forget('loan_settings:default:v1');
 
         return redirect()->route('admin.loan-settings')->with('success', 'Loan settings updated successfully!');
     }

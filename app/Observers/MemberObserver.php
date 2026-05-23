@@ -4,8 +4,6 @@ namespace App\Observers;
 
 use App\Models\Member;
 use App\Models\User;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
 
 class MemberObserver
 {
@@ -13,124 +11,12 @@ class MemberObserver
 
     public function created(Member $member): void
     {
-        if (self::$syncing) {
-            return;
-        }
-
-        self::$syncing = true;
-        try {
-            $user = null;
-
-            if (!empty($member->user_id)) {
-                $user = User::find($member->user_id);
-            }
-
-            if (!$user && !empty($member->email)) {
-                $user = User::where('email', $member->email)->first();
-            }
-
-            if (!$user) {
-                $user = User::withoutEvents(function () use ($member) {
-                    return User::create([
-                        'name' => $member->full_name,
-                        'email' => $member->email,
-                        'password' => $member->password ?: Hash::make(Str::random(20)),
-                        'role' => $member->role ?: 'client',
-                        'status' => $member->status ?: 'active',
-                        'is_active' => ($member->status ?? 'active') === 'active',
-                        'phone' => $member->contact,
-                        'location' => $member->location,
-                        'profile_picture' => $member->profile_picture,
-                    ]);
-                });
-            } else {
-                $user->fill([
-                    'name' => $member->full_name,
-                    'email' => $member->email,
-                    'role' => $member->role ?: $user->role,
-                    'status' => $member->status ?: ($user->is_active ? 'active' : 'inactive'),
-                    'is_active' => ($member->status ?? 'active') === 'active',
-                    'phone' => $member->contact,
-                    'location' => $member->location,
-                    'profile_picture' => $member->profile_picture,
-                ]);
-
-                if (!empty($member->password)) {
-                    $user->password = $member->password;
-                }
-
-                if ($user->isDirty()) {
-                    $user->saveQuietly();
-                }
-            }
-
-            if ((int) $member->user_id !== (int) $user->id) {
-                $member->user_id = $user->id;
-                $member->saveQuietly();
-            }
-        } finally {
-            self::$syncing = false;
-        }
+        $this->syncMemberToUser($member);
     }
 
     public function updated(Member $member): void
     {
-        if (self::$syncing) {
-            return;
-        }
-
-        self::$syncing = true;
-        try {
-            $user = null;
-            if (!empty($member->user_id)) {
-                $user = User::find($member->user_id);
-            }
-            if (!$user && !empty($member->email)) {
-                $user = User::where('email', $member->email)->first();
-            }
-
-            if (!$user) {
-                $user = User::withoutEvents(function () use ($member) {
-                    return User::create([
-                        'name' => $member->full_name,
-                        'email' => $member->email,
-                        'password' => $member->password ?: Hash::make(Str::random(20)),
-                        'role' => $member->role ?: 'client',
-                        'status' => $member->status ?: 'active',
-                        'is_active' => ($member->status ?? 'active') === 'active',
-                        'phone' => $member->contact,
-                        'location' => $member->location,
-                        'profile_picture' => $member->profile_picture,
-                    ]);
-                });
-            } else {
-                $user->fill([
-                    'name' => $member->full_name,
-                    'email' => $member->email,
-                    'role' => $member->role ?: $user->role,
-                    'status' => $member->status ?: ($user->is_active ? 'active' : 'inactive'),
-                    'is_active' => ($member->status ?? 'active') === 'active',
-                    'phone' => $member->contact,
-                    'location' => $member->location,
-                    'profile_picture' => $member->profile_picture,
-                ]);
-
-                if ($member->wasChanged('password') && !empty($member->password)) {
-                    $user->password = $member->password;
-                }
-
-                if ($user->isDirty()) {
-                    $user->saveQuietly();
-                }
-            }
-
-            if ((int) $member->user_id !== (int) $user->id) {
-                $member->user_id = $user->id;
-                $member->saveQuietly();
-            }
-        } finally {
-            self::$syncing = false;
-        }
+        $this->syncMemberToUser($member);
     }
 
     public function deleted(Member $member): void
@@ -161,7 +47,6 @@ class MemberObserver
 
             if ($user->is_active) {
                 $user->updateQuietly([
-                    'is_active' => false,
                     'status' => 'inactive',
                 ]);
             }
@@ -190,9 +75,44 @@ class MemberObserver
             }
 
             $user->updateQuietly([
-                'is_active' => true,
                 'status' => 'active',
             ]);
+        } finally {
+            self::$syncing = false;
+        }
+    }
+
+    private function syncMemberToUser(Member $member): void
+    {
+        if (self::$syncing) {
+            return;
+        }
+
+        self::$syncing = true;
+        try {
+            if (empty($member->user_id)) {
+                return;
+            }
+
+            $user = User::find($member->user_id);
+            if (!$user) {
+                return;
+            }
+
+            $user->fill([
+                'name' => $member->full_name ?: $user->name,
+                'email' => $member->email ?: $user->email,
+                'status' => $member->membership_status ?: $user->status,
+            ]);
+
+            $primaryRole = $member->role;
+            if ($primaryRole) {
+                $user->role = $primaryRole;
+            }
+
+            if ($user->isDirty()) {
+                $user->saveQuietly();
+            }
         } finally {
             self::$syncing = false;
         }

@@ -15,7 +15,7 @@ class DebugController extends Controller
         $data = [
             'members_count' => Member::count(),
             'members_data' => Member::all()->toArray(),
-            'total_savings' => Member::sum('savings'),
+            'total_savings' => Member::transactionSavingsTotal(),
             'loans_count' => Loan::count(),
             'loans_data' => Loan::all()->toArray(),
             'transactions_count' => Transaction::count(),

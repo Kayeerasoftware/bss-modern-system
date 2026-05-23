@@ -90,6 +90,32 @@
         </div>
     </div>
 
+    <!-- Active Fundraisings -->
+    <div class="bg-gradient-to-r from-pink-50 to-pink-100 rounded-lg shadow-md p-2 md:p-3 hover:shadow-lg hover:scale-105 transition-all duration-300 border border-pink-200">
+        <div class="flex items-center gap-2 md:gap-3">
+            <div class="bg-gradient-to-br from-pink-500 to-pink-600 p-2 md:p-2.5 rounded-lg shadow">
+                <i class="fas fa-hand-holding-heart text-white text-base md:text-lg"></i>
+            </div>
+            <div class="flex-1">
+                <p class="text-xs md:text-sm text-gray-600 font-semibold leading-tight">Active Fundraisings</p>
+                <h3 class="text-xl md:text-3xl font-bold text-gray-900 leading-tight">{{ $stats['activeFundraisings'] ?? 0 }}</h3>
+            </div>
+        </div>
+    </div>
+
+    <!-- Fundraising Raised -->
+    <div class="bg-gradient-to-r from-rose-50 to-rose-100 rounded-lg shadow-md p-2 md:p-3 hover:shadow-lg hover:scale-105 transition-all duration-300 border border-rose-200">
+        <div class="flex items-center gap-2 md:gap-3">
+            <div class="bg-gradient-to-br from-rose-500 to-rose-600 p-2 md:p-2.5 rounded-lg shadow">
+                <i class="fas fa-chart-line text-white text-base md:text-lg"></i>
+            </div>
+            <div class="flex-1">
+                <p class="text-xs md:text-sm text-gray-600 font-semibold leading-tight">Fundraising Raised</p>
+                <h3 class="text-xl md:text-3xl font-bold text-gray-900 leading-tight">{{ number_format(($stats['totalFundraisingRaised'] ?? 0)/1000000, 1) }}M <span class="text-xs text-gray-500 font-medium">UGX</span></h3>
+            </div>
+        </div>
+    </div>
+
     <!-- Quick Actions -->
     <div class="bg-gradient-to-r from-teal-50 to-teal-100 rounded-lg shadow-md p-2 md:p-3 hover:shadow-lg hover:scale-105 transition-all duration-300 border border-teal-200">
         <div class="flex items-center gap-2 md:gap-3">
@@ -101,6 +127,7 @@
                 <div class="flex gap-1">
                     <a href="{{ route('cashier.deposits.create') }}" class="px-2 py-1 bg-green-500 text-white text-xs rounded hover:bg-green-600 transition">Deposit</a>
                     <a href="{{ route('cashier.withdrawals.create') }}" class="px-2 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600 transition">Withdraw</a>
+                    <a href="{{ route('cashier.fundraising.create') }}" class="px-2 py-1 bg-pink-500 text-white text-xs rounded hover:bg-pink-600 transition">Fundraise</a>
                 </div>
             </div>
         </div>

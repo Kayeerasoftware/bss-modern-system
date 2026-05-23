@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Admin\FinancialController;
 use App\Http\Controllers\Admin\MemberController;
 use App\Http\Controllers\Admin\LoanController;
 use App\Http\Controllers\Admin\LoanApplicationController;
@@ -13,6 +14,7 @@ use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\NotificationController;
 use App\Http\Controllers\Admin\SystemController;
 use App\Http\Controllers\Admin\SystemHealthController;
+use App\Http\Controllers\Admin\SavingsController;
 
 Route::prefix('admin')->name('admin.')->middleware(['web', 'auth', 'role:admin,ceo,td'])->group(function () {
     
@@ -64,7 +66,12 @@ Route::prefix('admin')->name('admin.')->middleware(['web', 'auth', 'role:admin,c
     Route::get('/bio-data/{id}', [MemberController::class, 'viewBioData'])->name('bio-data.view');
     
     // Financial
+    Route::post('/deposits', [TransactionController::class, 'storeDeposit'])->name('deposits.store');
+    Route::post('/withdrawals', [TransactionController::class, 'storeWithdrawal'])->name('withdrawals.store');
+    Route::post('/transfers', [TransactionController::class, 'storeTransfer'])->name('transfers.store');
+
     Route::prefix('financial')->name('financial.')->group(function () {
+        Route::get('/', [FinancialController::class, 'index'])->name('index');
         Route::get('/transactions', [TransactionController::class, 'index'])->name('transactions');
         Route::get('/transactions/create', [TransactionController::class, 'create'])->name('transactions.create');
         Route::post('/transactions', [TransactionController::class, 'store'])->name('transactions.store');
@@ -77,6 +84,10 @@ Route::prefix('admin')->name('admin.')->middleware(['web', 'auth', 'role:admin,c
         Route::get('/transfers', [TransactionController::class, 'transfers'])->name('transfers');
         Route::get('/reports', [\App\Http\Controllers\Admin\ReportController::class, 'financial'])->name('reports');
     });
+
+    // Savings
+    Route::get('/savings', [SavingsController::class, 'index'])->name('savings.index');
+    Route::post('/savings/interest-rate', [SavingsController::class, 'updateInterestRate'])->name('savings.interest-rate');
     
     // Reports
     Route::prefix('reports')->name('reports.')->group(function () {
@@ -117,6 +128,7 @@ Route::prefix('admin')->name('admin.')->middleware(['web', 'auth', 'role:admin,c
         Route::delete('/{id}', [LoanController::class, 'destroy'])->name('destroy');
         Route::post('/{id}/approve', [LoanController::class, 'approve'])->name('approve');
         Route::post('/{id}/reject', [LoanController::class, 'reject'])->name('reject');
+        Route::post('/{id}/disburse', [LoanController::class, 'disburse'])->name('disburse');
     });
     
     // Projects
@@ -137,6 +149,14 @@ Route::prefix('admin')->name('admin.')->middleware(['web', 'auth', 'role:admin,c
         Route::get('/create', [FundraisingController::class, 'create'])->name('create');
         Route::post('/', [FundraisingController::class, 'store'])->name('store');
         Route::get('/{id}', [FundraisingController::class, 'show'])->name('show');
+        Route::get('/{id}/contributions', [FundraisingController::class, 'contributions'])->name('contributions');
+        Route::get('/{id}/contributions/create', [FundraisingController::class, 'contributionsCreate'])->name('contributions.create');
+        Route::post('/{id}/contributions', [FundraisingController::class, 'contributionsStore'])->name('contributions.store');
+        Route::get('/{id}/contributions/{contributionId}', [FundraisingController::class, 'contributionsShow'])->name('contributions.show');
+        Route::get('/{id}/contributions/{contributionId}/edit', [FundraisingController::class, 'contributionsEdit'])->name('contributions.edit');
+        Route::put('/{id}/contributions/{contributionId}', [FundraisingController::class, 'contributionsUpdate'])->name('contributions.update');
+        Route::delete('/{id}/contributions/{contributionId}', [FundraisingController::class, 'contributionsDestroy'])->name('contributions.destroy');
+        Route::get('/{id}/contributions/{contributionId}/print', [FundraisingController::class, 'contributionsPrint'])->name('contributions.print');
         Route::get('/{id}/edit', [FundraisingController::class, 'edit'])->name('edit');
         Route::put('/{id}', [FundraisingController::class, 'update'])->name('update');
         Route::delete('/{id}', [FundraisingController::class, 'destroy'])->name('destroy');

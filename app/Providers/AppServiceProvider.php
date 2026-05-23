@@ -17,6 +17,7 @@ use App\Observers\MemberObserver;
 use App\Observers\GlobalAuditObserver;
 use App\Observers\MemberFinancialLoanObserver;
 use App\Observers\MemberFinancialTransactionObserver;
+use App\Observers\TransactionObserver;
 use App\Services\UserMemberSyncService;
 
 class AppServiceProvider extends ServiceProvider
@@ -53,6 +54,7 @@ class AppServiceProvider extends ServiceProvider
         Member::observe(MemberObserver::class);
         Loan::observe(MemberFinancialLoanObserver::class);
         Transaction::observe(MemberFinancialTransactionObserver::class);
+        Transaction::observe(TransactionObserver::class);
         FinancialTransaction::observe(MemberFinancialTransactionObserver::class);
 
         // Auto-heal missing user/member links only when explicitly enabled.

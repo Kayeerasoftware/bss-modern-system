@@ -7,6 +7,7 @@ use App\Models\Member;
 use App\Models\Loan;
 use App\Models\Transaction;
 use App\Services\Financial\MemberFinancialSyncService;
+use App\Services\Financial\SavingsReconciliationService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
 
@@ -22,14 +23,12 @@ class DashboardController extends Controller
         }
         
         $financialSummary = app(MemberFinancialSyncService::class)->getMemberFinancialSummary($member);
+        $reconSnapshot = app(SavingsReconciliationService::class)->getMemberSnapshot($member->id);
 
-        $transactionQuery = Transaction::where('member_id', $member->member_id);
-        $completedTransactionQuery = (clone $transactionQuery)->where(function ($query): void {
-            $query->where('status', 'completed')
-                ->orWhereNull('status');
-        });
+        $transactionQuery = Transaction::query()->where('member_id', $member->id);
+        $completedTransactionQuery = (clone $transactionQuery)->ofStatus('completed');
 
-        $myLoans = Loan::where('member_id', $member->member_id)->get();
+        $myLoans = Loan::where('member_id', $member->id)->get();
         $activeLoanStatuses = ['approved', 'active', 'disbursed'];
         $activeLoans = $myLoans->filter(function ($loan) use ($activeLoanStatuses) {
             return in_array(strtolower((string) $loan->status), $activeLoanStatuses, true);
@@ -52,17 +51,17 @@ class DashboardController extends Controller
             'totalWithdrawals' => $financialSummary['total_withdrawals'],
             'availableAfterLoans' => $financialSummary['available_after_loans'],
             'monthlyDeposits' => (clone $completedTransactionQuery)
-                ->where('type', 'deposit')
+                ->ofType('deposit')
                 ->whereBetween('created_at', [now()->startOfMonth(), now()->endOfMonth()])
                 ->sum('amount'),
             'monthlyWithdrawals' => (clone $completedTransactionQuery)
-                ->where('type', 'withdrawal')
+                ->ofType('withdrawal')
                 ->whereBetween('created_at', [now()->startOfMonth(), now()->endOfMonth()])
                 ->sum('amount'),
             // Add shareholder-style keys for compatibility
-            'totalSavings' => Member::sum('savings'),
+            'totalSavings' => Member::transactionSavingsTotal(),
             'totalLoan' => Member::sum('loan'),
-            'netBalance' => Member::sum('savings') - Member::sum('loan'),
+            'netBalance' => Member::transactionSavingsTotal() - Member::sum('loan'),
             'totalShares' => 0,
             'shareValue' => 0,
             'totalDividends' => 0,
@@ -87,19 +86,19 @@ class DashboardController extends Controller
             $monthlyData[] = [
                 'month' => $date->format('M'),
                 'deposits' => (clone $completedTransactionQuery)
-                    ->where('type', 'deposit')
+                    ->ofType('deposit')
                     ->whereYear('created_at', $date->year)
                     ->whereMonth('created_at', $date->month)
                     ->sum('amount'),
                 'withdrawals' => (clone $completedTransactionQuery)
-                    ->where('type', 'withdrawal')
+                    ->ofType('withdrawal')
                     ->whereYear('created_at', $date->year)
                     ->whereMonth('created_at', $date->month)
                     ->sum('amount'),
             ];
         }
         
-        return view('member.dashboard', compact('stats', 'member', 'recentTransactions', 'activeLoans', 'monthlyData', 'recentDividends', 'recentProjects', 'investmentOpportunities', 'financialSummary'));
+        return view('member.dashboard', compact('stats', 'member', 'recentTransactions', 'activeLoans', 'monthlyData', 'recentDividends', 'recentProjects', 'investmentOpportunities', 'financialSummary', 'reconSnapshot'));
     }
 
     public function savings(Request $request)
@@ -107,15 +106,17 @@ class DashboardController extends Controller
         $user = Auth::user();
         $member = $user->member ?? Member::where('email', $user->email)->first();
         
-        $query = Transaction::where('member_id', $member->member_id)
-            ->where('type', 'deposit');
+        $query = Transaction::query()
+            ->where('member_id', $member->id)
+            ->ofType('deposit');
 
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
-                $q->where('transaction_id', 'like', "%{$search}%")
+                $q->where('transaction_number', 'like', "%{$search}%")
                     ->orWhere('description', 'like', "%{$search}%")
-                    ->orWhere('reference', 'like', "%{$search}%");
+                    ->orWhere('reference_number', 'like', "%{$search}%")
+                    ->orWhere('receipt_number', 'like', "%{$search}%");
             });
         }
 
@@ -136,10 +137,7 @@ class DashboardController extends Controller
             ->paginate(20)
             ->appends($request->query());
 
-        $completedQuery = (clone $query)->where(function ($q): void {
-            $q->where('status', 'completed')
-                ->orWhereNull('status');
-        });
+        $completedQuery = (clone $query)->ofStatus('completed');
 
         $summary = [
             'total_deposits' => (float) (clone $completedQuery)->sum('amount'),
@@ -151,7 +149,7 @@ class DashboardController extends Controller
                 ->count(),
             'average_deposit' => (float) ((clone $completedQuery)->avg('amount') ?? 0),
             'completed_count' => (int) (clone $completedQuery)->count(),
-            'pending_count' => (int) (clone $query)->where('status', 'pending')->count(),
+            'pending_count' => (int) (clone $query)->ofStatus('pending')->count(),
         ];
         $financialSummary = app(MemberFinancialSyncService::class)->getMemberFinancialSummary($member);
         

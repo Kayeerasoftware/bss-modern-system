@@ -5,7 +5,7 @@
             <th class="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider border-r border-white/20">Contact Info</th>
             <th class="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider border-r border-white/20">Default Role</th>
             <th class="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider border-r border-white/20">Other Roles</th>
-            <th class="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider border-r border-white/20">Savings</th>
+            <th class="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider border-r border-white/20">Savings Balance</th>
             <th class="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider border-r border-white/20">Status</th>
             <th class="px-6 py-4 text-center text-xs font-bold text-white uppercase tracking-wider">Actions</th>
         </tr>
@@ -35,7 +35,7 @@
                     </div>
                     <div>
                         <p class="text-sm font-semibold {{ $deletedPrimaryTextClass }}">{{ $member->full_name }}</p>
-                        <p class="text-xs {{ $deletedSecondaryTextClass }}">ID: {{ $member->member_id }}</p>
+                        <p class="text-xs {{ $deletedSecondaryTextClass }}">Member: {{ $member->member_account_number ?? $member->member_id }}</p>
                         @if($hasProfilePicture)
                             <p class="text-xs text-green-600 flex items-center gap-1 mt-1">
                                 <i class="fas fa-check-circle"></i>
@@ -98,7 +98,7 @@
             <td class="px-6 py-4 whitespace-nowrap border-r border-gray-200">
                 <div class="flex items-center gap-2">
                     <i class="fas fa-coins text-yellow-500"></i>
-                    <span class="text-sm font-semibold {{ $deletedPrimaryTextClass }}">{{ number_format($member->savings, 2) }}</span>
+                    <span class="text-sm font-semibold {{ $deletedPrimaryTextClass }}">UGX {{ number_format($member->savings_account_balance ?? $member->savings_balance ?? 0, 0) }}</span>
                 </div>
             </td>
             <td class="px-6 py-4 whitespace-nowrap border-r border-gray-200">

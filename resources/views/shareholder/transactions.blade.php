@@ -51,6 +51,27 @@
         </div>
     </div>
 
+    <div class="bg-white/90 rounded-2xl shadow-lg border border-purple-100 p-3 mb-4">
+        <div class="flex flex-wrap gap-2">
+            <a href="{{ request()->fullUrlWithQuery(['category' => null, 'page' => 1]) }}"
+               class="px-3 py-1.5 text-xs font-semibold rounded-full border {{ request('category') ? 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50' : 'bg-gradient-to-r from-purple-600 to-pink-600 text-white border-transparent' }}">
+                All Categories
+                <span class="ml-1 text-[10px] font-bold">{{ $summary['total_transactions'] ?? 0 }}</span>
+            </a>
+            @foreach($categories as $category)
+                @php
+                    $isActive = request('category') === $category->name;
+                    $count = $categoryCounts[$category->id] ?? 0;
+                @endphp
+                <a href="{{ request()->fullUrlWithQuery(['category' => $category->name, 'page' => 1]) }}"
+                   class="px-3 py-1.5 text-xs font-semibold rounded-full border {{ $isActive ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white border-transparent' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50' }}">
+                    {{ $category->display_name ?? ucfirst(str_replace('_', ' ', $category->name)) }}
+                    <span class="ml-1 text-[10px] font-bold">{{ $count }}</span>
+                </a>
+            @endforeach
+        </div>
+    </div>
+
     <!-- Filters Section -->
     <div class="bg-gradient-to-br from-purple-50 via-pink-50 to-purple-50 rounded-2xl shadow-lg border border-purple-100 overflow-hidden mb-4">
         <form method="GET" action="{{ route('shareholder.transactions') }}">

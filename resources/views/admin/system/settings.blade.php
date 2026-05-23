@@ -101,9 +101,9 @@
                     <div class="space-y-2">
                         <label class="flex items-center gap-2 text-sm font-bold text-gray-700">
                             <i class="fas fa-percentage text-green-600"></i>
-                            Default Interest Rate (%)
+                            Savings Interest Rate (%)
                         </label>
-                        <input type="number" name="default_interest_rate" value="{{ $settings['default_interest_rate'] ?? 10 }}" step="0.01" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all text-sm">
+                        <input type="number" name="interest_rate" value="{{ $settings['interest_rate'] ?? 5 }}" step="0.01" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all text-sm">
                     </div>
                     <div class="space-y-2">
                         <label class="flex items-center gap-2 text-sm font-bold text-gray-700">
@@ -147,26 +147,111 @@
             </div>
             <div class="p-6">
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="space-y-2 md:col-span-3">
+                        <label class="flex items-center gap-2 text-sm font-bold text-gray-700">
+                            <i class="fas fa-toggle-on text-indigo-600"></i>
+                            Loans Enabled
+                        </label>
+                        <label class="inline-flex items-center gap-3 bg-indigo-50 border border-indigo-100 px-4 py-2 rounded-xl">
+                            <input type="checkbox" name="is_loan_available" value="1" {{ ($settings['is_loan_available'] ?? 1) ? 'checked' : '' }} class="h-5 w-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">
+                            <span class="text-sm font-semibold text-indigo-700">Allow loan applications</span>
+                        </label>
+                    </div>
+
                     <div class="space-y-2">
                         <label class="flex items-center gap-2 text-sm font-bold text-gray-700">
-                            <i class="fas fa-money-check text-indigo-600"></i>
-                            Max Loan Amount
+                            <i class="fas fa-percentage text-indigo-600"></i>
+                            Default Interest Rate (%)
                         </label>
-                        <input type="number" name="max_loan_amount" value="{{ $settings['max_loan_amount'] ?? 10000000 }}" step="0.01" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all text-sm">
+                        <input type="number" name="default_interest_rate" value="{{ $settings['default_interest_rate'] ?? 10 }}" step="0.01" min="0" max="100" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all text-sm">
                     </div>
+                    <div class="space-y-2">
+                        <label class="flex items-center gap-2 text-sm font-bold text-gray-700">
+                            <i class="fas fa-arrow-down text-green-600"></i>
+                            Min Interest Rate (%)
+                        </label>
+                        <input type="number" name="min_interest_rate" value="{{ $settings['min_interest_rate'] ?? 5 }}" step="0.01" min="0" max="100" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all text-sm">
+                    </div>
+                    <div class="space-y-2">
+                        <label class="flex items-center gap-2 text-sm font-bold text-gray-700">
+                            <i class="fas fa-arrow-up text-red-600"></i>
+                            Max Interest Rate (%)
+                        </label>
+                        <input type="number" name="max_interest_rate" value="{{ $settings['max_interest_rate'] ?? 30 }}" step="0.01" min="0" max="100" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all text-sm">
+                    </div>
+
                     <div class="space-y-2">
                         <label class="flex items-center gap-2 text-sm font-bold text-gray-700">
                             <i class="fas fa-money-bill text-purple-600"></i>
                             Min Loan Amount
                         </label>
-                        <input type="number" name="min_loan_amount" value="{{ $settings['min_loan_amount'] ?? 50000 }}" step="0.01" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all text-sm">
+                        <input type="number" name="min_loan_amount" value="{{ $settings['min_loan_amount'] ?? 10000 }}" step="0.01" min="0" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all text-sm">
                     </div>
                     <div class="space-y-2">
                         <label class="flex items-center gap-2 text-sm font-bold text-gray-700">
-                            <i class="fas fa-calendar-alt text-blue-600"></i>
-                            Max Loan Period (months)
+                            <i class="fas fa-money-check text-indigo-600"></i>
+                            Max Loan Amount
                         </label>
-                        <input type="number" name="max_loan_period" value="{{ $settings['max_loan_period'] ?? 36 }}" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-sm">
+                        <input type="number" name="max_loan_amount" value="{{ $settings['max_loan_amount'] ?? 10000000 }}" step="0.01" min="0" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all text-sm">
+                    </div>
+                    <div class="space-y-2">
+                        <label class="flex items-center gap-2 text-sm font-bold text-gray-700">
+                            <i class="fas fa-chart-line text-pink-600"></i>
+                            Max Loan-to-Savings Ratio (%)
+                        </label>
+                        <input type="number" name="max_loan_to_savings_ratio" value="{{ $settings['max_loan_to_savings_ratio'] ?? 300 }}" step="0.01" min="0" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all text-sm">
+                    </div>
+
+                    <div class="space-y-2">
+                        <label class="flex items-center gap-2 text-sm font-bold text-gray-700">
+                            <i class="fas fa-calendar-minus text-green-600"></i>
+                            Min Repayment Months
+                        </label>
+                        <input type="number" name="min_repayment_months" value="{{ $settings['min_repayment_months'] ?? 3 }}" min="1" max="120" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all text-sm">
+                    </div>
+                    <div class="space-y-2">
+                        <label class="flex items-center gap-2 text-sm font-bold text-gray-700">
+                            <i class="fas fa-calendar-plus text-red-600"></i>
+                            Max Repayment Months
+                        </label>
+                        <input type="number" name="max_repayment_months" value="{{ $settings['max_repayment_months'] ?? 60 }}" min="1" max="120" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all text-sm">
+                    </div>
+                    <div class="space-y-2">
+                        <label class="flex items-center gap-2 text-sm font-bold text-gray-700">
+                            <i class="fas fa-calendar-check text-blue-600"></i>
+                            Default Repayment Months
+                        </label>
+                        <input type="number" name="default_repayment_months" value="{{ $settings['default_repayment_months'] ?? 12 }}" min="1" max="120" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-sm">
+                    </div>
+
+                    <div class="space-y-2">
+                        <label class="flex items-center gap-2 text-sm font-bold text-gray-700">
+                            <i class="fas fa-receipt text-orange-600"></i>
+                            Processing Fee (%)
+                        </label>
+                        <input type="number" name="processing_fee_percentage" value="{{ $settings['processing_fee_percentage'] ?? 2 }}" step="0.01" min="0" max="100" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all text-sm">
+                    </div>
+                    <div class="space-y-2">
+                        <label class="flex items-center gap-2 text-sm font-bold text-gray-700">
+                            <i class="fas fa-exclamation-triangle text-red-600"></i>
+                            Late Payment Penalty (%)
+                        </label>
+                        <input type="number" name="late_payment_penalty" value="{{ $settings['late_payment_penalty'] ?? 5 }}" step="0.01" min="0" max="100" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all text-sm">
+                    </div>
+                    <div class="space-y-2">
+                        <label class="flex items-center gap-2 text-sm font-bold text-gray-700">
+                            <i class="fas fa-hourglass-half text-yellow-600"></i>
+                            Grace Period (Days)
+                        </label>
+                        <input type="number" name="grace_period_days" value="{{ $settings['grace_period_days'] ?? 7 }}" min="0" max="90" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-all text-sm">
+                    </div>
+
+                    <div class="space-y-2">
+                        <label class="flex items-center gap-2 text-sm font-bold text-gray-700">
+                            <i class="fas fa-bolt text-emerald-600"></i>
+                            Auto-Approve Amount
+                        </label>
+                        <input type="number" name="auto_approve_amount" value="{{ $settings['auto_approve_amount'] ?? 0 }}" step="0.01" min="0" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all text-sm">
                     </div>
                     <div class="space-y-2">
                         <label class="flex items-center gap-2 text-sm font-bold text-gray-700">
@@ -174,26 +259,24 @@
                             Require Guarantors
                         </label>
                         <select name="require_guarantors" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all text-sm appearance-none bg-white">
-                            <option value="1" {{ ($settings['require_guarantors'] ?? 1) == 1 ? 'selected' : '' }}>Yes</option>
-                            <option value="0" {{ ($settings['require_guarantors'] ?? 1) == 0 ? 'selected' : '' }}>No</option>
+                            <option value="0" {{ ($settings['require_guarantors'] ?? 0) == 0 ? 'selected' : '' }}>No</option>
+                            <option value="1" {{ ($settings['require_guarantors'] ?? 0) == 1 ? 'selected' : '' }}>Yes</option>
                         </select>
                     </div>
                     <div class="space-y-2">
                         <label class="flex items-center gap-2 text-sm font-bold text-gray-700">
                             <i class="fas fa-users text-teal-600"></i>
-                            Number of Guarantors
+                            Guarantors Required
                         </label>
-                        <input type="number" name="number_of_guarantors" value="{{ $settings['number_of_guarantors'] ?? 2 }}" min="1" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all text-sm">
+                        <input type="number" name="guarantors_required" value="{{ $settings['guarantors_required'] ?? 2 }}" min="0" max="10" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all text-sm">
                     </div>
+
                     <div class="space-y-2">
                         <label class="flex items-center gap-2 text-sm font-bold text-gray-700">
-                            <i class="fas fa-check-circle text-emerald-600"></i>
-                            Auto Approve Loans
+                            <i class="fas fa-bell text-pink-600"></i>
+                            Payment Reminder Days
                         </label>
-                        <select name="auto_approve_loans" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all text-sm appearance-none bg-white">
-                            <option value="1" {{ ($settings['auto_approve_loans'] ?? 0) == 1 ? 'selected' : '' }}>Yes</option>
-                            <option value="0" {{ ($settings['auto_approve_loans'] ?? 0) == 0 ? 'selected' : '' }}>No</option>
-                        </select>
+                        <input type="number" name="payment_reminder_days" value="{{ $settings['payment_reminder_days'] ?? 3 }}" min="0" max="30" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all text-sm">
                     </div>
                 </div>
             </div>

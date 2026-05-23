@@ -4,6 +4,9 @@ namespace App\Services;
 
 use App\Jobs\WriteAuditLog;
 use App\Models\System\AuditLog;
+use App\Models\AuditActionType;
+use App\Models\EntityType;
+use App\Models\User;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Arr;
@@ -19,20 +22,36 @@ class AuditLogService
     public static function log($actor, string $action, string $details, array $changes = []): void
     {
         try {
-            $userName = self::resolveActorName($actor);
             $sanitizedChanges = self::sanitizeChanges($changes);
 
             if (config('audit.queue_enabled', true) && config('queue.default') !== 'sync') {
-                WriteAuditLog::dispatch($userName, $action, $details, $sanitizedChanges)->onQueue('default');
+                WriteAuditLog::dispatch($actor, $action, $details, $sanitizedChanges)->onQueue('default');
                 return;
             }
 
+            $actionTypeId = self::resolveActionTypeId($action);
+            $entityTypeId = self::resolveEntityTypeId($sanitizedChanges, $actor);
+
+            $userId = null;
+            $memberId = null;
+            if ($actor instanceof Authenticatable) {
+                $userId = $actor instanceof User ? $actor->id : null;
+                $memberId = $actor instanceof User ? $actor->member?->id : null;
+            }
+
             AuditLog::create([
-                'user' => $userName,
-                'action' => $action,
-                'details' => $details,
-                'changes' => $sanitizedChanges,
-                'timestamp' => now(),
+                'log_number' => 'AUD-' . now()->format('Ymd') . '-' . str_pad((string) random_int(1, 9999), 4, '0', STR_PAD_LEFT),
+                'user_id' => $userId,
+                'member_id' => $memberId,
+                'ip_address' => request()->ip(),
+                'user_agent' => request()->userAgent(),
+                'session_id' => request()->session()->getId(),
+                'action_type_id' => $actionTypeId,
+                'entity_type_id' => $entityTypeId,
+                'entity_id' => $sanitizedChanges['entity_id'] ?? null,
+                'entity_identifier' => $sanitizedChanges['entity_identifier'] ?? null,
+                'description' => $details,
+                'details' => $sanitizedChanges,
             ]);
         } catch (Throwable $e) {
             // Never break user flow due to audit logging failure.
@@ -54,6 +73,37 @@ class AuditLogService
         }
 
         return 'System';
+    }
+
+    private static function resolveActionTypeId(string $action): int
+    {
+        $normalized = strtolower(trim($action));
+        $actionId = AuditActionType::query()->where('name', $normalized)->value('id');
+
+        if ($actionId) {
+            return (int) $actionId;
+        }
+
+        return (int) (AuditActionType::query()->where('name', 'update')->value('id') ?? 1);
+    }
+
+    private static function resolveEntityTypeId(array $changes, $actor): int
+    {
+        if (!empty($changes['entity_type'])) {
+            $id = EntityType::query()->where('name', $changes['entity_type'])->value('id');
+            if ($id) {
+                return (int) $id;
+            }
+        }
+
+        if ($actor instanceof User) {
+            $id = EntityType::query()->where('name', 'user')->value('id');
+            if ($id) {
+                return (int) $id;
+            }
+        }
+
+        return (int) (EntityType::query()->value('id') ?? 1);
     }
 
     private static function sanitizeChanges(array $changes): array

@@ -60,7 +60,7 @@
                     
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Interest Rate</label>
-                        <p class="text-gray-900">{{ $application->interest_rate ?? '10.00' }}%</p>
+                        <p class="text-gray-900">{{ $application->interest_rate ?? number_format((float) setting('default_interest_rate', 10), 2) }}%</p>
                     </div>
                 </div>
                 

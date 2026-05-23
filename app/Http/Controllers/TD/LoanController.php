@@ -15,8 +15,8 @@ class LoanController extends Controller
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
-                $q->where('loan_id', 'like', "%{$search}%")
-                    ->orWhere('purpose', 'like', "%{$search}%")
+                $q->where('loan_number', 'like', "%{$search}%")
+                    ->orWhere('notes', 'like', "%{$search}%")
                     ->orWhere('member_id', 'like', "%{$search}%")
                     ->orWhereHas('member', function ($memberQuery) use ($search) {
                         $memberQuery->where('full_name', 'like', "%{$search}%");
@@ -25,7 +25,7 @@ class LoanController extends Controller
         }
 
         if ($request->filled('status')) {
-            $query->where('status', $request->status);
+            $query->status($request->status);
         }
 
         if ($request->filled('date_from')) {

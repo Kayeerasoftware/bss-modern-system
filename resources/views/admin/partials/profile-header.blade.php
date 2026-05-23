@@ -5,8 +5,16 @@
         <div class="relative flex flex-col md:flex-row items-center md:items-start space-y-4 md:space-y-0 md:space-x-6">
             <div class="relative group">
                 <div class="w-32 h-32 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center overflow-hidden border-4 border-white shadow-2xl transform transition-transform group-hover:scale-105">
-                    <img x-show="profilePicture" :src="profilePicture" alt="Profile" class="w-full h-full object-cover">
-                    <i x-show="!profilePicture" class="fas fa-user-shield text-white text-5xl"></i>
+                    @php
+                        $user = Auth::user();
+                        $profilePicPath = DB::table('users')->where('id', $user->id)->value('profile_picture');
+                    @endphp
+                    @if($profilePicPath)
+                        <img src="{{ asset('uploads/' . $profilePicPath) }}" alt="Profile" class="w-full h-full object-cover" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                        <i class="fas fa-user-shield text-white text-5xl" style="display:none;"></i>
+                    @else
+                        <i class="fas fa-user-shield text-white text-5xl"></i>
+                    @endif
                 </div>
                 <button @click="showProfileModal = true" class="absolute -bottom-2 -right-2 w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl hover:from-blue-600 hover:to-purple-600 transition shadow-lg transform hover:scale-110">
                     <i class="fas fa-camera"></i>

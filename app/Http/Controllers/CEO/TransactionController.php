@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\CEO;
 
 use App\Http\Controllers\Admin\TransactionController as AdminTransactionController;
+use App\Services\Financial\TransactionPostingService;
 use Illuminate\Http\Request;
 
 class TransactionController extends AdminTransactionController 
@@ -13,7 +14,7 @@ class TransactionController extends AdminTransactionController
         abort(403, 'CEO cannot create transactions');
     }
     
-    public function store(Request $request)
+    public function store(Request $request, TransactionPostingService $postingService)
     {
         abort(403, 'CEO cannot create transactions');
     }

@@ -7,31 +7,27 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Models\Member;
 use App\Models\Loan;
+use App\Models\LoanStatus;
 use App\Models\Transaction;
+use App\Models\ProjectStatus;
 use App\Models\Project;
 use App\Models\User;
+use App\Services\DashboardStatsService;
 use App\Services\ProfilePictureStorageService;
+use App\Services\AuditLogService;
+use App\Services\Financial\SavingsReconciliationService;
 use Illuminate\Support\Facades\Hash;
 
 class AdminController extends Controller
 {
     private function generateMemberId(): string
     {
-        $lastMember = Member::withTrashed()
-            ->where('member_id', 'like', 'BSS-C15-%')
-            ->orderBy('member_id', 'desc')
-            ->first();
-
-        $nextNumber = 1;
-        if ($lastMember && preg_match('/BSS-C15-(\d+)/', (string) $lastMember->member_id, $matches)) {
-            $nextNumber = ((int) $matches[1]) + 1;
-        }
-
-        return 'BSS-C15-' . str_pad((string) $nextNumber, 4, '0', STR_PAD_LEFT);
+        return generate_member_id();
     }
 
     public function dashboard()
     {
+        $viewStats = app(DashboardStatsService::class)->get();
         // Get all months
         $months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
         
@@ -67,17 +63,21 @@ class AdminController extends Controller
             ];
         }
             
+        $pendingStatusId = LoanStatus::query()->where('name', 'pending')->value('id');
+        $approvedStatusId = LoanStatus::query()->where('name', 'approved')->value('id');
+        $rejectedStatusId = LoanStatus::query()->where('name', 'rejected')->value('id');
+
         $loanStats = [
-            'pending' => Loan::where('status', 'pending')->count(),
-            'approved' => Loan::where('status', 'approved')->count(),
-            'rejected' => Loan::where('status', 'rejected')->count(),
+            'pending' => $pendingStatusId ? Loan::where('status_id', $pendingStatusId)->count() : 0,
+            'approved' => $approvedStatusId ? Loan::where('status_id', $approvedStatusId)->count() : 0,
+            'rejected' => $rejectedStatusId ? Loan::where('status_id', $rejectedStatusId)->count() : 0,
         ];
         
         $transactionStats = [
-            'deposits' => Transaction::where('type', 'deposit')->count(),
-            'withdrawals' => Transaction::where('type', 'withdrawal')->count(),
-            'transfers' => Transaction::where('type', 'transfer')->count(),
-            'fees' => Transaction::where('type', 'fee')->count(),
+            'deposits' => Transaction::query()->ofType('deposit')->count(),
+            'withdrawals' => Transaction::query()->ofType('withdrawal')->count(),
+            'transfers' => Transaction::query()->ofType('transfer')->count(),
+            'fees' => Transaction::query()->ofType('fee')->count(),
         ];
         
         // Get cumulative revenue for each month
@@ -85,7 +85,8 @@ class AdminController extends Controller
         $cumulativeRevenue = 0;
         
         for ($i = 1; $i <= $currentMonth; $i++) {
-            $monthRevenue = Transaction::where('type', 'deposit')
+            $monthRevenue = Transaction::query()
+                ->ofType('deposit')
                 ->whereYear('created_at', date('Y'))
                 ->whereMonth('created_at', $i)
                 ->sum('amount');
@@ -102,9 +103,11 @@ class AdminController extends Controller
         $cumulativeSavings = 0;
         
         for ($i = 12; $i >= 1; $i--) {
-            $monthSavings = Member::whereYear('created_at', 2025)
+            $monthSavings = Transaction::query()
+                ->ofType('deposit')
+                ->whereYear('created_at', 2025)
                 ->whereMonth('created_at', $i)
-                ->sum('savings');
+                ->sum('amount');
             if ($monthSavings > 0) {
                 $cumulativeSavings += $monthSavings;
                 $savingsGrowth[] = [
@@ -115,9 +118,11 @@ class AdminController extends Controller
         }
         
         for ($i = 1; $i <= $currentMonth; $i++) {
-            $monthSavings = Member::whereYear('created_at', 2026)
+            $monthSavings = Transaction::query()
+                ->ofType('deposit')
+                ->whereYear('created_at', 2026)
                 ->whereMonth('created_at', $i)
-                ->sum('savings');
+                ->sum('amount');
             $cumulativeSavings += $monthSavings;
             
             $savingsGrowth[] = [
@@ -126,33 +131,55 @@ class AdminController extends Controller
             ];
         }
             
-        $projects = Project::select('name', 'progress')->get();
+        $projects = Project::select('name', 'progress_percentage')
+            ->get()
+            ->map(function ($project) {
+                return [
+                    'name' => $project->name,
+                    'progress' => $project->progress_percentage,
+                ];
+            });
         
         $transactionTypeAmounts = [
-            'deposit' => Transaction::where('type', 'deposit')->sum('amount'),
-            'withdrawal' => Transaction::where('type', 'withdrawal')->sum('amount'),
-            'transfer' => Transaction::where('type', 'transfer')->sum('amount'),
-            'loan_payment' => Transaction::where('type', 'loan_payment')->sum('amount'),
-            'loan_request' => Transaction::where('type', 'loan_request')->sum('amount'),
-            'fundraising' => Transaction::where('type', 'fundraising')->sum('amount'),
-            'condolence' => Transaction::where('type', 'condolence')->sum('amount'),
+            'deposit' => Transaction::query()->ofType('deposit')->sum('amount'),
+            'withdrawal' => Transaction::query()->ofType('withdrawal')->sum('amount'),
+            'transfer' => Transaction::query()->ofType('transfer')->sum('amount'),
+            'loan_payment' => Transaction::query()->ofType('loan_payment')->sum('amount'),
+            'loan_request' => Transaction::query()->ofType('loan_request')->sum('amount'),
+            'fundraising' => Transaction::query()->ofType('fundraising')->sum('amount'),
+            'condolence' => Transaction::query()->ofType('condolence')->sum('amount'),
         ];
-        
+
+        $totalSavings = (float) DB::table('savings_accounts')->sum('current_balance');
+        $recon = app(SavingsReconciliationService::class)->getSystemSummary(1000);
+        $totalLoans = (float) Loan::sum('principal_amount');
+        $totalDeposits = (float) Transaction::query()->ofType('deposit')->sum('amount');
+        $totalWithdrawals = (float) Transaction::query()->ofType('withdrawal')->sum('amount');
+        $totalTransfers = (float) Transaction::query()->ofType('transfer')->sum('amount');
+        $totalFees = (float) Transaction::query()->ofType('fee')->sum('amount');
+        $loanRepayments = (float) Transaction::query()->ofType('loan_payment')->sum('amount');
+
+        $roleCounts = DB::table('member_roles')
+            ->join('roles', 'roles.id', '=', 'member_roles.role_id')
+            ->selectRaw('LOWER(roles.name) as role, COUNT(*) as count')
+            ->groupBy('roles.name')
+            ->pluck('count', 'role');
+
         return response()->json([
-            'totalMembers' => Member::count(),
-            'totalSavings' => Member::sum('savings'),
-            'activeLoans' => Loan::where('status', 'approved')->count(),
+            'totalMembers' => (int) ($viewStats['total_members'] ?? Member::count()),
+            'totalSavings' => (float) ($viewStats['total_system_balance'] ?? $totalSavings),
+            'activeLoans' => (int) ($viewStats['active_loans_count'] ?? ($approvedStatusId ? Loan::where('status_id', $approvedStatusId)->count() : 0)),
             'totalProjects' => Project::count(),
-            'pendingApprovals' => Loan::where('status', 'pending')->count(),
+            'pendingApprovals' => (int) ($viewStats['pending_loans_count'] ?? ($pendingStatusId ? Loan::where('status_id', $pendingStatusId)->count() : 0)),
             'approvedLoans' => $loanStats['approved'],
             'pendingLoans' => $loanStats['pending'],
             'rejectedLoans' => $loanStats['rejected'],
-            'totalLoanAmount' => Loan::sum('amount'),
-            'totalDeposits' => Transaction::where('type', 'deposit')->sum('amount'),
-            'totalWithdrawals' => Transaction::where('type', 'withdrawal')->sum('amount'),
-            'totalTransfers' => Transaction::where('type', 'transfer')->sum('amount'),
-            'totalFees' => Transaction::where('type', 'fee')->sum('amount'),
-            'netBalance' => Member::sum('savings') + Transaction::where('type', 'deposit')->sum('amount') - Transaction::where('type', 'withdrawal')->sum('amount') - Loan::sum('amount'),
+            'totalLoanAmount' => $totalLoans,
+            'totalDeposits' => $totalDeposits,
+            'totalWithdrawals' => $totalWithdrawals,
+            'totalTransfers' => $totalTransfers,
+            'totalFees' => $totalFees,
+            'netBalance' => $totalSavings + $totalDeposits - $totalWithdrawals - $totalLoans + $loanRepayments,
             'membersGrowth' => $membersGrowth,
             'loanStats' => $loanStats,
             'transactionStats' => $transactionStats,
@@ -160,20 +187,21 @@ class AdminController extends Controller
             'savingsGrowth' => $savingsGrowth,
             'projects' => $projects,
             'transactionTypeAmounts' => $transactionTypeAmounts,
+            'savingsReconciliation' => $recon,
             'roleDistribution' => [
-                'client' => Member::where('role', 'client')->count(),
-                'shareholder' => Member::where('role', 'shareholder')->count(),
-                'cashier' => Member::where('role', 'cashier')->count(),
-                'td' => Member::where('role', 'td')->count(),
-                'ceo' => Member::where('role', 'ceo')->count(),
-                'admin' => Member::where('role', 'admin')->count()
+                'client' => (int) ($roleCounts['client'] ?? 0),
+                'shareholder' => (int) ($roleCounts['shareholder'] ?? 0),
+                'cashier' => (int) ($roleCounts['cashier'] ?? 0),
+                'td' => (int) ($roleCounts['td'] ?? 0),
+                'ceo' => (int) ($roleCounts['ceo'] ?? 0),
+                'admin' => (int) ($roleCounts['admin'] ?? 0)
             ]
         ]);
     }
 
     public function getSettings()
     {
-        $settings = DB::table('system_settings')->pluck('value', 'key');
+        $settings = DB::table('settings')->pluck('setting_value', 'setting_key');
         return response()->json([
             'interest_rate' => $settings['interest_rate'] ?? 5.5,
             'min_savings' => $settings['min_savings'] ?? 50000,
@@ -213,19 +241,14 @@ class AdminController extends Controller
                 if (is_bool($value)) {
                     $value = $value ? 'true' : 'false';
                 }
-                DB::table('system_settings')->updateOrInsert(
-                    ['key' => $key],
-                    ['value' => $value, 'updated_at' => now()]
+                DB::table('settings')->updateOrInsert(
+                    ['setting_key' => $key],
+                    ['setting_value' => $value, 'updated_at' => now()]
                 );
             }
             
-            DB::table('audit_logs')->insert([
-                'user' => 'Admin',
-                'action' => 'Settings Updated',
-                'details' => 'System settings were modified',
-                'timestamp' => now(),
-                'created_at' => now(),
-                'updated_at' => now()
+            AuditLogService::log(auth()->user() ?? 'System', 'settings_updated', 'System settings were modified', [
+                'entity_type' => 'settings',
             ]);
             
             return response()->json(['success' => true, 'message' => 'Settings updated successfully']);
@@ -236,116 +259,30 @@ class AdminController extends Controller
 
     public function getAuditLogs()
     {
-        $logs = collect();
-        
-        try {
-            $members = DB::table('members')->orderBy('created_at', 'desc')->get();
-            foreach ($members as $member) {
-                $logs->push([
-                    'id' => 'M' . $member->id,
-                    'action' => 'Member Created',
-                    'user' => 'Admin',
-                    'details' => "Created member: {$member->full_name} ({$member->member_id})",
-                    'timestamp' => $member->created_at
-                ]);
-                if ($member->updated_at && $member->updated_at != $member->created_at) {
-                    $logs->push([
-                        'id' => 'MU' . $member->id,
-                        'action' => 'Member Updated',
-                        'user' => 'Admin',
-                        'details' => "Updated member: {$member->full_name} ({$member->member_id})",
-                        'timestamp' => $member->updated_at
-                    ]);
-                }
-            }
-        } catch (\Exception $e) {}
-        
-        try {
-            $loans = DB::table('loans')->orderBy('updated_at', 'desc')->get();
-            foreach ($loans as $loan) {
-                $logs->push([
-                    'id' => 'LC' . $loan->id,
-                    'action' => 'Loan Created',
-                    'user' => 'Member',
-                    'details' => "Created loan {$loan->loan_id} for UGX " . number_format($loan->amount),
-                    'timestamp' => $loan->created_at
-                ]);
-                if ($loan->status === 'approved') {
-                    $logs->push([
-                        'id' => 'LA' . $loan->id,
-                        'action' => 'Loan Approved',
-                        'user' => $loan->updated_by ?? 'Manager',
-                        'details' => "Approved loan {$loan->loan_id} for UGX " . number_format($loan->amount),
-                        'timestamp' => $loan->updated_at ?? $loan->created_at
-                    ]);
-                } elseif ($loan->status === 'rejected') {
-                    $logs->push([
-                        'id' => 'LR' . $loan->id,
-                        'action' => 'Loan Rejected',
-                        'user' => $loan->updated_by ?? 'Manager',
-                        'details' => "Rejected loan {$loan->loan_id}",
-                        'timestamp' => $loan->updated_at ?? $loan->created_at
-                    ]);
-                }
-            }
-        } catch (\Exception $e) {}
-        
-        try {
-            $transactions = DB::table('transactions')->orderBy('created_at', 'desc')->get();
-            foreach ($transactions as $txn) {
-                $action = ucfirst($txn->type) . ' Processed';
-                $logs->push([
-                    'id' => 'T' . $txn->id,
-                    'action' => $action,
-                    'user' => 'Cashier',
-                    'details' => ucfirst($txn->type) . " of UGX " . number_format($txn->amount) . " for member {$txn->member_id}",
-                    'timestamp' => $txn->created_at
-                ]);
-            }
-        } catch (\Exception $e) {}
-        
-        try {
-            $projects = DB::table('projects')->orderBy('created_at', 'desc')->get();
-            foreach ($projects as $project) {
-                $logs->push([
-                    'id' => 'PC' . $project->id,
-                    'action' => 'Project Created',
-                    'user' => 'TD',
-                    'details' => "Created project: {$project->name} with budget UGX " . number_format($project->budget),
-                    'timestamp' => $project->created_at
-                ]);
-                if ($project->updated_at && $project->updated_at != $project->created_at) {
-                    $logs->push([
-                        'id' => 'PU' . $project->id,
-                        'action' => 'Project Updated',
-                        'user' => 'TD',
-                        'details' => "Updated project: {$project->name} - Progress: {$project->progress}%",
-                        'timestamp' => $project->updated_at
-                    ]);
-                }
-            }
-        } catch (\Exception $e) {}
-        
-        try {
-            $reports = DB::table('audit_logs')
-                ->where('action', 'LIKE', '%Report%')
-                ->orWhere('action', 'LIKE', '%Generate%')
-                ->orWhere('action', 'LIKE', '%Delete%')
-                ->orderBy('created_at', 'desc')
-                ->get();
-            foreach ($reports as $report) {
-                $logs->push([
-                    'id' => 'R' . $report->id,
-                    'action' => $report->action,
-                    'user' => $report->user,
-                    'details' => $report->details,
-                    'timestamp' => $report->timestamp ?? $report->created_at
-                ]);
-            }
-        } catch (\Exception $e) {}
-        
-        $logs = $logs->sortByDesc('timestamp')->values();
-        
+        $logs = DB::table('audit_logs')
+            ->leftJoin('audit_action_types', 'audit_action_types.id', '=', 'audit_logs.action_type_id')
+            ->leftJoin('users', 'users.id', '=', 'audit_logs.user_id')
+            ->select(
+                'audit_logs.id',
+                'audit_action_types.name as action',
+                'users.username as user',
+                'audit_logs.description as details',
+                'audit_logs.created_at as timestamp'
+            )
+            ->orderBy('audit_logs.created_at', 'desc')
+            ->limit(200)
+            ->get()
+            ->map(function ($log) {
+                return [
+                    'id' => $log->id,
+                    'action' => $log->action ? ucfirst((string) $log->action) : 'Activity',
+                    'user' => $log->user ?? 'System',
+                    'details' => $log->details ?? '',
+                    'timestamp' => $log->timestamp,
+                ];
+            })
+            ->values();
+
         return response()->json($logs);
     }
 
@@ -359,11 +296,16 @@ class AdminController extends Controller
     {
         $filename = 'backup_' . date('Y-m-d_His') . '.sql';
         DB::table('backups')->insert([
+            'backup_number' => 'BKP-' . now()->format('Ymd') . '-' . str_pad((string) random_int(1, 9999), 4, '0', STR_PAD_LEFT),
             'filename' => $filename,
-            'path' => '/backups/' . $filename,
-            'size' => rand(1000000, 5000000),
+            'filepath' => '/backups/' . $filename,
+            'file_size' => rand(1000000, 5000000),
+            'type' => 'manual',
+            'status' => 'completed',
+            'includes' => 'full',
+            'compression' => 'gzip',
+            'created_by' => auth()->id() ?? 1,
             'created_at' => now(),
-            'updated_at' => now()
         ]);
         return response()->json(['success' => true]);
     }
@@ -376,11 +318,14 @@ class AdminController extends Controller
 
     public function getFinancialSummary()
     {
-        $totalDeposits = Transaction::where('type', 'deposit')->sum('amount');
-        $totalWithdrawals = Transaction::where('type', 'withdrawal')->sum('amount');
-        $totalLoans = Loan::where('status', 'approved')->sum('amount');
-        $totalSavings = Member::sum('savings');
-        $loanRepayments = Transaction::where('type', 'loan_payment')->sum('amount');
+        $totalDeposits = (float) Transaction::query()->ofType('deposit')->sum('amount');
+        $totalWithdrawals = (float) Transaction::query()->ofType('withdrawal')->sum('amount');
+        $approvedStatusId = LoanStatus::query()->where('name', 'approved')->value('id');
+        $totalLoans = $approvedStatusId
+            ? (float) Loan::where('status_id', $approvedStatusId)->sum('principal_amount')
+            : 0.0;
+        $totalSavings = (float) DB::table('savings_accounts')->sum('current_balance');
+        $loanRepayments = (float) Transaction::query()->ofType('loan_payment')->sum('amount');
         
         $netBalance = $totalSavings + $totalDeposits - $totalWithdrawals - $totalLoans + $loanRepayments;
         
@@ -436,36 +381,43 @@ class AdminController extends Controller
             'role' => 'required|string|in:client,shareholder,cashier,td,ceo,admin',
         ]);
 
-        $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => bcrypt($request->password),
-            'role' => $request->role,
-            'is_active' => true
-        ]);
-        
-        Member::create([
-            'member_id' => $this->generateMemberId(),
-            'full_name' => $request->name,
-            'email' => $request->email,
-            'location' => $request->location ?? 'N/A',
-            'occupation' => $request->occupation ?? 'N/A',
-            'contact' => $request->contact ?? 'N/A',
-            'role' => $request->role,
-            'savings' => 0,
-            'loan' => 0,
-            'savings_balance' => 0,
-            'password' => bcrypt($request->password),
-            'user_id' => $user->id
-        ]);
-        
-        DB::table('audit_logs')->insert([
-            'user' => 'Admin',
-            'action' => 'User Created',
-            'details' => 'Created user: ' . $user->name,
-            'timestamp' => now(),
-            'created_at' => now(),
-            'updated_at' => now()
+        $user = User::withoutEvents(function () use ($request) {
+            return User::create([
+                'name' => $request->name,
+                'email' => $request->email,
+                'password' => bcrypt($request->password),
+                'role' => $request->role,
+                'is_active' => true,
+                'created_by' => auth()->id(),
+            ]);
+        });
+
+        [$firstName, $middleName, $lastName] = $this->splitName($request->name);
+
+        $memberNumber = $this->generateMemberId();
+        $member = new Member();
+        $member->user_id = $user->id;
+        $member->member_number = $memberNumber;
+        $member->member_account_number = $memberNumber;
+        $member->first_name = $firstName;
+        $member->middle_name = $middleName;
+        $member->last_name = $lastName;
+        $member->email = $request->email;
+        $member->primary_phone = $request->contact ?? null;
+        $member->place_of_birth = $request->location ?? null;
+        $member->occupation = $request->occupation ?? null;
+        $member->membership_status = 'active';
+        $member->join_date = now()->toDateString();
+        $member->created_by = auth()->id() ?? $user->id;
+        Member::queueOpeningSavings($member, (float) ($request->savings ?? 0));
+        $member->save();
+
+        $member->assignRole($request->role);
+
+        AuditLogService::log(auth()->user() ?? $user, 'user_created', 'Created user: ' . $user->name, [
+            'entity_type' => 'user',
+            'entity_id' => $user->id,
+            'member_id' => $member->id,
         ]);
         
         return response()->json(['success' => true, 'user' => $user]);
@@ -476,14 +428,10 @@ class AdminController extends Controller
         $user = User::findOrFail($id);
         $user->is_active = !$user->is_active;
         $user->save();
-        
-        DB::table('audit_logs')->insert([
-            'user' => 'Admin',
-            'action' => 'User Status Changed',
-            'details' => 'Changed status for: ' . $user->name . ' to ' . ($user->is_active ? 'active' : 'inactive'),
-            'timestamp' => now(),
-            'created_at' => now(),
-            'updated_at' => now()
+
+        AuditLogService::log(auth()->user() ?? 'System', 'user_status_changed', 'Changed status for: ' . $user->name . ' to ' . ($user->is_active ? 'active' : 'inactive'), [
+            'entity_type' => 'user',
+            'entity_id' => $user->id,
         ]);
         
         return response()->json(['success' => true]);
@@ -493,20 +441,15 @@ class AdminController extends Controller
     {
         $user = User::findOrFail($id);
         $oldRole = $user->role;
-        $user->role = $request->role;
-        $user->save();
-        
+        $user->assignRole($request->role);
+
         if ($user->member) {
-            $user->member->update(['role' => $request->role]);
+            $user->member->assignRole($request->role);
         }
-        
-        DB::table('audit_logs')->insert([
-            'user' => 'Admin',
-            'action' => 'User Role Changed',
-            'details' => 'Changed role for: ' . $user->name . ' from ' . $oldRole . ' to ' . $request->role,
-            'timestamp' => now(),
-            'created_at' => now(),
-            'updated_at' => now()
+
+        AuditLogService::log(auth()->user() ?? 'System', 'user_role_changed', 'Changed role for: ' . $user->name . ' from ' . $oldRole . ' to ' . $request->role, [
+            'entity_type' => 'user',
+            'entity_id' => $user->id,
         ]);
         
         return response()->json(['success' => true]);
@@ -517,7 +460,7 @@ class AdminController extends Controller
         $user = User::findOrFail($id);
         $user->name = $request->name;
         $user->email = $request->email;
-        $user->role = $request->role;
+        $user->assignRole($request->role);
         $user->is_active = $request->status === 'active';
         if ($request->password) {
             $user->password = bcrypt($request->password);
@@ -530,23 +473,22 @@ class AdminController extends Controller
             $user->profile_picture = $path;
         }
         $user->save();
-        
+
         if ($user->member) {
+            [$firstName, $middleName, $lastName] = $this->splitName($request->name);
             $user->member->update([
-                'full_name' => $request->name,
+                'first_name' => $firstName,
+                'middle_name' => $middleName,
+                'last_name' => $lastName,
                 'email' => $request->email,
-                'role' => $request->role,
-                'profile_picture' => $user->profile_picture
+                'profile_picture' => $user->profile_picture,
             ]);
+            $user->member->assignRole($request->role);
         }
-        
-        DB::table('audit_logs')->insert([
-            'user' => 'Admin',
-            'action' => 'User Updated',
-            'details' => 'Updated user: ' . $user->name,
-            'timestamp' => now(),
-            'created_at' => now(),
-            'updated_at' => now()
+
+        AuditLogService::log(auth()->user() ?? 'System', 'user_updated', 'Updated user: ' . $user->name, [
+            'entity_type' => 'user',
+            'entity_id' => $user->id,
         ]);
         
         return response()->json([
@@ -568,14 +510,10 @@ class AdminController extends Controller
         $userName = $user->name;
 
         $user->delete();
-        
-        DB::table('audit_logs')->insert([
-            'user' => 'Admin',
-            'action' => 'User Deleted',
-            'details' => 'Deleted user: ' . $userName,
-            'timestamp' => now(),
-            'created_at' => now(),
-            'updated_at' => now()
+
+        AuditLogService::log(auth()->user() ?? 'System', 'user_deleted', 'Deleted user: ' . $userName, [
+            'entity_type' => 'user',
+            'entity_identifier' => $userName,
         ]);
         
         return response()->json(['success' => true]);
@@ -608,39 +546,40 @@ class AdminController extends Controller
                     continue;
                 }
                 $role = in_array($row[4] ?? 'client', ['admin', 'client', 'cashier', 'td', 'ceo', 'shareholder'], true) ? $row[4] : 'client';
-                $user = User::create([
-                    'name' => $row[1],
-                    'email' => $email,
-                    'password' => Hash::make('password123'),
-                    'role' => $role,
-                    'status' => 'active',
-                    'is_active' => true,
-                    'phone' => $row[3] ?? null,
-                ]);
-                Member::create([
-                    'member_id' => !empty($row[0]) ? $row[0] : $this->generateMemberId(),
-                    'full_name' => $row[1],
-                    'email' => $email,
-                    'contact' => $row[3] ?? null,
-                    'role' => $role,
-                    'savings' => (float) ($row[5] ?? 0),
-                    'balance' => (float) ($row[5] ?? 0),
-                    'savings_balance' => (float) ($row[5] ?? 0),
-                    'status' => 'active',
-                    'password' => $user->password,
+                $user = User::withoutEvents(function () use ($row, $email, $role) {
+                    return User::create([
+                        'name' => $row[1],
+                        'email' => $email,
+                        'password' => Hash::make('password123'),
+                        'role' => $role,
+                        'status' => 'active',
+                        'is_active' => true,
+                        'phone' => $row[3] ?? null,
+                    ]);
+                });
+                [$firstName, $middleName, $lastName] = $this->splitName((string) $row[1]);
+                $memberNumber = !empty($row[0]) ? $row[0] : $this->generateMemberId();
+                $member = Member::create([
                     'user_id' => $user->id,
+                    'member_number' => $memberNumber,
+                    'member_account_number' => $memberNumber,
+                    'first_name' => $firstName,
+                    'middle_name' => $middleName,
+                    'last_name' => $lastName,
+                    'email' => $email,
+                    'primary_phone' => $row[3] ?? null,
+                    'membership_status' => 'active',
+                    'join_date' => now()->toDateString(),
+                    'created_by' => auth()->id() ?? $user->id,
                 ]);
+                $member->assignRole($role);
                 $imported++;
             }
         }
-        
-        DB::table('audit_logs')->insert([
-            'user' => 'Admin',
-            'action' => 'Bulk Import',
-            'details' => "Imported {$imported} members",
-            'timestamp' => now(),
-            'created_at' => now(),
-            'updated_at' => now()
+
+        AuditLogService::log(auth()->user() ?? 'System', 'bulk_import', "Imported {$imported} members", [
+            'entity_type' => 'member',
+            'imported' => $imported,
         ]);
         
         return response()->json(['success' => true, 'imported' => $imported]);
@@ -652,22 +591,19 @@ class AdminController extends Controller
         $query = Member::query();
         
         if ($recipients === 'clients') {
-            $query->where('role', 'client');
+            $query->whereHas('roles', fn ($q) => $q->where('name', 'client'));
         } elseif ($recipients === 'shareholders') {
-            $query->where('role', 'shareholder');
+            $query->whereHas('roles', fn ($q) => $q->where('name', 'shareholder'));
         } elseif ($recipients === 'staff') {
-            $query->whereIn('role', ['cashier', 'td', 'ceo']);
+            $query->whereHas('roles', fn ($q) => $q->whereIn('name', ['cashier', 'td', 'ceo']));
         }
         
         $count = $query->count();
-        
-        DB::table('audit_logs')->insert([
-            'user' => 'Admin',
-            'action' => 'Bulk Email Sent',
-            'details' => "Sent '{$request->subject}' to {$count} recipients",
-            'timestamp' => now(),
-            'created_at' => now(),
-            'updated_at' => now()
+
+        AuditLogService::log(auth()->user() ?? 'System', 'bulk_email_sent', "Sent '{$request->subject}' to {$count} recipients", [
+            'entity_type' => 'member',
+            'recipient_group' => $recipients,
+            'count' => $count,
         ]);
         
         return response()->json(['success' => true, 'sent' => $count]);
@@ -682,13 +618,9 @@ class AdminController extends Controller
         
         // Log report generation activity
         try {
-            DB::table('audit_logs')->insert([
-                'action' => 'Report Generated',
-                'user' => auth()->user()->name ?? 'Admin',
-                'details' => "Generated {$type} report" . ($dateFrom ? " from {$dateFrom}" : '') . ($dateTo ? " to {$dateTo}" : ''),
-                'timestamp' => now(),
-                'created_at' => now(),
-                'updated_at' => now()
+            AuditLogService::log(auth()->user() ?? 'System', 'report_generated', "Generated {$type} report" . ($dateFrom ? " from {$dateFrom}" : '') . ($dateTo ? " to {$dateTo}" : ''), [
+                'entity_type' => 'report',
+                'type' => $type,
             ]);
         } catch (\Exception $e) {
             // Table might not exist, continue anyway
@@ -709,21 +641,24 @@ class AdminController extends Controller
                 break;
                 
             case 'financial':
-                $totalSavings = Member::sum('savings');
-                $totalLoans = Loan::sum('amount');
-                $totalDeposits = Transaction::where('type', 'deposit')->sum('amount');
-                $totalWithdrawals = Transaction::where('type', 'withdrawal')->sum('amount');
-                $netBalance = Member::sum('balance');
+                $totalSavings = (float) DB::table('savings_accounts')->sum('current_balance');
+                $totalLoans = (float) Loan::sum('principal_amount');
+                $totalDeposits = (float) Transaction::query()->ofType('deposit')->sum('amount');
+                $totalWithdrawals = (float) Transaction::query()->ofType('withdrawal')->sum('amount');
+                $netBalance = $totalSavings;
                 
-                $approvedLoans = Loan::where('status', 'approved')->count();
-                $pendingLoans = Loan::where('status', 'pending')->count();
-                $rejectedLoans = Loan::where('status', 'rejected')->count();
+                $approvedStatusId = LoanStatus::query()->where('name', 'approved')->value('id');
+                $pendingStatusId = LoanStatus::query()->where('name', 'pending')->value('id');
+                $rejectedStatusId = LoanStatus::query()->where('name', 'rejected')->value('id');
+                $approvedLoans = $approvedStatusId ? Loan::where('status_id', $approvedStatusId)->count() : 0;
+                $pendingLoans = $pendingStatusId ? Loan::where('status_id', $pendingStatusId)->count() : 0;
+                $rejectedLoans = $rejectedStatusId ? Loan::where('status_id', $rejectedStatusId)->count() : 0;
                 $loansCount = Loan::count();
-                $avgLoanAmount = Loan::avg('amount') ?? 0;
+                $avgLoanAmount = Loan::avg('principal_amount') ?? 0;
                 
                 $totalMembers = Member::count();
-                $activeMembers = Member::where('savings', '>', 0)->count();
-                $avgSavings = Member::avg('savings') ?? 0;
+                $activeMembers = Member::where('membership_status', 'active')->count();
+                $avgSavings = (float) DB::table('savings_accounts')->avg('current_balance');
                 
                 $loanInterest = $totalLoans * 0.055;
                 $processingFees = $totalLoans * 0.025;
@@ -731,20 +666,20 @@ class AdminController extends Controller
                 
                 $transactionBreakdown = [
                     'deposit' => [
-                        'count' => Transaction::where('type', 'deposit')->count(),
+                        'count' => Transaction::query()->ofType('deposit')->count(),
                         'amount' => $totalDeposits
                     ],
                     'withdrawal' => [
-                        'count' => Transaction::where('type', 'withdrawal')->count(),
+                        'count' => Transaction::query()->ofType('withdrawal')->count(),
                         'amount' => $totalWithdrawals
                     ],
                     'transfer' => [
-                        'count' => Transaction::where('type', 'transfer')->count(),
-                        'amount' => Transaction::where('type', 'transfer')->sum('amount')
+                        'count' => Transaction::query()->ofType('transfer')->count(),
+                        'amount' => Transaction::query()->ofType('transfer')->sum('amount')
                     ],
                     'loan_payment' => [
-                        'count' => Transaction::where('type', 'loan_payment')->count(),
-                        'amount' => Transaction::where('type', 'loan_payment')->sum('amount')
+                        'count' => Transaction::query()->ofType('loan_payment')->count(),
+                        'amount' => Transaction::query()->ofType('loan_payment')->sum('amount')
                     ]
                 ];
                 
@@ -796,7 +731,14 @@ class AdminController extends Controller
                 break;
                 
             case 'audit':
-                $query = DB::table('audit_logs');
+                $query = DB::table('audit_logs')
+                    ->leftJoin('audit_action_types', 'audit_action_types.id', '=', 'audit_logs.action_type_id')
+                    ->leftJoin('users', 'users.id', '=', 'audit_logs.user_id')
+                    ->select(
+                        'audit_logs.*',
+                        'audit_action_types.name as action_name',
+                        'users.username as user_name'
+                    );
                 if ($dateFrom) $query->where('created_at', '>=', $dateFrom);
                 if ($dateTo) $query->where('created_at', '<=', $dateTo);
                 $data = $query->get();
@@ -805,21 +747,21 @@ class AdminController extends Controller
                 break;
         }
         
-        DB::table('reports')->insert([
-            'type' => $title,
+        DB::table('generated_reports')->insert([
+            'report_number' => 'RPT-' . now()->format('Ymd') . '-' . str_pad((string) random_int(1, 9999), 4, '0', STR_PAD_LEFT),
+            'name' => $title,
+            'type' => $type,
+            'from_date' => $dateFrom ?? now()->toDateString(),
+            'to_date' => $dateTo ?? now()->toDateString(),
             'format' => $format,
-            'date' => now()->format('Y-m-d H:i'),
-            'created_at' => now(),
-            'updated_at' => now()
+            'generated_at' => now(),
+            'generated_by' => auth()->id() ?? 1,
         ]);
         
-        DB::table('audit_logs')->insert([
-            'user' => 'Admin',
-            'action' => 'Report Generated',
-            'details' => "Generated {$title} in {$format} format",
-            'timestamp' => now(),
-            'created_at' => now(),
-            'updated_at' => now()
+        AuditLogService::log(auth()->user() ?? 'System', 'report_generated', "Generated {$title} in {$format} format", [
+            'entity_type' => 'report',
+            'title' => $title,
+            'format' => $format,
         ]);
         
         if ($format === 'pdf' || $format === 'html') {
@@ -857,7 +799,11 @@ class AdminController extends Controller
         } elseif ($type === 'audit') {
             $content = "User,Action,Details,Timestamp\n";
             foreach ($data as $log) {
-                $content .= "{$log->user},{$log->action},{$log->details},{$log->timestamp}\n";
+                $userName = $log->user_name ?? 'System';
+                $actionName = $log->action_name ?? 'activity';
+                $details = $log->description ?? '';
+                $timestamp = $log->created_at ?? '';
+                $content .= "{$userName},{$actionName},{$details},{$timestamp}\n";
             }
         }
         
@@ -869,13 +815,13 @@ class AdminController extends Controller
     
     public function getRecentReports()
     {
-        $reports = DB::table('reports')->orderBy('created_at', 'desc')->limit(10)->get();
+        $reports = DB::table('generated_reports')->orderBy('generated_at', 'desc')->limit(10)->get();
         return response()->json($reports);
     }
     
     public function viewReport($id)
     {
-        $report = DB::table('reports')->where('id', $id)->first();
+        $report = DB::table('generated_reports')->where('id', $id)->first();
         if (!$report) {
             return response('Report not found', 404);
         }
@@ -890,20 +836,31 @@ class AdminController extends Controller
     
     public function deleteReport($id)
     {
-        DB::table('reports')->where('id', $id)->delete();
+        DB::table('generated_reports')->where('id', $id)->delete();
         return response()->json(['success' => true]);
     }
 
     public function sendNotification(Request $request)
     {
-        DB::table('audit_logs')->insert([
-            'user' => 'Admin',
-            'action' => 'Notification Sent',
-            'details' => $request->title . ' to ' . $request->target,
-            'timestamp' => now(),
-            'created_at' => now(),
-            'updated_at' => now()
+        AuditLogService::log(auth()->user() ?? 'System', 'notification_sent', $request->title . ' to ' . $request->target, [
+            'entity_type' => 'notification',
+            'target' => $request->target,
         ]);
         return response()->json(['success' => true]);
+    }
+
+    private function splitName(?string $name): array
+    {
+        $normalized = trim((string) $name);
+        if ($normalized === '') {
+            return ['Unknown', null, 'User'];
+        }
+
+        $parts = preg_split('/\s+/', $normalized);
+        $first = array_shift($parts) ?: 'Unknown';
+        $last = array_pop($parts) ?: $first;
+        $middle = $parts ? implode(' ', $parts) : null;
+
+        return [$first, $middle, $last];
     }
 }

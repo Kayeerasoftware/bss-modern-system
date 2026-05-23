@@ -14,11 +14,11 @@ class ReportController extends Controller
         $user = Auth::user();
         $member = $user->member;
         
-        $transactions = Transaction::where('member_id', $member->member_id ?? null)->get();
+        $transactions = Transaction::where('member_id', $member->id ?? null)->get();
         
         $summary = [
-            'total_income' => $transactions->where('type', 'deposit')->sum('amount'),
-            'total_expenses' => $transactions->where('type', 'withdrawal')->sum('amount'),
+            'total_income' => $transactions->filter(fn ($t) => $t->type === 'deposit')->sum('amount'),
+            'total_expenses' => $transactions->filter(fn ($t) => $t->type === 'withdrawal')->sum('amount'),
             'net_balance' => $member->balance ?? 0,
             'total_transactions' => $transactions->count()
         ];

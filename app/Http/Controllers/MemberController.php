@@ -19,7 +19,7 @@ class MemberController extends Controller
                 'full_name' => $member->full_name,
                 'email' => $member->email,
                 'contact' => $member->contact,
-                'location' => $member->location,
+                'location' => $member->place_of_birth,
                 'occupation' => $member->occupation,
                 'role' => $member->role,
                 'savings' => $member->savings,
@@ -48,16 +48,6 @@ class MemberController extends Controller
             'password' => 'required|string|min:6'
         ]);
 
-        // Auto-generate unique member_id
-        $lastMember = Member::orderBy('id', 'desc')->first();
-        $nextNumber = $lastMember ? intval(substr($lastMember->member_id, 3)) + 1 : 1;
-        $validated['member_id'] = 'BSS' . str_pad($nextNumber, 3, '0', STR_PAD_LEFT);
-        
-        while (Member::where('member_id', $validated['member_id'])->exists()) {
-            $nextNumber++;
-            $validated['member_id'] = 'BSS' . str_pad($nextNumber, 3, '0', STR_PAD_LEFT);
-        }
-
         // Handle profile picture upload
         if ($request->hasFile('profile_picture')) {
             $path = ProfilePictureStorageService::storeProfilePicture($request->file('profile_picture'));
@@ -69,15 +59,24 @@ class MemberController extends Controller
             'name' => $validated['full_name'],
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
-            'role' => 'client',
-            'is_active' => true,
-            'profile_picture' => $validated['profile_picture'] ?? null
+            'role' => $validated['role'] ?? 'client',
+            'status' => 'active',
         ]);
 
-        $validated['user_id'] = $user->id;
-        $validated['password'] = Hash::make($validated['password']);
-
-        $member = Member::create($validated);
+        $member = Member::query()->where('user_id', $user->id)->first();
+        if ($member) {
+            $member->full_name = $validated['full_name'];
+            $member->email = $validated['email'];
+            $member->primary_phone = $validated['contact'] ?? null;
+            $member->place_of_birth = $validated['location'] ?? null;
+            $member->occupation = $validated['occupation'] ?? null;
+            $member->profile_picture = $validated['profile_picture'] ?? null;
+            $member->membership_status = 'active';
+            $member->join_date = $member->join_date ?: now()->toDateString();
+            $member->created_by = $member->created_by ?: $user->id;
+            $member->saveQuietly();
+            $member->assignRole($validated['role'] ?? 'client');
+        }
         return response()->json(['success' => true, 'member' => $member]);
     }
 
@@ -96,7 +95,12 @@ class MemberController extends Controller
             'occupation' => 'required|string'
         ]);
 
-        $member->update($validated);
+        $member->full_name = $validated['full_name'];
+        $member->email = $validated['email'];
+        $member->primary_phone = $validated['contact'];
+        $member->place_of_birth = $validated['location'];
+        $member->occupation = $validated['occupation'];
+        $member->save();
         return response()->json(['success' => true, 'member' => $member]);
     }
 
@@ -106,13 +110,10 @@ class MemberController extends Controller
         $memberId = $member->member_id;
         $member->delete();
         
-        \DB::table('audit_logs')->insert([
-            'user' => auth()->user()->name ?? 'Admin',
-            'action' => 'Member Deleted',
-            'details' => "Deleted member: {$memberName} ({$memberId})",
-            'timestamp' => now(),
-            'created_at' => now(),
-            'updated_at' => now()
+        \App\Services\AuditLogService::log(auth()->user(), 'delete', "Deleted member: {$memberName} ({$memberId})", [
+            'entity_type' => 'member',
+            'entity_id' => $member->id,
+            'entity_identifier' => $member->member_number,
         ]);
         
         return response()->json(['success' => true]);

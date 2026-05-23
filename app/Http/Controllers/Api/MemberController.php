@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Member;
+use App\Models\LoanStatus;
 use App\Models\User;
 use App\Services\ProfilePictureStorageService;
 use Illuminate\Http\Request;
@@ -62,29 +63,35 @@ class MemberController extends Controller
             }
 
             // Create member
-            $user = User::create([
-                'name' => $request->full_name,
-                'email' => $request->email,
-                'password' => Hash::make($request->input('password', 'password123')),
-                'role' => $request->role,
-                'status' => 'active',
-                'is_active' => true,
-                'phone' => $request->contact,
-                'location' => $request->location,
-            ]);
+            $user = User::withoutEvents(function () use ($request) {
+                return User::create([
+                    'name' => $request->full_name,
+                    'email' => $request->email,
+                    'password' => Hash::make($request->input('password', 'password123')),
+                    'role' => $request->role,
+                    'status' => 'active',
+                    'is_active' => true,
+                    'phone' => $request->contact,
+                    'location' => $request->location,
+                ]);
+            });
 
             $member = new Member();
             $member->full_name = $request->full_name;
             $member->email = $request->email;
             $member->contact = $request->contact;
-            $member->location = $request->location;
+            $member->place_of_birth = $request->location;
             $member->occupation = $request->occupation;
-            $member->role = $request->role;
-            $member->status = 'active';
-            $member->member_id = $this->generateMemberId();
-            $member->password = $user->password;
+            $member->membership_status = 'active';
+            Member::queueOpeningSavings($member, (float) $request->input('savings', 0));
+            $memberNumber = $this->generateMemberId();
+            $member->member_number = $memberNumber;
+            $member->member_account_number = $memberNumber;
             $member->user_id = $user->id;
+            $member->join_date = now()->toDateString();
+            $member->created_by = auth()->id() ?? $user->id;
             $member->save();
+            $member->assignRole($request->role);
 
             return response()->json([
                 'success' => true,
@@ -130,9 +137,9 @@ class MemberController extends Controller
             $member->full_name = $request->full_name;
             $member->email = $request->email;
             $member->contact = $request->contact;
-            $member->location = $request->location;
+            $member->place_of_birth = $request->location;
             $member->occupation = $request->occupation;
-            $member->role = $request->role;
+            $member->assignRole($request->role);
 
             $member->save();
 
@@ -204,7 +211,10 @@ class MemberController extends Controller
             $member = Member::findOrFail($id);
 
             // Check if member has active loans or transactions
-            $hasActiveLoans = $member->loans()->where('status', 'approved')->exists();
+            $approvedStatusId = LoanStatus::query()->where('name', 'approved')->value('id');
+            $hasActiveLoans = $approvedStatusId
+                ? $member->loans()->where('status_id', $approvedStatusId)->exists()
+                : false;
             $hasTransactions = $member->transactions()->exists();
 
             if ($hasActiveLoans || $hasTransactions) {
@@ -237,14 +247,23 @@ class MemberController extends Controller
         try {
             // Use caching for frequently searched members
             $member = Cache::remember("member_search_{$memberId}", 300, function () use ($memberId) {
-                return Member::where('member_id', $memberId)
-                    ->orWhere('id', $memberId)
+                $resolvedMemberId = resolve_member_id($memberId);
+                return Member::query()
+                    ->where('id', $resolvedMemberId ?? -1)
+                    ->orWhere('member_account_number', $memberId)
+                    ->orWhere('member_number', $memberId)
                     ->select([
-                        'id', 'member_id', 'full_name', 'email', 'contact', 'nin_no', 'dob',
-                        'nationality', 'marital_status', 'spouse_name', 'spouse_nin',
-                        'next_of_kin', 'next_of_kin_nin', 'father_name', 'mother_name',
-                        'occupation', 'about_yourself', 'present_region', 'present_district',
-                        'present_county', 'present_subcounty', 'present_ward', 'present_village'
+                        'id',
+                        'member_account_number',
+                        'member_number',
+                        'full_name',
+                        'email',
+                        'primary_phone',
+                        'date_of_birth',
+                        'nationality_id',
+                        'occupation',
+                        'place_of_birth',
+                        'membership_status',
                     ])
                     ->first();
             });
@@ -265,24 +284,24 @@ class MemberController extends Controller
                 'email' => $member->email,
                 'telephone' => $member->contact,
                 'phone' => $member->contact,
-                'nin_no' => $member->nin_no ?? '',
-                'dob' => $member->dob ?? '',
-                'nationality' => $member->nationality ?? 'Ugandan',
-                'marital_status' => $member->marital_status ?? '',
-                'spouse_name' => $member->spouse_name ?? '',
-                'spouse_nin' => $member->spouse_nin ?? '',
-                'next_of_kin' => $member->next_of_kin ?? '',
-                'next_of_kin_nin' => $member->next_of_kin_nin ?? '',
-                'father_name' => $member->father_name ?? '',
-                'mother_name' => $member->mother_name ?? '',
+                'nin_no' => '',
+                'dob' => $member->date_of_birth ?? '',
+                'nationality' => 'Ugandan',
+                'marital_status' => '',
+                'spouse_name' => '',
+                'spouse_nin' => '',
+                'next_of_kin' => '',
+                'next_of_kin_nin' => '',
+                'father_name' => '',
+                'mother_name' => '',
                 'occupation' => $member->occupation ?? '',
-                'about_yourself' => $member->about_yourself ?? '',
-                'present_region' => $member->present_region ?? '',
-                'present_district' => $member->present_district ?? '',
-                'present_county' => $member->present_county ?? '',
-                'present_subcounty' => $member->present_subcounty ?? '',
-                'present_ward' => $member->present_ward ?? '',
-                'present_village' => $member->present_village ?? ''
+                'about_yourself' => $member->notes ?? '',
+                'present_region' => '',
+                'present_district' => '',
+                'present_county' => '',
+                'present_subcounty' => '',
+                'present_ward' => '',
+                'present_village' => ''
             ]);
 
         } catch (\Exception $e) {
@@ -298,16 +317,6 @@ class MemberController extends Controller
      */
     private function generateMemberId()
     {
-        $lastMember = Member::withTrashed()
-            ->where('member_id', 'like', 'BSS-C15-%')
-            ->orderBy('member_id', 'desc')
-            ->first();
-
-        $nextNumber = 1;
-        if ($lastMember && preg_match('/BSS-C15-(\d+)/', (string) $lastMember->member_id, $matches)) {
-            $nextNumber = ((int) $matches[1]) + 1;
-        }
-
-        return 'BSS-C15-' . str_pad((string) $nextNumber, 4, '0', STR_PAD_LEFT);
+        return generate_member_id();
     }
 }

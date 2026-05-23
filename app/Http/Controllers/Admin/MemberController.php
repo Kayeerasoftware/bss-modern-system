@@ -9,6 +9,8 @@ use App\Models\BioData;
 use App\Http\Requests\StoreMemberRequest;
 use App\Http\Requests\UpdateMemberRequest;
 use App\Services\ImageService;
+use App\Services\Financial\MemberFinancialSyncService;
+use App\Services\Member\MemberDeletionService;
 use App\Services\ProfilePictureStorageService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -19,16 +21,26 @@ use Illuminate\Http\JsonResponse;
 class MemberController extends Controller
 {
     protected ImageService $imageService;
+    protected MemberDeletionService $memberDeletionService;
 
-    public function __construct(ImageService $imageService)
+    public function __construct(ImageService $imageService, MemberDeletionService $memberDeletionService)
     {
         $this->imageService = $imageService;
+        $this->memberDeletionService = $memberDeletionService;
     }
 
     public function index(Request $request)
     {
         $trashFilter = (string) $request->get('trash', 'with');
-        $query = Member::with('user');
+        $savingsBalanceSubquery = DB::table('savings_accounts')
+            ->selectRaw('member_id, COALESCE(SUM(current_balance), 0) as savings_account_balance')
+            ->groupBy('member_id');
+
+        $query = Member::query()
+            ->with('user')
+            ->leftJoinSub($savingsBalanceSubquery, 'member_savings_accounts', 'members.id', '=', 'member_savings_accounts.member_id')
+            ->select('members.*')
+            ->addSelect(DB::raw('COALESCE(member_savings_accounts.savings_account_balance, 0) as savings_account_balance'));
 
         if ($trashFilter === 'only') {
             $query->onlyTrashed();
@@ -38,27 +50,30 @@ class MemberController extends Controller
 
         if ($request->search) {
             $query->where(function($q) use ($request) {
-                $q->where('full_name', 'like', "%{$request->search}%")
+                $q->whereRaw('CONCAT(COALESCE(first_name, ""), " ", COALESCE(middle_name, ""), " ", COALESCE(last_name, "")) LIKE ?', ["%{$request->search}%"])
                   ->orWhere('email', 'like', "%{$request->search}%")
-                  ->orWhere('member_id', 'like', "%{$request->search}%")
-                  ->orWhere('contact', 'like', "%{$request->search}%");
+                  ->orWhere('member_number', 'like', "%{$request->search}%")
+                  ->orWhere('member_account_number', 'like', "%{$request->search}%")
+                  ->orWhere('primary_phone', 'like', "%{$request->search}%");
             });
         }
 
         if ($request->role) {
-            $query->where('role', $request->role);
+            $query->whereHas('roles', fn ($roleQuery) => $roleQuery->where('name', $request->role));
         }
 
         if ($request->status) {
-            $query->where('status', $request->status);
+            $query->where('membership_status', $request->status);
         }
 
-        if ($request->savings_min) {
-            $query->where('savings', '>=', $request->savings_min);
-        }
-
-        if ($request->savings_max) {
-            $query->where('savings', '<=', $request->savings_max);
+        if ($request->savings_min || $request->savings_max) {
+            if ($request->savings_min) {
+                $query->whereRaw('COALESCE(member_savings_accounts.savings_account_balance, 0) >= ?', [(float) $request->savings_min]);
+            }
+            
+            if ($request->savings_max) {
+                $query->whereRaw('COALESCE(member_savings_accounts.savings_account_balance, 0) <= ?', [(float) $request->savings_max]);
+            }
         }
 
         if ($request->date_from) {
@@ -72,16 +87,16 @@ class MemberController extends Controller
         if ($request->sort) {
             switch ($request->sort) {
                 case 'name_asc':
-                    $query->orderBy('full_name', 'asc');
+                    $query->orderByRaw('CONCAT(COALESCE(first_name, ""), " ", COALESCE(middle_name, ""), " ", COALESCE(last_name, "")) ASC');
                     break;
                 case 'name_desc':
-                    $query->orderBy('full_name', 'desc');
+                    $query->orderByRaw('CONCAT(COALESCE(first_name, ""), " ", COALESCE(middle_name, ""), " ", COALESCE(last_name, "")) DESC');
                     break;
                 case 'savings_high':
-                    $query->orderBy('savings', 'desc');
+                    $query->orderByRaw('COALESCE(member_savings_accounts.savings_account_balance, 0) desc');
                     break;
                 case 'savings_low':
-                    $query->orderBy('savings', 'asc');
+                    $query->orderByRaw('COALESCE(member_savings_accounts.savings_account_balance, 0) asc');
                     break;
                 case 'newest':
                     $query->latest();
@@ -97,10 +112,14 @@ class MemberController extends Controller
         }
 
         $statsBaseQuery = clone $query;
+        
+        // Calculate total savings directly from completed transactions.
+        $totalSavings = (float) DB::table('savings_accounts')->sum('current_balance');
+        
         $memberStats = [
             'totalMembers' => (clone $statsBaseQuery)->count(),
-            'activeMembers' => (clone $statsBaseQuery)->where('status', 'active')->count(),
-            'totalSavings' => (float) ((clone $statsBaseQuery)->sum('savings')),
+            'activeMembers' => (clone $statsBaseQuery)->where('membership_status', 'active')->count(),
+            'totalSavings' => $totalSavings,
             'newThisMonth' => (clone $statsBaseQuery)->where('created_at', '>=', now()->startOfMonth())->count(),
         ];
 
@@ -123,19 +142,7 @@ class MemberController extends Controller
 
     public function create()
     {
-        // Calculate next member ID
-        $lastMember = Member::withTrashed()
-            ->where('member_id', 'like', 'BSS-C15-%')
-            ->orderBy('member_id', 'desc')
-            ->first();
-        
-        if ($lastMember && preg_match('/BSS-C15-(\d+)/', $lastMember->member_id, $matches)) {
-            $nextNumber = intval($matches[1]) + 1;
-        } else {
-            $nextNumber = 1;
-        }
-        
-        $nextMemberId = 'BSS-C15-' . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
+        $nextMemberId = generate_member_id();
         
         return view('admin.members.create', compact('nextMemberId'));
     }
@@ -152,27 +159,10 @@ class MemberController extends Controller
                     'default_role' => 'Default role must be one of the selected roles.'
                 ])->withInput();
             }
-
-            // Generate member ID in format: BSS-C15-000x
-            $lastMember = Member::withTrashed()
-                ->where('member_id', 'like', 'BSS-C15-%')
-                ->orderBy('member_id', 'desc')
-                ->first();
-            
-            if ($lastMember && preg_match('/BSS-C15-(\d+)/', $lastMember->member_id, $matches)) {
-                $nextNumber = intval($matches[1]) + 1;
-            } else {
-                $nextNumber = 1;
-            }
-            
-            $data['member_id'] = 'BSS-C15-' . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
             $data['password'] = Hash::make($request->password);
-            $data['savings'] = $request->savings ?? 0;
-            $data['balance'] = $request->balance ?? 0;
-            $data['savings_balance'] = $request->savings ?? 0;
-            $data['loan'] = 0;
-            $data['status'] = 'active';
-            $data['role'] = $primaryRole;
+            $data['member_number'] = generate_member_id(); // Legacy field
+            $data['member_account_number'] = \App\Services\System\AccountNumberService::generateMemberAccountNumber();
+            $data['membership_status'] = 'active';
 
             if ($request->hasFile('profile_picture')) {
                 if ($request->file('profile_picture')->isValid()) {
@@ -181,22 +171,36 @@ class MemberController extends Controller
                     );
                 }
             }
+            $openingSavings = (float) max((float) ($data['savings'] ?? 0), (float) ($data['balance'] ?? 0));
 
             // Create user first
-            $user = User::create([
-                'name' => $data['full_name'],
-                'email' => $data['email'],
-                'password' => $data['password'],
-                'role' => $primaryRole,
-                'phone' => $data['contact'] ?? null,
-                'location' => $data['location'] ?? null,
-                'profile_picture' => $data['profile_picture'] ?? null,
-                'is_active' => true,
-            ]);
+            $user = User::withoutEvents(function () use ($data, $primaryRole) {
+                return User::create([
+                    'username' => $data['full_name'],
+                    'email' => $data['email'],
+                    'password' => $data['password'],
+                    'role' => $primaryRole,
+                    'status' => 'active',
+                ]);
+            });
 
             // Create member linked to user
-            $data['user_id'] = $user->id;
-            $member = Member::create($data);
+            $member = new Member();
+            $member->user_id = $user->id;
+            $member->member_number = $data['member_number'];
+            $member->member_account_number = $data['member_account_number'];
+            $member->full_name = $data['full_name'];
+            $member->email = $data['email'];
+            $member->primary_phone = $data['contact'] ?? null;
+            $member->place_of_birth = $data['location'] ?? null;
+            $member->occupation = $data['occupation'] ?? null;
+            $member->membership_status = $data['membership_status'];
+            Member::queueOpeningSavings($member, $openingSavings);
+            $member->join_date = now()->toDateString();
+            if (!empty($data['profile_picture'])) {
+                $member->profile_picture = $data['profile_picture'];
+            }
+            $member->save();
 
             // Assign multiple roles
             if (!empty($selectedRoles)) {
@@ -212,10 +216,12 @@ class MemberController extends Controller
         }
     }
 
-    public function show($id)
+    public function show($id, MemberFinancialSyncService $financialSyncService)
     {
         $member = Member::with(['loans', 'transactions', 'shares', 'user'])->findOrFail($id);
-        return view('admin.members.show', compact('member'));
+        $financialSummary = $financialSyncService->getMemberFinancialSummary($member);
+
+        return view('admin.members.show', compact('member', 'financialSummary'));
     }
 
     public function edit($id)
@@ -237,7 +243,6 @@ class MemberController extends Controller
                 ])->withInput();
             }
             $data = $request->only(['full_name', 'email', 'contact', 'location', 'occupation']);
-            $data['role'] = $primaryRole;
 
             if ($request->filled('password')) {
                 $data['password'] = Hash::make($request->password);
@@ -252,15 +257,25 @@ class MemberController extends Controller
                 }
             }
 
-            $member->update($data);
+            if (!empty($data['full_name'])) {
+                $member->full_name = $data['full_name'];
+            }
+            if (!empty($data['email'])) {
+                $member->email = $data['email'];
+            }
+            $member->primary_phone = $data['contact'] ?? $member->primary_phone;
+            $member->place_of_birth = $data['location'] ?? $member->place_of_birth;
+            $member->occupation = $data['occupation'] ?? $member->occupation;
+            if (isset($data['profile_picture'])) {
+                $member->profile_picture = $data['profile_picture'];
+            }
+            $member->save();
 
             // Sync data to user
             if ($member->user) {
                 $userData = [
-                    'name' => $member->full_name,
+                    'username' => $member->full_name,
                     'email' => $member->email,
-                    'phone' => $member->contact,
-                    'location' => $member->location,
                     'role' => $primaryRole,
                 ];
                 if (isset($data['profile_picture'])) {
@@ -332,11 +347,7 @@ class MemberController extends Controller
         try {
             $user = $member->user;
             $memberPrimaryKey = $member->id;
-
-            // Remove dependent records tied to the member PK.
-            BioData::query()->where('member_id', $memberPrimaryKey)->delete();
-            DB::table('member_roles')->where('member_id', $memberPrimaryKey)->delete();
-
+            $this->memberDeletionService->purgeDependencies($memberPrimaryKey);
             $member->forceDelete();
 
             // Keep user/member sync: remove user if it was linked only to this member.
@@ -346,7 +357,6 @@ class MemberController extends Controller
                     ->exists();
 
                 if (!$hasRemainingMemberLink) {
-                    DB::table('user_roles')->where('user_id', $user->id)->delete();
                     $user->delete();
                 }
             }
@@ -527,21 +537,26 @@ class MemberController extends Controller
         
         if (strlen($query) >= 2) {
             $membersQuery->where(function($q) use ($query) {
-                $q->where('full_name', 'like', "%{$query}%")
-                  ->orWhere('member_id', 'like', "%{$query}%")
+                $q->whereRaw('CONCAT(COALESCE(first_name, ""), " ", COALESCE(middle_name, ""), " ", COALESCE(last_name, "")) LIKE ?', ["%{$query}%"])
+                  ->orWhere('member_number', 'like', "%{$query}%")
+                  ->orWhere('member_account_number', 'like', "%{$query}%")
                   ->orWhere('email', 'like', "%{$query}%")
-                  ->orWhere('contact', 'like', "%{$query}%")
-                  ->orWhere('location', 'like', "%{$query}%")
+                  ->orWhere('primary_phone', 'like', "%{$query}%")
+                  ->orWhere('place_of_birth', 'like', "%{$query}%")
                   ->orWhere('occupation', 'like', "%{$query}%")
-                  ->orWhere('status', 'like', "%{$query}%")
-                  ->orWhere('role', 'like', "%{$query}%");
+                  ->orWhere('membership_status', 'like', "%{$query}%")
+                  ->orWhereHas('roles', function ($roleQuery) use ($query) {
+                      $roleQuery->where('name', 'like', "%{$query}%");
+                  });
             });
         }
         
-        $members = $membersQuery->select('id', 'full_name', 'member_id', 'email', 'contact', 'location', 'occupation', 'status', 'role')
-            ->orderBy('full_name')
+        $members = $membersQuery->select('id', 'first_name', 'middle_name', 'last_name', 'member_number', 'member_account_number', 'email', 'primary_phone', 'place_of_birth', 'occupation', 'membership_status')
+            ->orderByRaw('CONCAT(COALESCE(first_name, ""), " ", COALESCE(middle_name, ""), " ", COALESCE(last_name, ""))')
             ->limit(50)
-            ->get();
+            ->get()
+            ->each
+            ->append(['member_id', 'contact', 'status', 'role']);
         
         return response()->json($members);
     }

@@ -56,13 +56,10 @@ class ProjectController extends Controller
         $projectName = $project->name;
         $project->delete();
         
-        \DB::table('audit_logs')->insert([
-            'user' => auth()->user()->name ?? 'Admin',
-            'action' => 'Project Deleted',
-            'details' => "Deleted project: {$projectName}",
-            'timestamp' => now(),
-            'created_at' => now(),
-            'updated_at' => now()
+        \App\Services\AuditLogService::log(auth()->user(), 'delete', "Deleted project: {$projectName}", [
+            'entity_type' => 'project',
+            'entity_id' => $project->id,
+            'entity_identifier' => $project->project_number,
         ]);
         
         return response()->json(['message' => 'Project deleted successfully']);

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Project;
+use App\Models\ProjectStatus;
 use Illuminate\Http\Request;
 
 class ProjectController extends Controller
@@ -13,7 +14,7 @@ class ProjectController extends Controller
         $query = Project::query()->latest();
 
         if ($request->filled('status')) {
-            $query->where('status', $request->status);
+            $query->whereHas('statusRelation', fn ($q) => $q->where('name', $request->status));
         }
 
         return response()->json([
@@ -31,11 +32,14 @@ class ProjectController extends Controller
             'status' => 'nullable|string|max:30',
         ]);
 
+        $statusId = ProjectStatus::query()->where('name', strtolower((string) ($validated['status'] ?? 'pending')))->value('id')
+            ?? ProjectStatus::query()->value('id');
+
         $project = Project::create([
             'name' => $validated['name'],
             'description' => $validated['description'] ?? null,
-            'budget' => $validated['budget'] ?? 0,
-            'status' => $validated['status'] ?? 'pending',
+            'budget_amount' => $validated['budget'] ?? 0,
+            'status_id' => $statusId,
         ]);
 
         return response()->json([
@@ -55,7 +59,17 @@ class ProjectController extends Controller
     public function update(Request $request, $id)
     {
         $project = Project::findOrFail($id);
-        $project->update($request->only(['name', 'description', 'budget', 'status', 'progress']));
+        $payload = $request->only(['name', 'description']);
+        if ($request->filled('budget')) {
+            $payload['budget_amount'] = $request->budget;
+        }
+        if ($request->filled('progress')) {
+            $payload['progress_percentage'] = $request->progress;
+        }
+        if ($request->filled('status')) {
+            $payload['status_id'] = ProjectStatus::query()->where('name', strtolower((string) $request->status))->value('id');
+        }
+        $project->update($payload);
 
         return response()->json([
             'success' => true,

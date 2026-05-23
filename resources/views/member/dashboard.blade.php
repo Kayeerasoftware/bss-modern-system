@@ -107,6 +107,17 @@
                 Loan Payments: UGX {{ number_format($financialSummary['total_loan_payments'] ?? 0) }}
             </div>
         </div>
+        <div class="mt-3 grid grid-cols-2 md:grid-cols-3 gap-2 text-xs">
+            <div class="rounded-lg bg-emerald-50 px-2 py-1.5 text-emerald-800">
+                Account Ledger: UGX {{ number_format($reconSnapshot['account_balance'] ?? 0) }}
+            </div>
+            <div class="rounded-lg bg-slate-50 px-2 py-1.5 text-slate-800">
+                Transaction Derived: UGX {{ number_format($reconSnapshot['transaction_balance'] ?? 0) }}
+            </div>
+            <div class="rounded-lg bg-amber-50 px-2 py-1.5 text-amber-800">
+                Reported Source: {{ ucfirst($reconSnapshot['balance_source'] ?? 'none') }}
+            </div>
+        </div>
     </div>
 
     <!-- Quick Actions -->

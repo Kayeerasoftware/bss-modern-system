@@ -3,10 +3,14 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\LoanSetting;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Arr;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 class SystemController extends Controller
@@ -19,12 +23,51 @@ class SystemController extends Controller
 
     public function updateSettings(Request $request)
     {
-        foreach ($request->except('_token') as $key => $value) {
+        $data = $request->except('_token');
+
+        $data['is_loan_available'] = $request->has('is_loan_available') ? 1 : 0;
+        $data['email_notifications'] = (int) $request->input('email_notifications', 0);
+        $data['sms_notifications'] = (int) $request->input('sms_notifications', 0);
+
+        foreach ($data as $key => $value) {
             // Handle array values (like access permissions)
             if (is_array($value)) {
                 $value = json_encode($value);
             }
             \App\Models\Setting::set($key, $value);
+        }
+
+        $loanKeys = [
+            'is_loan_available',
+            'default_interest_rate',
+            'min_interest_rate',
+            'max_interest_rate',
+            'min_loan_amount',
+            'max_loan_amount',
+            'max_loan_to_savings_ratio',
+            'min_repayment_months',
+            'max_repayment_months',
+            'default_repayment_months',
+            'processing_fee_percentage',
+            'late_payment_penalty',
+            'grace_period_days',
+            'auto_approve_amount',
+            'require_guarantors',
+            'guarantors_required',
+            'email_notifications',
+            'sms_notifications',
+            'payment_reminder_days',
+        ];
+
+        $loanSettingsData = Arr::only($data, $loanKeys);
+        if (!empty($loanSettingsData) && Schema::hasTable('loan_settings')) {
+            $loanSettings = LoanSetting::first();
+            if ($loanSettings) {
+                $loanSettings->update($loanSettingsData);
+            } else {
+                LoanSetting::create($loanSettingsData);
+            }
+            Cache::forget('loan_settings:default:v1');
         }
 
         return redirect()->route('admin.system.settings')->with('success', 'Settings updated successfully');
@@ -105,7 +148,11 @@ class SystemController extends Controller
 
     public function backups()
     {
-        return view('admin.system.backups');
+        $backups = DB::table('backups')
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return view('admin.system.backups', compact('backups'));
     }
 
     public function createBackup()
@@ -133,11 +180,11 @@ class SystemController extends Controller
         $user = User::query()
             ->with('member:id,user_id,contact,location')
             ->where(function ($q) use ($log) {
-                $q->where('name', $log->user)
+                $q->where('username', $log->user)
                     ->orWhere('email', $log->user);
             })
             ->latest('id')
-            ->first(['id', 'name', 'email', 'phone', 'role', 'profile_picture', 'location']);
+            ->first(['id', 'username', 'email', 'role_id', 'profile_picture']);
 
         $payloadChanges = Arr::get($changes, 'payload', []);
         $queryChanges = Arr::get($changes, 'query', []);
@@ -155,6 +202,10 @@ class SystemController extends Controller
             ?? (is_array($payloadChanges) ? (string) ($payloadChanges['location'] ?? '') : '')
             ?? '';
 
+        $detailsText = is_scalar($log->details) || $log->details === null
+            ? (string) $log->details
+            : json_encode($log->details, JSON_UNESCAPED_UNICODE);
+
         return [
             'id' => (string) $log->id,
             'timestamp' => optional($log->created_at)->format('Y-m-d H:i:s') ?? (string) $log->timestamp,
@@ -165,8 +216,8 @@ class SystemController extends Controller
             'userPhoto' => $user?->profile_picture_url ?? ('https://ui-avatars.com/api/?name=' . urlencode((string) $log->user) . '&background=3b82f6&color=fff'),
             'action' => ucfirst((string) $log->action),
             'module' => $this->resolveModule($changes),
-            'details' => (string) $log->details,
-            'description' => $this->buildDescription((string) $log->details, $payloadChanges, $queryChanges, $statusCode),
+            'details' => $detailsText,
+            'description' => $this->buildDescription($detailsText, $payloadChanges, $queryChanges, $statusCode),
             'ip' => (string) ($changes['ip'] ?? 'N/A'),
             'location' => $resolvedLocation !== '' ? $resolvedLocation : 'N/A',
             'userAgent' => (string) ($changes['user_agent'] ?? 'N/A'),

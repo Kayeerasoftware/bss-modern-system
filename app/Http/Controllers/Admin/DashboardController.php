@@ -4,78 +4,100 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Fundraising;
+use App\Models\FundraisingStatus;
 use App\Models\Loan;
-use App\Models\Loans\LoanApplication;
+use App\Models\LoanApplication;
+use App\Models\LoanStatus;
 use App\Models\Member;
 use App\Models\Project;
+use App\Models\ProjectStatus;
 use App\Models\Transaction;
+use App\Models\TransactionType;
 use App\Models\User;
+use App\Services\DashboardStatsService;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
     public function index()
     {
         $stats = Cache::remember('admin_dashboard:stats:v2', now()->addSeconds(60), function () {
+            $viewStats = app(DashboardStatsService::class)->get();
             $memberSummary = Member::query()
-                ->selectRaw('COUNT(*) as total_members, COALESCE(SUM(savings_balance), 0) as total_savings, COALESCE(SUM(balance), 0) as total_balance')
+                ->selectRaw('COUNT(*) as total_members')
                 ->first();
+
+            $totalSavings = (float) DB::table('savings_accounts')->sum('current_balance');
 
             $userSummary = User::query()
                 ->whereHas('member')
-                ->selectRaw('COUNT(*) as total_users, SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END) as active_users')
+                ->selectRaw('COUNT(*) as total_users, SUM(CASE WHEN status = "active" THEN 1 ELSE 0 END) as active_users')
                 ->first();
 
+            $pendingStatusId = LoanStatus::query()->where('name', 'pending')->value('id');
+            $approvedStatusId = LoanStatus::query()->where('name', 'approved')->value('id');
+
             $loanSummary = Loan::query()
-                ->selectRaw('COUNT(*) as total_loans, SUM(CASE WHEN status = "pending" THEN 1 ELSE 0 END) as pending_loans, SUM(CASE WHEN status = "approved" THEN 1 ELSE 0 END) as approved_loans, COALESCE(SUM(amount), 0) as total_loan_amount')
+                ->selectRaw('COUNT(*) as total_loans, COALESCE(SUM(principal_amount), 0) as total_loan_amount')
                 ->first();
+            $pendingLoansCount = $viewStats['pending_loans_count'] ?? ($pendingStatusId ? Loan::query()->where('status_id', $pendingStatusId)->count() : 0);
+            $approvedLoansCount = $approvedStatusId ? Loan::query()->where('status_id', $approvedStatusId)->count() : 0;
 
             $transactionSummary = Transaction::query()
                 ->selectRaw('COUNT(*) as total_transactions, SUM(CASE WHEN DATE(created_at) = CURRENT_DATE THEN 1 ELSE 0 END) as today_transactions')
                 ->first();
 
+            $activeProjectStatusId = ProjectStatus::query()->where('name', 'active')->value('id');
             $projectSummary = Project::query()
-                ->selectRaw('COUNT(*) as total_projects, SUM(CASE WHEN status = "active" THEN 1 ELSE 0 END) as active_projects')
+                ->selectRaw('COUNT(*) as total_projects, SUM(CASE WHEN status_id = ? THEN 1 ELSE 0 END) as active_projects', [$activeProjectStatusId])
                 ->first();
 
+            $activeFundraisingStatusId = FundraisingStatus::query()->where('name', 'active')->value('id');
             $fundraisingSummary = Fundraising::query()
-                ->selectRaw('SUM(CASE WHEN status = "active" THEN 1 ELSE 0 END) as active_fundraisings, COALESCE(SUM(CASE WHEN status = "active" THEN target_amount ELSE 0 END), 0) as total_fundraising_target, COALESCE(SUM(CASE WHEN status = "active" THEN raised_amount ELSE 0 END), 0) as total_fundraising_raised')
+                ->selectRaw('SUM(CASE WHEN status_id = ? THEN 1 ELSE 0 END) as active_fundraisings, COALESCE(SUM(CASE WHEN status_id = ? THEN target_amount ELSE 0 END), 0) as total_fundraising_target, COALESCE(SUM(CASE WHEN status_id = ? THEN raised_amount ELSE 0 END), 0) as total_fundraising_raised', [
+                    $activeFundraisingStatusId,
+                    $activeFundraisingStatusId,
+                    $activeFundraisingStatusId,
+                ])
                 ->first();
 
             return [
-                'totalMembers' => (int) ($memberSummary->total_members ?? 0),
+                'totalMembers' => (int) ($viewStats['total_members'] ?? $memberSummary->total_members ?? 0),
                 'newMembersThisMonth' => Member::query()->where('created_at', '>=', now()->startOfMonth())->count(),
                 'totalUsers' => (int) ($userSummary->total_users ?? 0),
                 'activeUsers' => (int) ($userSummary->active_users ?? 0),
                 'totalLoans' => (int) ($loanSummary->total_loans ?? 0),
-                'pendingLoans' => (int) ($loanSummary->pending_loans ?? 0),
-                'approvedLoans' => (int) ($loanSummary->approved_loans ?? 0),
+                'pendingLoans' => (int) $pendingLoansCount,
+                'approvedLoans' => (int) $approvedLoansCount,
                 'totalLoanAmount' => (float) ($loanSummary->total_loan_amount ?? 0),
-                'pendingApplications' => LoanApplication::query()->where('status', 'pending')->count(),
+                'pendingApplications' => $pendingStatusId ? LoanApplication::query()->where('status_id', $pendingStatusId)->count() : 0,
                 'totalTransactions' => (int) ($transactionSummary->total_transactions ?? 0),
                 'todayTransactions' => (int) ($transactionSummary->today_transactions ?? 0),
                 'totalProjects' => (int) ($projectSummary->total_projects ?? 0),
-                'activeProjects' => (int) ($projectSummary->active_projects ?? 0),
+                'activeProjects' => (int) ($viewStats['active_projects'] ?? $projectSummary->active_projects ?? 0),
                 'activeFundraisings' => (int) ($fundraisingSummary->active_fundraisings ?? 0),
                 'totalFundraisingTarget' => (float) ($fundraisingSummary->total_fundraising_target ?? 0),
                 'totalFundraisingRaised' => (float) ($fundraisingSummary->total_fundraising_raised ?? 0),
-                'totalAssets' => (float) (($memberSummary->total_savings ?? 0) + ($memberSummary->total_balance ?? 0)),
-                'totalSavings' => (float) ($memberSummary->total_savings ?? 0),
+                'totalAssets' => (float) ($viewStats['total_system_balance'] ?? $totalSavings),
+                'totalSavings' => (float) ($viewStats['total_system_balance'] ?? $totalSavings),
             ];
         });
 
         $recentMembers = Cache::remember('admin_dashboard:recent_members:v1', now()->addSeconds(30), static function () {
             return Member::query()
-                ->select('id', 'user_id', 'member_id', 'full_name', 'profile_picture', 'created_at')
+                ->select('id', 'user_id', 'member_number', 'full_name', 'profile_picture', 'created_at')
                 ->latest()
                 ->take(5)
-                ->get();
+                ->get()
+                ->each
+                ->append(['member_id']);
         });
 
-        $recentLoans = Cache::remember('admin_dashboard:recent_loans:v1', now()->addSeconds(30), static function () {
-            return Loan::query()->with('member')->latest()->take(5)->get();
+        $recentLoans = Cache::remember('admin_dashboard:recent_loans:v2', now()->addSeconds(30), static function () {
+            return Loan::query()->with(['member', 'statusRelation'])->latest()->take(5)->get();
         });
 
         $recentTransactions = Cache::remember('admin_dashboard:recent_transactions:v1', now()->addSeconds(30), static function () {
@@ -154,15 +176,16 @@ class DashboardController extends Controller
 
             $loanRows = $this->toMap(
                 Loan::query()
-                    ->selectRaw('YEAR(created_at) as period, COUNT(*) as total, COALESCE(SUM(amount), 0) as total_amount')
+                    ->selectRaw('YEAR(created_at) as period, COUNT(*) as total, COALESCE(SUM(principal_amount), 0) as total_amount')
                     ->groupBy('period')
                     ->get(),
                 'period'
             );
 
             $transactionRows = $this->toMap(
-                Transaction::query()
-                    ->selectRaw('YEAR(created_at) as period, COUNT(*) as total, COALESCE(SUM(CASE WHEN type = "deposit" THEN amount ELSE 0 END), 0) as total_revenue, COALESCE(SUM(CASE WHEN type = "withdrawal" THEN amount ELSE 0 END), 0) as total_expenses')
+                DB::table('transactions')
+                    ->join('transaction_types', 'transactions.transaction_type_id', '=', 'transaction_types.id')
+                    ->selectRaw('YEAR(transactions.created_at) as period, COUNT(*) as total, COALESCE(SUM(CASE WHEN transaction_types.name = "deposit" THEN transactions.amount ELSE 0 END), 0) as total_revenue, COALESCE(SUM(CASE WHEN transaction_types.name = "withdrawal" THEN transactions.amount ELSE 0 END), 0) as total_expenses')
                     ->groupBy('period')
                     ->get(),
                 'period'
@@ -196,16 +219,17 @@ class DashboardController extends Controller
         $loanRows = $this->toMap(
             Loan::query()
                 ->whereYear('created_at', $selectedYear)
-                ->selectRaw('MONTH(created_at) as period, COUNT(*) as total, COALESCE(SUM(amount), 0) as total_amount')
+                ->selectRaw('MONTH(created_at) as period, COUNT(*) as total, COALESCE(SUM(principal_amount), 0) as total_amount')
                 ->groupBy('period')
                 ->get(),
             'period'
         );
 
         $transactionRows = $this->toMap(
-            Transaction::query()
-                ->whereYear('created_at', $selectedYear)
-                ->selectRaw('MONTH(created_at) as period, COUNT(*) as total, COALESCE(SUM(CASE WHEN type = "deposit" THEN amount ELSE 0 END), 0) as total_revenue, COALESCE(SUM(CASE WHEN type = "withdrawal" THEN amount ELSE 0 END), 0) as total_expenses')
+            DB::table('transactions')
+                ->join('transaction_types', 'transactions.transaction_type_id', '=', 'transaction_types.id')
+                ->whereYear('transactions.created_at', $selectedYear)
+                ->selectRaw('MONTH(transactions.created_at) as period, COUNT(*) as total, COALESCE(SUM(CASE WHEN transaction_types.name = "deposit" THEN transactions.amount ELSE 0 END), 0) as total_revenue, COALESCE(SUM(CASE WHEN transaction_types.name = "withdrawal" THEN transactions.amount ELSE 0 END), 0) as total_expenses')
                 ->groupBy('period')
                 ->get(),
             'period'
@@ -279,23 +303,29 @@ class DashboardController extends Controller
                 }
 
                 $memberSummary = (clone $memberScope)
-                    ->selectRaw('COUNT(*) as total_members, COALESCE(SUM(savings_balance), 0) as total_savings, COALESCE(SUM(balance), 0) as total_balance')
+                    ->selectRaw('COUNT(*) as total_members')
                     ->first();
 
                 $loanSummary = (clone $loanScope)
-                    ->selectRaw('COUNT(*) as total_loans, SUM(CASE WHEN status = "approved" THEN 1 ELSE 0 END) as approved_loans, SUM(CASE WHEN status = "pending" THEN 1 ELSE 0 END) as pending_loans, COALESCE(SUM(amount), 0) as total_loan_amount')
+                    ->selectRaw('COUNT(*) as total_loans, COALESCE(SUM(principal_amount), 0) as total_loan_amount')
                     ->first();
+
+                $pendingStatusId = LoanStatus::query()->where('name', 'pending')->value('id');
+                $approvedStatusId = LoanStatus::query()->where('name', 'approved')->value('id');
+                $pendingLoans = $pendingStatusId ? (clone $loanScope)->where('status_id', $pendingStatusId)->count() : 0;
+                $approvedLoans = $approvedStatusId ? (clone $loanScope)->where('status_id', $approvedStatusId)->count() : 0;
+                $totalSavings = (float) DB::table('savings_accounts')->sum('current_balance');
 
                 $monthly['stats'] = [
                     'totalMembers' => (int) ($memberSummary->total_members ?? 0),
                     'totalLoans' => (int) ($loanSummary->total_loans ?? 0),
                     'totalProjects' => (clone $projectScope)->count(),
-                    'activeFundraisings' => (clone $fundraisingScope)->where('status', 'active')->count(),
-                    'approvedLoans' => (int) ($loanSummary->approved_loans ?? 0),
-                    'pendingLoans' => (int) ($loanSummary->pending_loans ?? 0),
-                    'totalSavings' => (float) ($memberSummary->total_savings ?? 0),
+                    'activeFundraisings' => (clone $fundraisingScope)->where('status_id', FundraisingStatus::query()->where('name', 'active')->value('id'))->count(),
+                    'approvedLoans' => (int) $approvedLoans,
+                    'pendingLoans' => (int) $pendingLoans,
+                    'totalSavings' => (float) $totalSavings,
                     'totalLoanAmount' => (float) ($loanSummary->total_loan_amount ?? 0),
-                    'totalAssets' => (float) (($memberSummary->total_savings ?? 0) + ($memberSummary->total_balance ?? 0)),
+                    'totalAssets' => (float) $totalSavings,
                 ];
 
                 return $monthly;

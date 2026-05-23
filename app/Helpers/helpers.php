@@ -26,9 +26,8 @@ if (!function_exists('calculate_interest')) {
 if (!function_exists('generate_member_id')) {
     function generate_member_id()
     {
-        $lastMember = \App\Models\Member::latest('id')->first();
-        $nextId = $lastMember ? $lastMember->id + 1 : 1;
-        return 'MEM' . str_pad($nextId, 6, '0', STR_PAD_LEFT);
+        // This function is deprecated, use generate_member_account_number() instead
+        return \App\Services\System\AccountNumberService::generateMemberAccountNumber();
     }
 }
 
@@ -43,6 +42,24 @@ if (!function_exists('user_has_role')) {
     function user_has_role($role)
     {
         return auth()->check() && auth()->user()->role === $role;
+    }
+}
+
+if (!function_exists('resolve_member_id')) {
+    function resolve_member_id($memberIdentifier): ?int
+    {
+        if (empty($memberIdentifier)) {
+            return null;
+        }
+
+        if (is_numeric($memberIdentifier)) {
+            return (int) $memberIdentifier;
+        }
+
+        return \App\Models\Member::query()
+            ->where('member_account_number', $memberIdentifier)
+            ->orWhere('member_number', $memberIdentifier)
+            ->value('id');
     }
 }
 

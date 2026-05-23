@@ -8,6 +8,14 @@ use App\Models\Transaction;
 use App\Models\Project;
 use App\Models\Notification;
 use App\Models\User;
+use App\Services\DashboardStatsService;
+use App\Services\Financial\TransactionPostingService;
+use App\Models\TransactionCategory;
+use App\Models\TransactionStatus;
+use App\Models\TransactionType;
+use App\Models\PaymentMethod;
+use App\Models\Currency;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Cache;
@@ -26,24 +34,31 @@ class AdminController extends Controller
     public function dashboard()
     {
         $stats = Cache::remember('api_admin:dashboard:v1', now()->addSeconds(45), static function () {
-            $memberSummary = Member::query()
-                ->selectRaw('COUNT(*) as total_members, COALESCE(SUM(savings),0) as total_savings, SUM(CASE WHEN role = "client" THEN 1 ELSE 0 END) as client_count, SUM(CASE WHEN role = "shareholder" THEN 1 ELSE 0 END) as shareholder_count, SUM(CASE WHEN role = "cashier" THEN 1 ELSE 0 END) as cashier_count, SUM(CASE WHEN role = "td" THEN 1 ELSE 0 END) as td_count, SUM(CASE WHEN role = "ceo" THEN 1 ELSE 0 END) as ceo_count')
-                ->first();
-
-            $loanSummary = Loan::query()
-                ->selectRaw('SUM(CASE WHEN status = "approved" THEN 1 ELSE 0 END) as active_loans, SUM(CASE WHEN status = "pending" THEN 1 ELSE 0 END) as pending_loans')
-                ->first();
+            $viewStats = app(DashboardStatsService::class)->get();
+            $memberSummary = (object) [
+                'total_members' => (int) Member::query()->count(),
+                'total_savings' => (float) DB::table('savings_accounts')->sum('current_balance'),
+                'client_count' => (int) DB::table('member_roles')->join('roles', 'roles.id', '=', 'member_roles.role_id')->where('roles.name', 'client')->count(),
+                'shareholder_count' => (int) DB::table('member_roles')->join('roles', 'roles.id', '=', 'member_roles.role_id')->where('roles.name', 'shareholder')->count(),
+                'cashier_count' => (int) DB::table('member_roles')->join('roles', 'roles.id', '=', 'member_roles.role_id')->where('roles.name', 'cashier')->count(),
+                'td_count' => (int) DB::table('member_roles')->join('roles', 'roles.id', '=', 'member_roles.role_id')->where('roles.name', 'td')->count(),
+                'ceo_count' => (int) DB::table('member_roles')->join('roles', 'roles.id', '=', 'member_roles.role_id')->where('roles.name', 'ceo')->count(),
+            ];
 
             $transactionSummary = Transaction::query()
-                ->selectRaw('COUNT(*) as total_transactions, COALESCE(SUM(CASE WHEN type = "deposit" AND created_at >= ? THEN amount ELSE 0 END),0) as monthly_deposits, COALESCE(SUM(CASE WHEN type = "withdrawal" AND created_at >= ? THEN amount ELSE 0 END),0) as monthly_withdrawals', [now()->startOfMonth(), now()->startOfMonth()])
+                ->join('transaction_categories as tc', 'transactions.category_id', '=', 'tc.id')
+                ->join('transaction_statuses as ts', 'transactions.status_id', '=', 'ts.id')
+                ->selectRaw('COUNT(*) as total_transactions')
+                ->selectRaw("COALESCE(SUM(CASE WHEN tc.name IN ('savings_deposit','transfer_in','loan_disbursement') AND transactions.created_at >= ? THEN COALESCE(NULLIF(transactions.net_amount, 0), transactions.amount, 0) ELSE 0 END),0) as monthly_deposits", [now()->startOfMonth()])
+                ->selectRaw("COALESCE(SUM(CASE WHEN tc.name IN ('savings_withdrawal','transfer_out','fundraising_transfer') AND transactions.created_at >= ? THEN COALESCE(NULLIF(transactions.net_amount, 0), transactions.amount, 0) ELSE 0 END),0) as monthly_withdrawals", [now()->startOfMonth()])
                 ->first();
 
             return [
-                'totalMembers' => (int) ($memberSummary->total_members ?? 0),
-                'totalSavings' => (float) ($memberSummary->total_savings ?? 0),
-                'activeLoans' => (int) ($loanSummary->active_loans ?? 0),
+                'totalMembers' => (int) ($viewStats['total_members'] ?? $memberSummary->total_members ?? 0),
+                'totalSavings' => (float) ($viewStats['total_system_balance'] ?? $memberSummary->total_savings ?? 0),
+                'activeLoans' => (int) ($viewStats['active_loans_count'] ?? 0),
                 'totalProjects' => Project::query()->count(),
-                'pendingLoans' => (int) ($loanSummary->pending_loans ?? 0),
+                'pendingLoans' => (int) ($viewStats['pending_loans_count'] ?? 0),
                 'totalTransactions' => (int) ($transactionSummary->total_transactions ?? 0),
                 'monthlyDeposits' => (float) ($transactionSummary->monthly_deposits ?? 0),
                 'monthlyWithdrawals' => (float) ($transactionSummary->monthly_withdrawals ?? 0),
@@ -71,30 +86,35 @@ class AdminController extends Controller
 
     public function createMember(Request $request)
     {
-        $user = User::create([
-            'name' => $request->full_name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password ?? 'password123'),
-            'role' => $request->role ?? 'client',
-            'status' => 'active',
-            'is_active' => true,
-            'phone' => $request->contact,
-            'location' => $request->location,
-        ]);
+        $user = User::withoutEvents(function () use ($request) {
+            return User::create([
+                'name' => $request->full_name,
+                'email' => $request->email,
+                'password' => Hash::make($request->password ?? 'password123'),
+                'role' => $request->role ?? 'client',
+                'status' => 'active',
+                'is_active' => true,
+                'phone' => $request->contact,
+                'location' => $request->location,
+            ]);
+        });
 
-        $member = Member::create([
-            'member_id' => $request->member_id,
-            'full_name' => $request->full_name,
-            'email' => $request->email,
-            'location' => $request->location,
-            'occupation' => $request->occupation,
-            'contact' => $request->contact,
-            'role' => $request->role,
-            'savings' => $request->savings ?? 0,
-            'loan' => 0,
-            'password' => $user->password,
-            'user_id' => $user->id,
-        ]);
+        $member = new Member();
+        $member->member_id = $request->member_id;
+        $member->full_name = $request->full_name;
+        $member->email = $request->email;
+        $member->place_of_birth = $request->location;
+        $member->occupation = $request->occupation;
+        $member->primary_phone = $request->contact;
+        $member->password = $user->password;
+        $member->user_id = $user->id;
+        $member->membership_status = 'active';
+        $member->join_date = now()->toDateString();
+        Member::queueOpeningSavings($member, (float) ($request->savings ?? 0));
+        $member->save();
+        if (!empty($request->role)) {
+            $member->assignRole($request->role);
+        }
 
         $this->clearAdminApiCaches();
 
@@ -104,7 +124,8 @@ class AdminController extends Controller
     public function updateMember(Request $request, $id)
     {
         $member = Member::findOrFail($id);
-        $member->update($request->all());
+        $payload = $request->except(['savings', 'savings_transaction_id']);
+        $member->update($payload);
         $this->clearAdminApiCaches();
         return response()->json($member);
     }
@@ -128,10 +149,18 @@ class AdminController extends Controller
     public function approveLoan($id)
     {
         $loan = Loan::findOrFail($id);
-        $loan->update(['status' => 'approved']);
-        
-        $member = Member::where('member_id', $loan->member_id)->first();
-        $member->increment('loan', $loan->amount);
+        $approvedStatusId = \App\Models\LoanStatus::query()->where('name', 'approved')->value('id');
+        $loan->update(['status_id' => $approvedStatusId ?? $loan->status_id]);
+
+        if ($loan->application_id) {
+            \App\Models\LoanApplication::query()
+                ->whereKey($loan->application_id)
+                ->update([
+                    'status_id' => $approvedStatusId ?? $loan->status_id,
+                    'decision_by' => auth()->id(),
+                    'decision_date' => now(),
+                ]);
+        }
         $this->clearAdminApiCaches();
 
         return response()->json($loan);
@@ -140,7 +169,18 @@ class AdminController extends Controller
     public function rejectLoan($id)
     {
         $loan = Loan::findOrFail($id);
-        $loan->update(['status' => 'rejected']);
+        $rejectedStatusId = \App\Models\LoanStatus::query()->where('name', 'rejected')->value('id');
+        $loan->update(['status_id' => $rejectedStatusId ?? $loan->status_id]);
+
+        if ($loan->application_id) {
+            \App\Models\LoanApplication::query()
+                ->whereKey($loan->application_id)
+                ->update([
+                    'status_id' => $rejectedStatusId ?? $loan->status_id,
+                    'decision_by' => auth()->id(),
+                    'decision_date' => now(),
+                ]);
+        }
         $this->clearAdminApiCaches();
         return response()->json($loan);
     }
@@ -154,21 +194,77 @@ class AdminController extends Controller
         return response()->json($transactions);
     }
 
-    public function createTransaction(Request $request)
+    public function createTransaction(Request $request, TransactionPostingService $postingService)
     {
-        $transaction = Transaction::create([
-            'transaction_id' => 'TXN' . time(),
-            'member_id' => $request->member_id,
-            'amount' => $request->amount,
-            'type' => $request->type,
-            'description' => $request->description
-        ]);
+        $memberId = resolve_member_id($request->member_id);
+        if (!$memberId) {
+            return response()->json(['message' => 'Invalid member'], 422);
+        }
 
-        $member = Member::where('member_id', $request->member_id)->first();
-        if ($request->type === 'deposit') {
-            $member->increment('savings', $request->amount);
-        } elseif ($request->type === 'withdrawal') {
-            $member->decrement('savings', $request->amount);
+        $transactionTypeId = TransactionType::query()->where('name', $request->type)->value('id');
+        $statusId = TransactionStatus::query()->where('name', 'completed')->value('id');
+        $categoryName = match ($request->type) {
+            'deposit' => 'savings_deposit',
+            'withdrawal' => 'savings_withdrawal',
+            'transfer' => 'transfer_out',
+            default => 'savings_deposit',
+        };
+        $categoryId = TransactionCategory::query()->where('name', $categoryName)->value('id');
+        $paymentMethodId = PaymentMethod::query()->where('name', 'cash')->value('id') ?? PaymentMethod::query()->value('id');
+        $currencyId = Currency::query()->where('code', 'UGX')->value('id') ?? Currency::query()->value('id');
+
+        $member = Member::find($memberId);
+        $balanceBefore = (float) ($member?->balance ?? 0);
+        $withdrawalFee = $request->type === 'withdrawal'
+            ? ($request->amount * setting('withdrawal_fee', 0)) / 100
+            : 0;
+        $netAmount = max((float) ($request->amount - $withdrawalFee), 0);
+        $impact = TransactionType::query()->whereKey($transactionTypeId)->value('impact');
+        $balanceAfter = $impact === 'credit'
+            ? $balanceBefore + $netAmount
+            : $balanceBefore - $netAmount;
+
+        $transaction = null;
+        try {
+            DB::transaction(function () use (
+                $memberId,
+                $transactionTypeId,
+                $categoryId,
+                $statusId,
+                $paymentMethodId,
+                $currencyId,
+                $request,
+                $balanceBefore,
+                $balanceAfter,
+                $netAmount,
+                $withdrawalFee,
+                &$transaction,
+                $postingService
+            ): void {
+                $transaction = Transaction::create([
+                    'transaction_id' => 'TXN' . time(),
+                    'member_id' => $memberId,
+                    'transaction_type_id' => $transactionTypeId,
+                    'category_id' => $categoryId,
+                    'status_id' => $statusId,
+                    'amount' => $request->amount,
+                    'net_amount' => $netAmount,
+                    'fee' => $withdrawalFee,
+                    'currency_id' => $currencyId,
+                    'payment_method_id' => $paymentMethodId,
+                    'balance_before' => $balanceBefore,
+                    'balance_after' => $balanceAfter,
+                    'description' => $request->description,
+                    'transaction_date' => now(),
+                    'value_date' => now(),
+                    'processed_by' => auth()->id() ?? \App\Models\User::query()->value('id'),
+                    'processed_at' => now(),
+                ]);
+
+                $postingService->applyCategoryUpdates($transaction, $request->all());
+            });
+        } catch (\RuntimeException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
         }
 
         $this->clearAdminApiCaches();

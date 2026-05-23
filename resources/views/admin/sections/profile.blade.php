@@ -3,6 +3,10 @@
 @section('content')
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
+@php
+    $currentRouteName = request()->route()?->getName();
+    $routePrefix = $currentRouteName ? explode('.', $currentRouteName)[0] : 'admin';
+@endphp
 <div class="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50">
     <!-- Animated Cover Photo -->
     <div class="h-80 bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 relative overflow-hidden">
@@ -14,7 +18,7 @@
         <div class="absolute inset-0" style="background-image: radial-gradient(circle at 2px 2px, rgba(255,255,255,0.15) 1px, transparent 0); background-size: 40px 40px;"></div>
         
         <div class="absolute top-8 left-8 flex gap-3">
-            <a href="{{ route('admin.dashboard') }}" class="group w-12 h-12 bg-white/10 backdrop-blur-xl rounded-2xl flex items-center justify-center hover:bg-white/20 transition-all duration-300 hover:scale-110 border border-white/20">
+            <a href="{{ route($routePrefix . '.dashboard') }}" class="group w-12 h-12 bg-white/10 backdrop-blur-xl rounded-2xl flex items-center justify-center hover:bg-white/20 transition-all duration-300 hover:scale-110 border border-white/20">
                 <i class="fas fa-arrow-left text-white group-hover:-translate-x-1 transition-transform"></i>
             </a>
         </div>
@@ -35,7 +39,14 @@
                         <div class="absolute -inset-1 bg-gradient-to-r from-pink-600 via-purple-600 to-blue-600 rounded-[2rem] blur opacity-75 group-hover:opacity-100 transition duration-1000 group-hover:duration-200 animate-tilt"></div>
                         <div class="relative w-48 h-48 rounded-[2rem] bg-gradient-to-br from-violet-500 via-purple-500 to-indigo-500 p-2">
                             <div class="w-full h-full rounded-[1.75rem] overflow-hidden bg-white">
-                                <img src="{{ $user->profile_picture_url }}" alt="Profile" class="w-full h-full object-cover">
+                                @php
+                                    $profilePicPath = DB::table('users')->where('id', $user->id)->value('profile_picture');
+                                @endphp
+                                @if($profilePicPath)
+                                    <img src="{{ asset('uploads/' . $profilePicPath) }}?v={{ time() }}" alt="Profile" class="w-full h-full object-cover" onerror="this.src='https://ui-avatars.com/api/?name={{ urlencode($user->name) }}&size=512&background=random&bold=true'">
+                                @else
+                                    <img src="https://ui-avatars.com/api/?name={{ urlencode($user->name) }}&size=512&background=random&bold=true" alt="Profile" class="w-full h-full object-cover">
+                                @endif
                             </div>
                         </div>
                         <button onclick="document.getElementById('profilePictureInput').click()" class="absolute -bottom-4 -right-4 w-16 h-16 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-2xl shadow-2xl hover:shadow-pink-500/50 transform hover:scale-110 hover:rotate-12 transition-all duration-300">
@@ -147,15 +158,15 @@
                         </div>
                         <div class="space-y-2">
                             <label class="block text-sm font-bold text-gray-700">Phone Number</label>
-                            <input type="tel" name="phone" value="{{ $user->phone }}" class="w-full px-5 py-4 bg-gray-50 border-2 border-gray-200 rounded-2xl focus:border-violet-500 focus:ring-4 focus:ring-violet-100 transition-all font-medium">
+                            <input type="tel" name="phone" value="{{ $user->phone ?? '' }}" class="w-full px-5 py-4 bg-gray-50 border-2 border-gray-200 rounded-2xl focus:border-violet-500 focus:ring-4 focus:ring-violet-100 transition-all font-medium">
                         </div>
                         <div class="space-y-2">
                             <label class="block text-sm font-bold text-gray-700">Location</label>
-                            <input type="text" name="location" value="{{ $user->location }}" class="w-full px-5 py-4 bg-gray-50 border-2 border-gray-200 rounded-2xl focus:border-violet-500 focus:ring-4 focus:ring-violet-100 transition-all font-medium">
+                            <input type="text" name="location" value="{{ $user->location ?? '' }}" class="w-full px-5 py-4 bg-gray-50 border-2 border-gray-200 rounded-2xl focus:border-violet-500 focus:ring-4 focus:ring-violet-100 transition-all font-medium">
                         </div>
                         <div class="lg:col-span-2 space-y-2">
                             <label class="block text-sm font-bold text-gray-700">Bio</label>
-                            <textarea rows="4" name="bio" class="w-full px-5 py-4 bg-gray-50 border-2 border-gray-200 rounded-2xl focus:border-violet-500 focus:ring-4 focus:ring-violet-100 transition-all font-medium" placeholder="Tell us about yourself...">{{ $user->bio }}</textarea>
+                            <textarea rows="4" name="bio" class="w-full px-5 py-4 bg-gray-50 border-2 border-gray-200 rounded-2xl focus:border-violet-500 focus:ring-4 focus:ring-violet-100 transition-all font-medium" placeholder="Tell us about yourself...">{{ $user->bio ?? '' }}</textarea>
                         </div>
                     </div>
                     <div class="flex justify-end gap-4 pt-4">
@@ -255,9 +266,9 @@
                             <i class="fas fa-history text-2xl"></i>
                         </div>
                         <div class="flex-1">
-                            <p class="font-bold text-gray-900 text-lg">{{ $activity->action }}</p>
-                            <p class="text-gray-600 font-medium">{{ $activity->details }}</p>
-                            <p class="text-sm text-gray-500 mt-1">{{ \Carbon\Carbon::parse($activity->timestamp)->diffForHumans() }}</p>
+                            <p class="font-bold text-gray-900 text-lg">{{ $activity->action ?? 'Activity' }}</p>
+                            <p class="text-gray-600 font-medium">{{ is_array($activity->details) ? json_encode($activity->details) : ($activity->details ?? $activity->description ?? 'No details') }}</p>
+                            <p class="text-sm text-gray-500 mt-1">{{ \Carbon\Carbon::parse($activity->created_at)->diffForHumans() }}</p>
                         </div>
                     </div>
                     @empty
@@ -322,12 +333,16 @@ function showCropModal(event) {
     const file = event.target.files[0];
     if (!file) return;
     
+    // Show loading indicator
+    showLoadingMessage('Loading image...');
+    
     currentFile = file;
     const reader = new FileReader();
     reader.onload = function(e) {
         const image = document.getElementById('cropImage');
         image.src = e.target.result;
         document.getElementById('cropModal').classList.remove('hidden');
+        hideLoadingMessage();
         
         if (cropper) cropper.destroy();
         cropper = new Cropper(image, {
@@ -359,16 +374,22 @@ function closeCropModal() {
 function cropAndUpload() {
     if (!cropper) return;
     
+    // Show processing message
+    showLoadingMessage('Processing image...');
+    
     cropper.getCroppedCanvas({
         width: 512,
         height: 512,
         imageSmoothingQuality: 'high'
     }).toBlob(function(blob) {
+        showLoadingMessage('Uploading profile picture...');
+        
         const formData = new FormData();
         formData.append('profile_picture', blob, currentFile.name);
         
-        fetch('{{ route("admin.profile.picture") }}', {
+        fetch('{{ route($routePrefix . ".profile.picture") }}', {
             method: 'POST',
+            credentials: 'same-origin',
             headers: {
                 'X-CSRF-TOKEN': '{{ csrf_token() }}',
                 'Accept': 'application/json',
@@ -377,21 +398,40 @@ function cropAndUpload() {
         })
         .then(response => response.json())
         .then(data => {
+            hideLoadingMessage();
             if (data.success) {
                 closeCropModal();
-                location.reload();
+                showSuccessMessage('Profile picture updated successfully!');
+                
+                // Update the profile picture immediately without reload
+                const profileImg = document.querySelector('.w-48.h-48 img');
+                if (profileImg && data.profile_picture_url) {
+                    profileImg.src = data.profile_picture_url + '?t=' + new Date().getTime();
+                }
+                
+                // Also update navbar profile picture if exists
+                const navbarImg = document.querySelector('.profile-avatar img');
+                if (navbarImg && data.profile_picture_url) {
+                    navbarImg.src = data.profile_picture_url + '?t=' + new Date().getTime();
+                }
+                
+                // Reload after 1 second to ensure all instances are updated
+                setTimeout(() => location.reload(), 1500);
             } else {
-                alert(data.message || 'Error uploading picture');
+                showErrorMessage(data.message || 'Error uploading picture');
             }
         })
         .catch(error => {
+            hideLoadingMessage();
             console.error(error);
-            alert('Error uploading picture');
+            showErrorMessage('Error uploading picture. Please try again.');
         });
-    }, 'image/jpeg', 0.95);
+    }, 'image/jpeg', 0.85); // Reduced quality from 0.95 to 0.85 for faster upload
 }
 
 function updateProfile() {
+    showLoadingMessage('Updating profile...');
+    
     const formData = new FormData();
     formData.append('name', document.querySelector('input[name="name"]').value);
     formData.append('email', document.querySelector('input[name="email"]').value);
@@ -400,8 +440,9 @@ function updateProfile() {
     formData.append('bio', document.querySelector('textarea[name="bio"]').value);
     formData.append('_method', 'PUT');
     
-    fetch('{{ route("admin.profile.update") }}', {
+    fetch('{{ route($routePrefix . ".profile.update") }}', {
         method: 'POST',
+        credentials: 'same-origin',
         headers: {
             'X-CSRF-TOKEN': '{{ csrf_token() }}',
             'Accept': 'application/json',
@@ -410,28 +451,33 @@ function updateProfile() {
     })
     .then(response => response.json())
     .then(data => {
+        hideLoadingMessage();
         if (data.success) {
-            alert(data.message);
-            location.reload();
+            showSuccessMessage(data.message);
+            setTimeout(() => location.reload(), 1000);
         } else {
-            alert(data.message || 'Error updating profile');
+            showErrorMessage(data.message || 'Error updating profile');
         }
     })
     .catch(error => {
+        hideLoadingMessage();
         console.error(error);
-        alert('Error updating profile');
+        showErrorMessage('Error updating profile. Please try again.');
     });
 }
 
 function updatePassword() {
+    showLoadingMessage('Updating password...');
+    
     const formData = {
         current_password: document.querySelector('input[name="current_password"]').value,
         new_password: document.querySelector('input[name="new_password"]').value,
         new_password_confirmation: document.querySelector('input[name="new_password_confirmation"]').value
     };
     
-    fetch('{{ route("admin.profile.password") }}', {
+    fetch('{{ route($routePrefix . ".profile.password") }}', {
         method: 'POST',
+        credentials: 'same-origin',
         headers: {
             'X-CSRF-TOKEN': '{{ csrf_token() }}',
             'Content-Type': 'application/json',
@@ -441,19 +487,84 @@ function updatePassword() {
     })
     .then(response => response.json())
     .then(data => {
+        hideLoadingMessage();
         if (data.success) {
-            alert(data.message);
+            showSuccessMessage(data.message);
             document.querySelectorAll('input[type="password"]').forEach(input => input.value = '');
         } else {
-            alert(data.message || 'Error updating password');
+            showErrorMessage(data.message || 'Error updating password');
         }
     })
     .catch(error => {
+        hideLoadingMessage();
         console.error(error);
-        alert('Error updating password');
+        showErrorMessage('Error updating password. Please try again.');
     });
 }
 
+// Loading and notification functions
+function showLoadingMessage(message) {
+    let loader = document.getElementById('loadingOverlay');
+    if (!loader) {
+        loader = document.createElement('div');
+        loader.id = 'loadingOverlay';
+        loader.className = 'fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center';
+        loader.innerHTML = `
+            <div class="bg-white rounded-2xl p-8 shadow-2xl max-w-sm mx-4 text-center">
+                <div class="mb-4">
+                    <div class="inline-block animate-spin rounded-full h-16 w-16 border-4 border-violet-200 border-t-violet-600"></div>
+                </div>
+                <p class="text-lg font-bold text-gray-800" id="loadingMessage">${message}</p>
+            </div>
+        `;
+        document.body.appendChild(loader);
+    } else {
+        document.getElementById('loadingMessage').textContent = message;
+        loader.classList.remove('hidden');
+    }
+}
 
+function hideLoadingMessage() {
+    const loader = document.getElementById('loadingOverlay');
+    if (loader) {
+        loader.classList.add('hidden');
+    }
+}
+
+function showSuccessMessage(message) {
+    showNotification(message, 'success');
+}
+
+function showErrorMessage(message) {
+    showNotification(message, 'error');
+}
+
+function showNotification(message, type) {
+    const notification = document.createElement('div');
+    notification.className = `fixed top-4 right-4 z-[101] transform transition-all duration-300 translate-x-full`;
+    
+    const bgColor = type === 'success' ? 'bg-gradient-to-r from-green-500 to-emerald-500' : 'bg-gradient-to-r from-red-500 to-rose-500';
+    const icon = type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle';
+    
+    notification.innerHTML = `
+        <div class="${bgColor} text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3 min-w-[300px]">
+            <i class="fas ${icon} text-2xl"></i>
+            <p class="font-bold">${message}</p>
+        </div>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Animate in
+    setTimeout(() => {
+        notification.classList.remove('translate-x-full');
+    }, 10);
+    
+    // Remove after 3 seconds
+    setTimeout(() => {
+        notification.classList.add('translate-x-full');
+        setTimeout(() => notification.remove(), 300);
+    }, 3000);
+}
 </script>
 @endsection

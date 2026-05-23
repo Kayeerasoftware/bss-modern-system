@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Notification;
+use App\Models\NotificationType;
 use Illuminate\Http\Request;
 
 class NotificationController extends Controller
@@ -22,14 +23,17 @@ class NotificationController extends Controller
         }
 
         if ($request->filled('type')) {
-            $query->where('type', $request->type);
+            $typeId = NotificationType::query()->where('name', $request->type)->value('id');
+            if ($typeId) {
+                $query->where('type_id', $typeId);
+            }
         }
 
         if ($request->filled('status')) {
             if ($request->status === 'read') {
-                $query->where('is_read', true);
+                $query->whereHas('receipts', fn ($q) => $q->where('is_read', 1));
             } elseif ($request->status === 'unread') {
-                $query->where('is_read', false);
+                $query->whereHas('receipts', fn ($q) => $q->where('is_read', 0));
             }
         }
 
@@ -75,10 +79,15 @@ class NotificationController extends Controller
             'title' => 'required|string|max:255',
             'message' => 'required|string',
             'type' => 'required|in:sms,email,push,info,success,warning,error',
-            'status' => 'required|in:pending,sent,failed',
         ]);
-        
-        $notification->update($validated);
+
+        $typeId = NotificationType::query()->where('name', $validated['type'])->value('id');
+
+        $notification->update([
+            'title' => $validated['title'],
+            'message' => $validated['message'],
+            'type_id' => $typeId,
+        ]);
         
         return redirect()->route('admin.notifications.index')->with('success', 'Notification updated successfully');
     }
@@ -105,7 +114,10 @@ class NotificationController extends Controller
         }
 
         if ($request->filled('type')) {
-            $query->where('type', $request->type);
+            $typeId = NotificationType::query()->where('name', $request->type)->value('id');
+            if ($typeId) {
+                $query->where('type_id', $typeId);
+            }
         }
 
         if ($request->filled('date_from')) {

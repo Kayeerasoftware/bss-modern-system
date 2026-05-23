@@ -5,57 +5,85 @@ namespace App\Http\Controllers;
 use Illuminate\Support\Facades\DB;
 use App\Models\Member;
 use App\Models\Loan;
+use App\Models\LoanStatus;
 use App\Models\Transaction;
+use App\Models\TransactionType;
 use App\Models\Project;
 use App\Models\Share;
-use App\Models\Dividend;
-use App\Models\SavingsHistory;
+use App\Models\MemberDividend;
 use App\Models\User;
+use App\Services\Financial\SavingsReconciliationService;
 
 class DashboardApiController extends Controller
 {
     public function getClientData($memberId = null)
     {
-        $member = $memberId ? Member::where('member_id', $memberId)->first() : Member::where('role', 'client')->first();
+        $resolvedMemberId = $memberId ? resolve_member_id($memberId) : null;
+        $member = $resolvedMemberId
+            ? Member::find($resolvedMemberId)
+            : Member::whereHas('roles', fn ($q) => $q->where('name', 'client'))->first();
 
         if (!$member) {
             return response()->json(['error' => 'Member not found'], 404);
         }
 
         // Get savings history for chart - last 6 months
-        $savingsHistory = SavingsHistory::where('member_id', $member->member_id)
-            ->orderBy('transaction_date')
+        $amountSql = 'COALESCE(NULLIF(transactions.net_amount, 0), transactions.amount, 0)';
+        $savingsHistory = Transaction::where('transactions.member_id', $member->id)
+            ->join('transaction_categories as tc', 'transactions.category_id', '=', 'tc.id')
+            ->join('transaction_types as tt', 'transactions.transaction_type_id', '=', 'tt.id')
+            ->join('transaction_statuses as ts', 'transactions.status_id', '=', 'ts.id')
+            ->where('ts.name', 'completed')
+            ->whereIn('tc.name', ['savings_deposit', 'savings_withdrawal', 'transfer_in', 'transfer_out', 'fundraising_transfer', 'loan_disbursement'])
+            ->orderBy('transactions.transaction_date')
             ->get()
-            ->groupBy(function($item) {
-                return date('M Y', strtotime($item->transaction_date));
+            ->groupBy(function ($item) {
+                return date('M Y', strtotime($item->transaction_date ?? $item->created_at));
             })
-            ->map(function($group) {
-                return $group->last()->balance_after;
+            ->map(function ($group) {
+                $last = $group->last();
+                return (float) ($last->balance_after ?? $group->sum(fn ($row) => (float) ($row->net_amount ?? $row->amount ?? 0)));
             });
 
         // Get recent transactions
-        $recentTransactions = Transaction::where('member_id', $member->member_id)
+        $recentTransactions = Transaction::where('member_id', $member->id)
             ->latest()
             ->take(10)
             ->get();
 
         // Get active loans
-        $activeLoans = Loan::where('member_id', $member->member_id)
-            ->where('status', 'approved')
-            ->sum('amount');
+        $approvedStatusId = LoanStatus::query()->where('name', 'approved')->value('id');
+        $disbursedStatusId = LoanStatus::query()->where('name', 'disbursed')->value('id');
+        $activeStatusIds = array_values(array_filter([$approvedStatusId, $disbursedStatusId]));
+        $activeLoans = Loan::where('member_id', $member->id)
+            ->when(!empty($activeStatusIds), fn ($q) => $q->whereIn('status_id', $activeStatusIds))
+            ->sum('principal_amount');
 
         // Calculate monthly deposits from recent transactions
-        $monthlyDeposits = Transaction::where('member_id', $member->member_id)
-            ->where('type', 'deposit')
-            ->whereMonth('created_at', now()->month)
-            ->sum('amount');
+        $monthlyDeposits = Transaction::where('transactions.member_id', $member->id)
+            ->join('transaction_categories as tc', 'transactions.category_id', '=', 'tc.id')
+            ->join('transaction_statuses as ts', 'transactions.status_id', '=', 'ts.id')
+            ->where('ts.name', 'completed')
+            ->whereIn('tc.name', ['savings_deposit', 'transfer_in', 'loan_disbursement'])
+            ->whereMonth('transactions.created_at', now()->month)
+            ->sum(DB::raw($amountSql));
 
         // Advanced analytics
-        $savingsGrowthRate = $this->calculateGrowthRate($member->member_id);
-        $creditScore = $this->calculateCreditScore($member->member_id);
+        $savingsGrowthRate = $this->calculateGrowthRate($member->id);
+        $creditScore = $this->calculateCreditScore($member->id);
         $financialHealth = $this->assessFinancialHealth($member);
-        $savingsGoals = $this->getSavingsGoals($member->member_id);
-        $predictedSavings = $this->predictFutureSavings($member->member_id);
+        $savingsGoals = $this->getSavingsGoals($member->id);
+        $predictedSavings = $this->predictFutureSavings($member->id);
+        $reconSnapshot = app(SavingsReconciliationService::class)->getMemberSnapshot($member->id);
+
+        $distribution = Transaction::where('transactions.member_id', $member->id)
+            ->join('transaction_categories as tc', 'transactions.category_id', '=', 'tc.id')
+            ->join('transaction_statuses as ts', 'transactions.status_id', '=', 'ts.id')
+            ->where('ts.name', 'completed')
+            ->selectRaw("SUM(CASE WHEN tc.name IN ('savings_deposit', 'transfer_in', 'loan_disbursement') THEN 1 ELSE 0 END) as deposits")
+            ->selectRaw("SUM(CASE WHEN tc.name IN ('savings_withdrawal', 'transfer_out', 'fundraising_transfer') THEN 1 ELSE 0 END) as withdrawals")
+            ->selectRaw("SUM(CASE WHEN tc.name IN ('transfer_out', 'fundraising_transfer') THEN 1 ELSE 0 END) as transfers")
+            ->first();
 
         return response()->json([
             'member' => $member,
@@ -64,9 +92,9 @@ class DashboardApiController extends Controller
             'active_loans' => $activeLoans,
             'monthly_deposits' => $monthlyDeposits,
             'transaction_distribution' => [
-                'deposits' => $recentTransactions->where('type', 'deposit')->count(),
-                'withdrawals' => $recentTransactions->where('type', 'withdrawal')->count(),
-                'transfers' => $recentTransactions->where('type', 'transfer')->count(),
+                'deposits' => (int) ($distribution->deposits ?? 0),
+                'withdrawals' => (int) ($distribution->withdrawals ?? 0),
+                'transfers' => (int) ($distribution->transfers ?? 0),
             ],
             'analytics' => [
                 'savings_growth_rate' => $savingsGrowthRate,
@@ -75,14 +103,18 @@ class DashboardApiController extends Controller
                 'predicted_savings' => $predictedSavings
             ],
             'savings_goals' => $savingsGoals,
-            'spending_categories' => $this->getSpendingCategories($member->member_id),
-            'monthly_comparison' => $this->getMonthlyComparison($member->member_id)
+            'savings_reconciliation' => $reconSnapshot,
+            'spending_categories' => $this->getSpendingCategories($member->id),
+            'monthly_comparison' => $this->getMonthlyComparison($member->id)
         ]);
     }
 
     public function getShareholderData($memberId = null)
     {
-        $member = $memberId ? Member::where('member_id', $memberId)->first() : Member::where('role', 'shareholder')->first();
+        $resolvedMemberId = $memberId ? resolve_member_id($memberId) : null;
+        $member = $resolvedMemberId
+            ? Member::find($resolvedMemberId)
+            : Member::whereHas('roles', fn ($q) => $q->where('name', 'shareholder'))->first();
 
         if (!$member) {
             return response()->json(['error' => 'Shareholder not found'], 404);
@@ -92,24 +124,31 @@ class DashboardApiController extends Controller
         $shares = Share::where('member_id', $member->id)->first();
 
         // Get dividend history
-        $dividends = Dividend::where('member_id', $member->member_id)
-            ->orderBy('payment_date', 'desc')
+        $dividends = MemberDividend::where('member_id', $member->id)
+            ->orderBy('paid_at', 'desc')
             ->take(10)
             ->get();
 
         // Get investment projects with ROI data
-        $projects = Project::select('project_id', 'name', 'budget', 'timeline', 'description', 'progress', 'roi', 'expected_roi', 'actual_roi', 'risk_score')->get();
+        $projects = Project::select('project_number', 'name', 'budget_amount', 'expected_end_date', 'description', 'progress_percentage', 'actual_roi', 'expected_roi', 'risk_score')
+            ->get()
+            ->each
+            ->append(['project_id', 'budget', 'progress', 'roi']);
 
         // Portfolio performance over time - last 12 months from transactions
+        $amountSql = 'COALESCE(NULLIF(transactions.net_amount, 0), transactions.amount, 0)';
         $portfolioHistory = [];
         $baseValue = $member->savings;
         for ($i = 11; $i >= 0; $i--) {
             $month = now()->subMonths($i);
-            $monthlyValue = Transaction::where('member_id', $member->member_id)
-                ->where('type', 'deposit')
-                ->whereYear('created_at', $month->year)
-                ->whereMonth('created_at', $month->month)
-                ->sum('amount');
+            $monthlyValue = Transaction::where('transactions.member_id', $member->id)
+                ->join('transaction_categories as tc', 'transactions.category_id', '=', 'tc.id')
+                ->join('transaction_statuses as ts', 'transactions.status_id', '=', 'ts.id')
+                ->where('ts.name', 'completed')
+                ->whereIn('tc.name', ['savings_deposit', 'transfer_in', 'loan_disbursement'])
+                ->whereYear('transactions.created_at', $month->year)
+                ->whereMonth('transactions.created_at', $month->month)
+                ->sum(DB::raw($amountSql));
             $portfolioHistory[] = [
                 'month' => $month->format('M'),
                 'value' => $baseValue + $monthlyValue
@@ -128,7 +167,7 @@ class DashboardApiController extends Controller
             'dividends' => $dividends,
             'projects' => $projects,
             'portfolio_history' => $portfolioHistory,
-            'total_dividends' => $dividends->sum('amount'),
+            'total_dividends' => $dividends->sum('amount_per_share'),
             'portfolio_value' => $portfolioValue,
             'asset_allocation' => $this->calculateAssetAllocation()
         ]);
@@ -140,17 +179,29 @@ class DashboardApiController extends Controller
 
         // Get all today's transactions
         $dailyTransactions = Transaction::whereDate('created_at', $today)->get();
+        $amountSql = 'COALESCE(NULLIF(transactions.net_amount, 0), transactions.amount, 0)';
 
         // Get pending loans with member details
-        $pendingLoans = Loan::where('status', 'pending')
-            ->join('members', 'loans.member_id', '=', 'members.member_id')
+        $pendingStatusId = LoanStatus::query()->where('name', 'pending')->value('id');
+        $pendingLoans = Loan::where('status_id', $pendingStatusId)
+            ->join('members', 'loans.member_id', '=', 'members.id')
             ->select('loans.*', 'members.full_name')
             ->get();
 
         // Calculate financial summaries from database
-        $totalDeposits = Transaction::where('type', 'deposit')->sum('amount');
-        $totalWithdrawals = Transaction::where('type', 'withdrawal')->sum('amount');
-        $loansDisbursed = Loan::where('status', 'approved')->sum('amount');
+        $totalDeposits = Transaction::query()
+            ->join('transaction_categories as tc', 'transactions.category_id', '=', 'tc.id')
+            ->join('transaction_statuses as ts', 'transactions.status_id', '=', 'ts.id')
+            ->where('ts.name', 'completed')
+            ->whereIn('tc.name', ['savings_deposit', 'transfer_in', 'loan_disbursement'])
+            ->sum(DB::raw($amountSql));
+        $totalWithdrawals = Transaction::query()
+            ->join('transaction_categories as tc', 'transactions.category_id', '=', 'tc.id')
+            ->join('transaction_statuses as ts', 'transactions.status_id', '=', 'ts.id')
+            ->where('ts.name', 'completed')
+            ->whereIn('tc.name', ['savings_withdrawal', 'transfer_out', 'fundraising_transfer'])
+            ->sum(DB::raw($amountSql));
+        $loansDisbursed = Loan::whereHas('statusRelation', fn ($q) => $q->whereIn('name', ['disbursed', 'approved']))->sum('principal_amount');
 
         // Get hourly transaction data for today (9AM to 4PM business hours)
         $hourlyDeposits = array_fill(0, 8, 0);
@@ -158,28 +209,42 @@ class DashboardApiController extends Controller
 
         $hourlyData = Transaction::whereDate('created_at', $today)
             ->whereRaw('HOUR(created_at) BETWEEN 9 AND 16')
-            ->selectRaw('HOUR(created_at) - 9 as hour_index, type, COUNT(*) as count')
-            ->groupBy('hour_index', 'type')
+            ->selectRaw('HOUR(created_at) - 9 as hour_index, transaction_type_id, COUNT(*) as count')
+            ->groupBy('hour_index', 'transaction_type_id')
             ->get();
 
+        $depositTypeId = TransactionType::query()->where('name', 'deposit')->value('id');
+        $withdrawalTypeId = TransactionType::query()->where('name', 'withdrawal')->value('id');
+
         foreach ($hourlyData as $data) {
-            if ($data->type === 'deposit') {
+            if ($data->transaction_type_id == $depositTypeId) {
                 $hourlyDeposits[$data->hour_index] = $data->count;
-            } elseif ($data->type === 'withdrawal') {
+            } elseif ($data->transaction_type_id == $withdrawalTypeId) {
                 $hourlyWithdrawals[$data->hour_index] = $data->count;
             }
         }
 
         // Get transaction type counts for today
+        $dailyTypeCounts = Transaction::whereDate('transactions.created_at', $today)
+            ->join('transaction_categories as tc', 'transactions.category_id', '=', 'tc.id')
+            ->selectRaw("SUM(CASE WHEN tc.name IN ('savings_deposit', 'transfer_in', 'loan_disbursement') THEN 1 ELSE 0 END) as deposits")
+            ->selectRaw("SUM(CASE WHEN tc.name IN ('savings_withdrawal', 'transfer_out', 'fundraising_transfer') THEN 1 ELSE 0 END) as withdrawals")
+            ->selectRaw("SUM(CASE WHEN tc.name IN ('transfer_out', 'fundraising_transfer') THEN 1 ELSE 0 END) as transfers")
+            ->selectRaw("SUM(CASE WHEN tc.name = 'loan_payment' THEN 1 ELSE 0 END) as loan_payments")
+            ->first();
+
         $transactionTypes = [
-            'deposits' => $dailyTransactions->where('type', 'deposit')->count(),
-            'withdrawals' => $dailyTransactions->where('type', 'withdrawal')->count(),
-            'transfers' => $dailyTransactions->where('type', 'transfer')->count(),
-            'loan_payments' => $dailyTransactions->where('type', 'loan_payment')->count(),
+            'deposits' => (int) ($dailyTypeCounts->deposits ?? 0),
+            'withdrawals' => (int) ($dailyTypeCounts->withdrawals ?? 0),
+            'transfers' => (int) ($dailyTypeCounts->transfers ?? 0),
+            'loan_payments' => (int) ($dailyTypeCounts->loan_payments ?? 0),
         ];
 
         return response()->json([
-            'daily_collections' => $dailyTransactions->where('type', 'deposit')->sum('amount'),
+            'daily_collections' => (float) Transaction::whereDate('transactions.created_at', $today)
+                ->join('transaction_categories as tc', 'transactions.category_id', '=', 'tc.id')
+                ->whereIn('tc.name', ['savings_deposit', 'transfer_in', 'loan_disbursement'])
+                ->sum(DB::raw($amountSql)),
             'daily_transactions' => $dailyTransactions->count(),
             'pending_loans' => $pendingLoans,
             'cash_balance' => $totalDeposits - $totalWithdrawals,
@@ -211,8 +276,8 @@ class DashboardApiController extends Controller
             return [
                 'title' => $project->name . ' Milestone',
                 'project' => $project->name,
-                'date' => date('M d', strtotime($project->timeline)),
-                'days_left' => max(0, (strtotime($project->timeline) - time()) / (60*60*24)),
+                'date' => date('M d', strtotime($project->expected_end_date ?? $project->created_at)),
+                'days_left' => max(0, (strtotime($project->expected_end_date ?? $project->created_at) - time()) / (60*60*24)),
                 'priority' => $project->risk_score > 30 ? 'high' : ($project->risk_score > 20 ? 'medium' : 'low')
             ];
         })->take(5);
@@ -235,24 +300,34 @@ class DashboardApiController extends Controller
     {
         // Get real data from database
         $totalMembers = Member::count();
-        $totalRevenue = Transaction::where('type', 'deposit')->sum('amount');
-        $totalLoans = Loan::where('status', 'approved')->sum('amount');
+        $amountSql = 'COALESCE(NULLIF(transactions.net_amount, 0), transactions.amount, 0)';
+        $totalRevenue = Transaction::query()
+            ->join('transaction_categories as tc', 'transactions.category_id', '=', 'tc.id')
+            ->join('transaction_statuses as ts', 'transactions.status_id', '=', 'ts.id')
+            ->where('ts.name', 'completed')
+            ->whereIn('tc.name', ['savings_deposit', 'transfer_in', 'loan_disbursement'])
+            ->sum(DB::raw($amountSql));
+        $totalLoans = Loan::whereHas('statusRelation', fn ($q) => $q->where('name', 'approved'))->sum('principal_amount');
         $netProfit = $totalRevenue * 0.28; // 28% margin
-        $portfolioROI = Project::avg('roi') ?: 16.7;
+        $portfolioROI = Project::avg('actual_roi') ?: 16.7;
 
         // Calculate monthly revenue for last 12 months
         $revenueHistory = [];
         for ($i = 11; $i >= 0; $i--) {
             $month = now()->subMonths($i);
-            $monthlyRevenue = Transaction::where('type', 'deposit')
-                ->whereYear('created_at', $month->year)
-                ->whereMonth('created_at', $month->month)
-                ->sum('amount');
+            $monthlyRevenue = Transaction::query()
+                ->join('transaction_categories as tc', 'transactions.category_id', '=', 'tc.id')
+                ->join('transaction_statuses as ts', 'transactions.status_id', '=', 'ts.id')
+                ->where('ts.name', 'completed')
+                ->whereIn('tc.name', ['savings_deposit', 'transfer_in', 'loan_disbursement'])
+                ->whereYear('transactions.created_at', $month->year)
+                ->whereMonth('transactions.created_at', $month->month)
+                ->sum(DB::raw($amountSql));
             $revenueHistory[] = $monthlyRevenue ?: ($totalRevenue / 12);
         }
 
         // Get real strategic initiatives from projects
-        $initiatives = Project::select('name as title', 'description', 'progress', 'budget', 'roi as expected_roi')
+        $initiatives = Project::select('name as title', 'description', 'progress_percentage as progress', 'budget_amount as budget', 'actual_roi as expected_roi')
             ->addSelect(DB::raw("CASE
                 WHEN progress >= 80 THEN 'on-track'
                 WHEN progress >= 40 THEN 'on-track'
@@ -263,8 +338,13 @@ class DashboardApiController extends Controller
 
         // Calculate business segments based on transaction types and amounts
         $totalTransactionAmount = Transaction::sum('amount');
-        $depositAmount = Transaction::where('type', 'deposit')->sum('amount');
-        $loanAmount = Loan::where('status', 'approved')->sum('amount');
+        $depositAmount = Transaction::query()
+            ->join('transaction_categories as tc', 'transactions.category_id', '=', 'tc.id')
+            ->join('transaction_statuses as ts', 'transactions.status_id', '=', 'ts.id')
+            ->where('ts.name', 'completed')
+            ->whereIn('tc.name', ['savings_deposit', 'transfer_in', 'loan_disbursement'])
+            ->sum(DB::raw($amountSql));
+        $loanAmount = Loan::whereHas('statusRelation', fn ($q) => $q->where('name', 'approved'))->sum('principal_amount');
 
         return response()->json([
             'executive_data' => [
@@ -280,7 +360,7 @@ class DashboardApiController extends Controller
                 ['name' => 'Customer Satisfaction', 'value' => 94, 'target' => 90, 'trend' => 'up'],
                 ['name' => 'Member Growth', 'value' => round((($totalMembers - 5) / 5) * 100, 0), 'target' => 85, 'trend' => 'up'],
                 ['name' => 'Loan Recovery Rate', 'value' => 92, 'target' => 88, 'trend' => 'up'],
-                ['name' => 'Project Success Rate', 'value' => round(Project::where('progress', '>=', 80)->count() / Project::count() * 100, 0), 'target' => 75, 'trend' => 'up']
+                ['name' => 'Project Success Rate', 'value' => round(Project::where('progress_percentage', '>=', 80)->count() / Project::count() * 100, 0), 'target' => 75, 'trend' => 'up']
             ]
         ]);
     }
@@ -289,7 +369,7 @@ class DashboardApiController extends Controller
     {
         // Get real system statistics
         $totalUsers = User::whereHas('member')->count();
-        $activeUsers = User::whereHas('member')->where('is_active', true)->count();
+        $activeUsers = User::whereHas('member')->where('status', 'active')->count();
         $totalMembers = Member::count();
         $totalTransactions = Transaction::count();
         $totalProjects = Project::count();
@@ -348,22 +428,26 @@ class DashboardApiController extends Controller
     // Advanced analytics helper methods
     private function calculateGrowthRate($memberId)
     {
-        $history = SavingsHistory::where('member_id', $memberId)
-            ->orderBy('transaction_date')
+        $history = Transaction::where('transactions.member_id', $memberId)
+            ->join('transaction_categories as tc', 'transactions.category_id', '=', 'tc.id')
+            ->join('transaction_statuses as ts', 'transactions.status_id', '=', 'ts.id')
+            ->where('ts.name', 'completed')
+            ->whereIn('tc.name', ['savings_deposit', 'savings_withdrawal', 'transfer_in', 'transfer_out', 'fundraising_transfer', 'loan_disbursement'])
+            ->orderBy('transactions.transaction_date')
             ->take(2)
             ->get();
 
         if ($history->count() < 2) return 0;
 
-        $oldBalance = $history->first()->balance_after;
-        $newBalance = $history->last()->balance_after;
+        $oldBalance = (float) ($history->first()->balance_after ?? 0);
+        $newBalance = (float) ($history->last()->balance_after ?? 0);
 
         return $oldBalance > 0 ? (($newBalance - $oldBalance) / $oldBalance) * 100 : 0;
     }
 
     private function calculateCreditScore($memberId)
     {
-        $member = Member::where('member_id', $memberId)->first();
+        $member = Member::find($memberId);
         $loans = Loan::where('member_id', $memberId)->get();
 
         $baseScore = 650;
@@ -392,9 +476,12 @@ class DashboardApiController extends Controller
         }
 
         // Transaction consistency
-        $recentTransactions = Transaction::where('member_id', $member->member_id)
-            ->where('type', 'deposit')
-            ->whereMonth('created_at', now()->month)
+        $recentTransactions = Transaction::where('transactions.member_id', $member->id)
+            ->join('transaction_categories as tc', 'transactions.category_id', '=', 'tc.id')
+            ->join('transaction_statuses as ts', 'transactions.status_id', '=', 'ts.id')
+            ->where('ts.name', 'completed')
+            ->whereIn('tc.name', ['savings_deposit', 'transfer_in', 'loan_disbursement'])
+            ->whereMonth('transactions.created_at', now()->month)
             ->count();
 
         if ($recentTransactions >= 2) {
@@ -415,7 +502,7 @@ class DashboardApiController extends Controller
 
     private function getSavingsGoals($memberId)
     {
-        $currentSavings = Member::where('member_id', $memberId)->value('savings') ?: 0;
+        $currentSavings = (float) (Member::find($memberId)?->savings ?? 0);
         $emergencyTarget = 500000;
         $investmentTarget = 1000000;
 
@@ -439,11 +526,15 @@ class DashboardApiController extends Controller
 
     private function predictFutureSavings($memberId)
     {
-        $avgMonthlyDeposit = Transaction::where('member_id', $memberId)
-            ->where('type', 'deposit')
-            ->avg('amount') ?: 50000;
+        $amountSql = 'COALESCE(NULLIF(transactions.net_amount, 0), transactions.amount, 0)';
+        $avgMonthlyDeposit = Transaction::where('transactions.member_id', $memberId)
+            ->join('transaction_categories as tc', 'transactions.category_id', '=', 'tc.id')
+            ->join('transaction_statuses as ts', 'transactions.status_id', '=', 'ts.id')
+            ->where('ts.name', 'completed')
+            ->whereIn('tc.name', ['savings_deposit', 'transfer_in', 'loan_disbursement'])
+            ->avg(DB::raw($amountSql)) ?: 50000;
 
-        $currentSavings = Member::where('member_id', $memberId)->value('savings') ?: 0;
+        $currentSavings = (float) (Member::find($memberId)?->savings ?? 0);
 
         return [
             '3_months' => $currentSavings + ($avgMonthlyDeposit * 3),
@@ -454,9 +545,25 @@ class DashboardApiController extends Controller
 
     private function getSpendingCategories($memberId)
     {
-        $deposits = Transaction::where('member_id', $memberId)->where('type', 'deposit')->sum('amount');
-        $withdrawals = Transaction::where('member_id', $memberId)->where('type', 'withdrawal')->sum('amount');
-        $transfers = Transaction::where('member_id', $memberId)->where('type', 'transfer')->sum('amount');
+        $amountSql = 'COALESCE(NULLIF(transactions.net_amount, 0), transactions.amount, 0)';
+        $deposits = Transaction::where('transactions.member_id', $memberId)
+            ->join('transaction_categories as tc', 'transactions.category_id', '=', 'tc.id')
+            ->join('transaction_statuses as ts', 'transactions.status_id', '=', 'ts.id')
+            ->where('ts.name', 'completed')
+            ->whereIn('tc.name', ['savings_deposit', 'transfer_in', 'loan_disbursement'])
+            ->sum(DB::raw($amountSql));
+        $withdrawals = Transaction::where('transactions.member_id', $memberId)
+            ->join('transaction_categories as tc', 'transactions.category_id', '=', 'tc.id')
+            ->join('transaction_statuses as ts', 'transactions.status_id', '=', 'ts.id')
+            ->where('ts.name', 'completed')
+            ->whereIn('tc.name', ['savings_withdrawal', 'transfer_out', 'fundraising_transfer'])
+            ->sum(DB::raw($amountSql));
+        $transfers = Transaction::where('transactions.member_id', $memberId)
+            ->join('transaction_categories as tc', 'transactions.category_id', '=', 'tc.id')
+            ->join('transaction_statuses as ts', 'transactions.status_id', '=', 'ts.id')
+            ->where('ts.name', 'completed')
+            ->whereIn('tc.name', ['transfer_out', 'fundraising_transfer'])
+            ->sum(DB::raw($amountSql));
         $total = $deposits + $withdrawals + $transfers;
 
         return $total > 0 ? [
@@ -469,15 +576,22 @@ class DashboardApiController extends Controller
 
     private function getMonthlyComparison($memberId)
     {
-        $thisMonth = Transaction::where('member_id', $memberId)
-            ->where('type', 'deposit')
-            ->whereMonth('created_at', now()->month)
-            ->sum('amount');
+        $amountSql = 'COALESCE(NULLIF(transactions.net_amount, 0), transactions.amount, 0)';
+        $thisMonth = Transaction::where('transactions.member_id', $memberId)
+            ->join('transaction_categories as tc', 'transactions.category_id', '=', 'tc.id')
+            ->join('transaction_statuses as ts', 'transactions.status_id', '=', 'ts.id')
+            ->where('ts.name', 'completed')
+            ->whereIn('tc.name', ['savings_deposit', 'transfer_in', 'loan_disbursement'])
+            ->whereMonth('transactions.created_at', now()->month)
+            ->sum(DB::raw($amountSql));
 
-        $lastMonth = Transaction::where('member_id', $memberId)
-            ->where('type', 'deposit')
-            ->whereMonth('created_at', now()->subMonth()->month)
-            ->sum('amount');
+        $lastMonth = Transaction::where('transactions.member_id', $memberId)
+            ->join('transaction_categories as tc', 'transactions.category_id', '=', 'tc.id')
+            ->join('transaction_statuses as ts', 'transactions.status_id', '=', 'ts.id')
+            ->where('ts.name', 'completed')
+            ->whereIn('tc.name', ['savings_deposit', 'transfer_in', 'loan_disbursement'])
+            ->whereMonth('transactions.created_at', now()->subMonth()->month)
+            ->sum(DB::raw($amountSql));
 
         return [
             'this_month' => $thisMonth,

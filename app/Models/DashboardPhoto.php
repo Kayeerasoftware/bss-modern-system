@@ -14,7 +14,7 @@ class DashboardPhoto extends Model
         'photo_path',
         'title',
         'description',
-        'order',
+        'display_order',
         'is_active'
     ];
 
@@ -35,5 +35,15 @@ class DashboardPhoto extends Model
     public function scopeMeetings($query)
     {
         return $query->where('type', 'meeting');
+    }
+
+    public function getOrderAttribute(): ?int
+    {
+        return $this->display_order;
+    }
+
+    public function setOrderAttribute($value): void
+    {
+        $this->attributes['display_order'] = $value;
     }
 }

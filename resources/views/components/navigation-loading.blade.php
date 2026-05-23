@@ -64,14 +64,12 @@
             return document.getElementById(overlayId);
         }
 
-        function showLoaderWithDelay() {
+        function showLoader() {
             clearTimeout(timer);
-            timer = setTimeout(() => {
-                const overlay = getOverlay();
-                if (!overlay) return;
-                overlay.style.display = 'flex';
-                overlay.setAttribute('aria-hidden', 'false');
-            }, 220);
+            const overlay = getOverlay();
+            if (!overlay) return;
+            overlay.style.display = 'flex';
+            overlay.setAttribute('aria-hidden', 'false');
         }
 
         function hideLoader() {
@@ -102,15 +100,16 @@
         document.addEventListener('click', function (event) {
             const anchor = event.target.closest('a');
             if (!shouldHandleAnchor(anchor, event)) return;
-            showLoaderWithDelay();
+            showLoader();
         }, true);
 
         document.addEventListener('submit', function (event) {
             const form = event.target;
             if (!form || form.hasAttribute('data-no-loading')) return;
-            showLoaderWithDelay();
+            showLoader();
         }, true);
 
+        window.addEventListener('beforeunload', showLoader);
         window.addEventListener('pageshow', hideLoader);
         window.addEventListener('DOMContentLoaded', hideLoader);
     })();

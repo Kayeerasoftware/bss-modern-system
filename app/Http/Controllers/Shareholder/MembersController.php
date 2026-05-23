@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Member;
 use App\Models\Setting;
 use App\Models\ChatMessage;
+use App\Models\ChatParticipant;
 use Illuminate\Support\Facades\DB;
 
 class MembersController extends Controller
@@ -19,7 +20,7 @@ class MembersController extends Controller
 
         $currentUser = auth()->user();
         $currentMember = $currentUser->member;
-        $currentMemberId = $currentMember ? $currentMember->member_id : null;
+        $currentMemberId = $currentMember ? $currentMember->id : null;
         
         $query = Member::with('user');
 
@@ -28,24 +29,35 @@ class MembersController extends Controller
             $query->where(function($q) use ($search) {
                 $q->where('full_name', 'like', "%{$search}%")
                   ->orWhere('email', 'like', "%{$search}%")
-                  ->orWhere('contact', 'like', "%{$search}%")
+                  ->orWhere('primary_phone', 'like', "%{$search}%")
+                  ->orWhere('alternative_phone', 'like', "%{$search}%")
                   ->orWhereHas('user', function ($userQuery) use ($search) {
-                      $userQuery->where('phone', 'like', "%{$search}%");
+                      $userQuery->where('username', 'like', "%{$search}%");
                   })
-                  ->orWhere('member_id', 'like', "%{$search}%");
+                  ->orWhere('member_account_number', 'like', "%{$search}%")
+                  ->orWhere('member_number', 'like', "%{$search}%");
             });
         }
 
         if (request('role')) {
-            $query->where('role', request('role'));
+            $role = request('role');
+            $query->whereHas('roles', fn ($roleQuery) => $roleQuery->where('name', $role));
         }
 
         if (Setting::get('shareholder_hide_savings', 0) == 0) {
             if (request('savings_min')) {
-                $query->where('savings', '>=', request('savings_min'));
+                $query->whereIn('id', function ($sub) {
+                    $sub->select('member_id')
+                        ->from('savings_accounts')
+                        ->where('current_balance', '>=', request('savings_min'));
+                });
             }
             if (request('savings_max')) {
-                $query->where('savings', '<=', request('savings_max'));
+                $query->whereIn('id', function ($sub) {
+                    $sub->select('member_id')
+                        ->from('savings_accounts')
+                        ->where('current_balance', '<=', request('savings_max'));
+                });
             }
         }
 
@@ -65,14 +77,18 @@ class MembersController extends Controller
                 break;
             case 'savings_high':
                 if (Setting::get('shareholder_hide_savings', 0) == 0) {
-                    $query->orderBy('savings', 'desc');
+                    $query->leftJoin('savings_accounts', 'savings_accounts.member_id', '=', 'members.id')
+                        ->select('members.*')
+                        ->orderBy('savings_accounts.current_balance', 'desc');
                 } else {
                     $query->latest();
                 }
                 break;
             case 'savings_low':
                 if (Setting::get('shareholder_hide_savings', 0) == 0) {
-                    $query->orderBy('savings', 'asc');
+                    $query->leftJoin('savings_accounts', 'savings_accounts.member_id', '=', 'members.id')
+                        ->select('members.*')
+                        ->orderBy('savings_accounts.current_balance', 'asc');
                 } else {
                     $query->latest();
                 }
@@ -91,20 +107,47 @@ class MembersController extends Controller
         $members = $query->paginate($perPage)->appends(request()->query());
 
         if ($currentMemberId) {
+            $memberIds = $members->pluck('id')->filter()->values()->all();
+            $conversationIds = ChatParticipant::query()
+                ->where('member_id', $currentMemberId)
+                ->pluck('conversation_id')
+                ->all();
+
+            $memberConversationMap = ChatParticipant::query()
+                ->whereIn('conversation_id', $conversationIds)
+                ->where('member_id', '!=', $currentMemberId)
+                ->whereIn('member_id', $memberIds)
+                ->get(['conversation_id', 'member_id'])
+                ->pluck('conversation_id', 'member_id');
+
+            $unreadCounts = ChatMessage::query()
+                ->selectRaw('conversation_id, COUNT(*) as unread_count')
+                ->whereIn('conversation_id', $conversationIds)
+                ->where('sender_id', '!=', $currentMemberId)
+                ->where('is_read', false)
+                ->groupBy('conversation_id')
+                ->pluck('unread_count', 'conversation_id');
+
+            $lastMessageRows = ChatMessage::query()
+                ->selectRaw('conversation_id, MAX(id) as last_id')
+                ->whereIn('conversation_id', $conversationIds)
+                ->groupBy('conversation_id')
+                ->get();
+
+            $lastMessageMap = ChatMessage::whereIn('id', $lastMessageRows->pluck('last_id')->all())
+                ->get()
+                ->keyBy('id');
+
+            $lastMessageByConversation = [];
+            foreach ($lastMessageRows as $row) {
+                $lastMessageByConversation[$row->conversation_id] = $lastMessageMap[$row->last_id] ?? null;
+            }
+
             foreach ($members as $member) {
-                if ($member->member_id !== $currentMemberId) {
-                    $member->unread_count = ChatMessage::where('sender_id', $member->member_id)
-                        ->where('receiver_id', $currentMemberId)
-                        ->where('is_read', false)
-                        ->count();
-                    
-                    $member->last_message = ChatMessage::where(function($q) use ($currentMemberId, $member) {
-                        $q->where(function($q2) use ($currentMemberId, $member) {
-                            $q2->where('sender_id', $currentMemberId)->where('receiver_id', $member->member_id);
-                        })->orWhere(function($q2) use ($currentMemberId, $member) {
-                            $q2->where('sender_id', $member->member_id)->where('receiver_id', $currentMemberId);
-                        });
-                    })->latest()->first();
+                if ($member->id !== $currentMemberId) {
+                    $conversationId = $memberConversationMap[$member->id] ?? null;
+                    $member->unread_count = $conversationId ? (int) ($unreadCounts[$conversationId] ?? 0) : 0;
+                    $member->last_message = $conversationId ? ($lastMessageByConversation[$conversationId] ?? null) : null;
                 } else {
                     $member->unread_count = 0;
                     $member->last_message = null;
@@ -120,10 +163,9 @@ class MembersController extends Controller
         $statsBaseQuery = clone $query;
         $stats = [
             'total' => (clone $statsBaseQuery)->count(),
-            'active' => (clone $statsBaseQuery)->where('status', 'active')->count(),
+            'active' => (clone $statsBaseQuery)->where('membership_status', 'active')->count(),
             'shareholders' => (clone $statsBaseQuery)->where(function ($q) {
-                $q->where('role', 'shareholder')
-                    ->orWhereHas('user', fn($u) => $u->where('role', 'shareholder'));
+                $q->whereHas('roles', fn($roleQuery) => $roleQuery->where('name', 'shareholder'));
             })->count(),
             'newThisMonth' => (clone $statsBaseQuery)->where('created_at', '>=', now()->startOfMonth())->count(),
         ];

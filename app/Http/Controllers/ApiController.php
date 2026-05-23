@@ -7,6 +7,13 @@ use App\Models\Loan;
 use App\Models\Transaction;
 use App\Models\Project;
 use App\Models\User;
+use App\Services\DashboardStatsService;
+use App\Services\Financial\TransactionPostingService;
+use App\Models\TransactionCategory;
+use App\Models\TransactionStatus;
+use App\Models\TransactionType;
+use App\Models\PaymentMethod;
+use App\Models\Currency;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
@@ -21,33 +28,49 @@ class ApiController extends Controller
             $cacheKey = 'dashboard_data_' . now()->format('Y-m-d-H');
 
             $data = Cache::remember($cacheKey, 3600, function() {
+                $viewStats = app(DashboardStatsService::class)->get();
                 return [
-                    'totalMembers' => Member::count(),
-                    'totalSavings' => Member::sum('savings') + Member::sum('savings_balance'),
-                    'activeLoans' => Loan::where('status', 'approved')->count(),
+                    'totalMembers' => (int) ($viewStats['total_members'] ?? Member::count()),
+                    'totalSavings' => (float) ($viewStats['total_system_balance'] ?? DB::table('savings_accounts')->sum('current_balance')),
+                    'activeLoans' => (int) ($viewStats['active_loans_count'] ?? Loan::query()
+                        ->when(true, function ($q) {
+                            $approvedStatusId = \App\Models\LoanStatus::query()->where('name', 'approved')->value('id');
+                            $disbursedStatusId = \App\Models\LoanStatus::query()->where('name', 'disbursed')->value('id');
+                            $statusIds = array_values(array_filter([$approvedStatusId, $disbursedStatusId]));
+                            return $statusIds ? $q->whereIn('status_id', $statusIds) : $q;
+                        })
+                        ->count()),
                     'totalProjects' => Project::count(),
-                    'totalBalance' => Member::selectRaw('SUM(savings - loan) as total_balance')->first()->total_balance ?? 0,
-                    'pendingLoans' => Loan::where('status', 'pending')->count(),
+                    'totalBalance' => (float) ($viewStats['total_system_balance'] ?? (DB::table('savings_accounts')->sum('current_balance') - (float) Loan::query()->sum('balance_due'))),
+                    'pendingLoans' => (int) ($viewStats['pending_loans_count'] ?? Loan::status('pending')->count()),
                     'completedProjects' => Project::where('status', 'completed')->count(),
-                    'monthlyDeposits' => Transaction::where('type', 'deposit')
-                        ->whereMonth('created_at', now()->month)
-                        ->sum('amount'),
-                    'monthlyWithdrawals' => Transaction::where('type', 'withdrawal')
-                        ->whereMonth('created_at', now()->month)
-                        ->sum('amount'),
+                    'monthlyDeposits' => Transaction::query()
+                        ->join('transaction_categories as tc', 'transactions.category_id', '=', 'tc.id')
+                        ->join('transaction_statuses as ts', 'transactions.status_id', '=', 'ts.id')
+                        ->where('ts.name', 'completed')
+                        ->whereIn('tc.name', ['savings_deposit', 'transfer_in', 'loan_disbursement'])
+                        ->whereMonth('transactions.created_at', now()->month)
+                        ->sum(DB::raw('COALESCE(NULLIF(transactions.net_amount, 0), transactions.amount, 0)')),
+                    'monthlyWithdrawals' => Transaction::query()
+                        ->join('transaction_categories as tc', 'transactions.category_id', '=', 'tc.id')
+                        ->join('transaction_statuses as ts', 'transactions.status_id', '=', 'ts.id')
+                        ->where('ts.name', 'completed')
+                        ->whereIn('tc.name', ['savings_withdrawal', 'transfer_out', 'fundraising_transfer'])
+                        ->whereMonth('transactions.created_at', now()->month)
+                        ->sum(DB::raw('COALESCE(NULLIF(transactions.net_amount, 0), transactions.amount, 0)')),
                     'condolenceFund' => Cache::get('condolence_fund', 2000000)
                 ];
             });
 
             // Fresh data
-            $data['recentTransactions'] = Transaction::with(['member:id,member_id,full_name'])
-                ->select('id', 'member_id', 'amount', 'type', 'created_at')
+            $data['recentTransactions'] = Transaction::with(['member:id,member_account_number,member_number,full_name'])
+                ->select('id', 'member_id', 'amount', 'transaction_type_id', 'category_id', 'created_at')
                 ->latest()
                 ->limit(10)
                 ->get();
 
-            $data['recentLoans'] = Loan::with(['member:id,member_id,full_name'])
-                ->select('id', 'member_id', 'amount', 'status', 'created_at')
+            $data['recentLoans'] = Loan::with(['member:id,member_account_number,member_number,full_name'])
+                ->select('id', 'member_id', 'principal_amount', 'status_id', 'created_at')
                 ->latest()
                 ->limit(5)
                 ->get();
@@ -69,13 +92,17 @@ class ApiController extends Controller
                 $search = $request->get('search');
                 $query->where(function($q) use ($search) {
                     $q->where('full_name', 'LIKE', "%{$search}%")
-                      ->orWhere('member_id', 'LIKE', "%{$search}%");
+                      ->orWhere('member_account_number', 'LIKE', "%{$search}%")
+                      ->orWhere('member_number', 'LIKE', "%{$search}%");
                 });
             }
 
-            $members = $query->select('id', 'member_id', 'full_name', 'savings', 'loan', 'balance', 'created_at')
+            $members = $query->select('id', 'member_account_number', 'member_number', 'full_name', 'email', 'created_at')
                 ->latest()
                 ->paginate(15);
+            $members->setCollection(
+                $members->getCollection()->each->append(['member_id', 'savings', 'loan', 'balance', 'savings_balance'])
+            );
 
             return response()->json(['success' => true, 'data' => $members]);
 
@@ -90,7 +117,7 @@ class ApiController extends Controller
         try {
             $validated = $request->validate([
                 'full_name' => 'required|string|max:255',
-                'member_id' => 'required|string|unique:members,member_id',
+                'member_id' => 'required|string|unique:members,member_number',
                 'phone' => 'nullable|string|max:20',
                 'email' => 'required|email|unique:members,email|unique:users,email|max:255',
                 'address' => 'nullable|string|max:500',
@@ -100,19 +127,23 @@ class ApiController extends Controller
 
             DB::beginTransaction();
 
-            $user = User::create([
-                'name' => $validated['full_name'],
-                'email' => $validated['email'],
-                'password' => Hash::make($validated['password'] ?? 'password123'),
-                'role' => $validated['role'] ?? 'client',
-                'status' => 'active',
-                'is_active' => true,
-                'phone' => $validated['phone'] ?? null,
-                'location' => $validated['address'] ?? null,
-            ]);
+            $user = User::withoutEvents(function () use ($validated) {
+                return User::create([
+                    'name' => $validated['full_name'],
+                    'email' => $validated['email'],
+                    'password' => Hash::make($validated['password'] ?? 'password123'),
+                    'role' => $validated['role'] ?? 'client',
+                    'status' => 'active',
+                    'is_active' => true,
+                    'phone' => $validated['phone'] ?? null,
+                    'location' => $validated['address'] ?? null,
+                ]);
+            });
 
+            $memberNumber = $validated['member_id'];
             $member = Member::create([
-                'member_id' => $validated['member_id'],
+                'member_number' => $memberNumber,
+                'member_account_number' => $memberNumber,
                 'full_name' => $validated['full_name'],
                 'email' => $validated['email'],
                 'contact' => $validated['phone'] ?? null,
@@ -169,7 +200,7 @@ class ApiController extends Controller
     public function getLoans()
     {
         try {
-            $loans = Loan::select('id', 'member_id', 'amount', 'status', 'purpose', 'repayment_months', 'created_at')
+            $loans = Loan::select('id', 'member_id', 'principal_amount', 'status_id', 'purpose', 'repayment_months', 'created_at')
                 ->latest()
                 ->paginate(20);
 
@@ -185,7 +216,7 @@ class ApiController extends Controller
     {
         try {
             $validated = $request->validate([
-                'member_id' => 'required|exists:members,member_id',
+                'member_id' => 'required|string',
                 'amount' => 'required|numeric|min:1000|max:500000',
                 'purpose' => 'required|string|max:255',
                 'repayment_months' => 'required|integer|in:6,12,24'
@@ -193,7 +224,14 @@ class ApiController extends Controller
 
             DB::beginTransaction();
 
-            $member = Member::where('member_id', $validated['member_id'])->first();
+        $resolvedMemberId = resolve_member_id($validated['member_id']);
+        $member = $resolvedMemberId ? Member::find($resolvedMemberId) : null;
+        if (!$member) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid member'
+            ], 400);
+        }
 
             if ($member->loan > 0) {
                 return response()->json([
@@ -210,18 +248,35 @@ class ApiController extends Controller
                 ], 400);
             }
 
-            $interest = $validated['amount'] * 0.02 * $validated['repayment_months'];
-            $monthlyPayment = ($validated['amount'] + $interest) / $validated['repayment_months'];
+            $interestRate = 2.0;
+            $totalInterest = round(($validated['amount'] * $interestRate) / 100, 2);
+            $loanTypeId = \App\Models\LoanType::query()->where('is_active', 1)->value('id')
+                ?? \App\Models\LoanType::query()->value('id');
+            $pendingStatusId = \App\Models\LoanStatus::query()->where('name', 'pending')->value('id');
+
+            $application = \App\Models\LoanApplication::create([
+                'member_id' => $member->id,
+                'loan_type_id' => $loanTypeId,
+                'requested_amount' => $validated['amount'],
+                'requested_tenure_months' => $validated['repayment_months'],
+                'purpose' => $validated['purpose'],
+                'status_id' => $pendingStatusId,
+                'submission_date' => now(),
+            ]);
 
             $loan = Loan::create([
-                'member_id' => $validated['member_id'],
-                'amount' => $validated['amount'],
-                'purpose' => $validated['purpose'],
+                'application_id' => $application->id,
+                'member_id' => $member->id,
+                'loan_type_id' => $loanTypeId,
+                'principal_amount' => $validated['amount'],
+                'interest_rate' => $interestRate,
+                'total_interest' => $totalInterest,
                 'repayment_months' => $validated['repayment_months'],
-                'interest' => $interest,
-                'monthly_payment' => $monthlyPayment,
-                'status' => 'pending'
+                'application_date' => now()->toDateString(),
+                'status_id' => $pendingStatusId,
+                'notes' => $validated['purpose'],
             ]);
+            $application->update(['converted_to_loan_id' => $loan->id]);
 
             DB::commit();
             Cache::flush();
@@ -253,18 +308,24 @@ class ApiController extends Controller
 
             DB::beginTransaction();
 
-            $loan->update(['status' => 'approved']);
-
-            $member = $loan->member;
-            $member->increment('loan', $loan->amount);
-
-            Transaction::create([
-                'member_id' => $loan->member_id,
-                'amount' => $loan->amount,
-                'type' => 'loan_request',
-                'description' => "Loan approved and disbursed - ID: {$loan->id}",
-                'status' => 'completed',
+            $approvedStatusId = \App\Models\LoanStatus::query()->where('name', 'approved')->value('id');
+            $loan->update([
+                'status_id' => $approvedStatusId ?? $loan->status_id,
+                'approval_date' => now()->toDateString(),
+                'approved_by' => auth()->id(),
+                'approved_at' => now(),
+                'approved_ip' => request()->ip(),
             ]);
+
+            if ($loan->application_id) {
+                \App\Models\LoanApplication::query()
+                    ->whereKey($loan->application_id)
+                    ->update([
+                        'status_id' => $approvedStatusId ?? $loan->status_id,
+                        'decision_by' => auth()->id(),
+                        'decision_date' => now(),
+                    ]);
+            }
 
             DB::commit();
             Cache::flush();
@@ -290,7 +351,18 @@ class ApiController extends Controller
                 ], 400);
             }
 
-            $loan->update(['status' => 'rejected']);
+            $rejectedStatusId = \App\Models\LoanStatus::query()->where('name', 'rejected')->value('id');
+            $loan->update(['status_id' => $rejectedStatusId ?? $loan->status_id]);
+
+            if ($loan->application_id) {
+                \App\Models\LoanApplication::query()
+                    ->whereKey($loan->application_id)
+                    ->update([
+                        'status_id' => $rejectedStatusId ?? $loan->status_id,
+                        'decision_by' => auth()->id(),
+                        'decision_date' => now(),
+                    ]);
+            }
             Cache::flush();
 
             return response()->json(['success' => true, 'message' => 'Loan rejected successfully']);
@@ -304,9 +376,13 @@ class ApiController extends Controller
     public function getTransactions()
     {
         try {
-            $transactions = Transaction::select('id', 'member_id', 'amount', 'type', 'description', 'created_at')
+            $transactions = Transaction::with('transactionType:id,name')
+                ->select('id', 'member_id', 'amount', 'transaction_type_id', 'category_id', 'description', 'created_at')
                 ->latest()
                 ->paginate(25);
+            $transactions->setCollection(
+                $transactions->getCollection()->each->append('type')
+            );
 
             return response()->json(['success' => true, 'data' => $transactions]);
 
@@ -316,11 +392,11 @@ class ApiController extends Controller
         }
     }
 
-    public function createTransaction(Request $request)
+    public function createTransaction(Request $request, TransactionPostingService $postingService)
     {
         try {
             $validated = $request->validate([
-                'member_id' => 'required|exists:members,member_id',
+                'member_id' => 'required|string',
                 'amount' => 'required|numeric|min:1',
                 'type' => 'required|in:deposit,withdrawal,loan_payment,loanPayment',
                 'description' => 'nullable|string|max:255'
@@ -332,7 +408,14 @@ class ApiController extends Controller
 
             DB::beginTransaction();
 
-            $member = Member::where('member_id', $validated['member_id'])->first();
+            $resolvedMemberId = resolve_member_id($validated['member_id']);
+            $member = $resolvedMemberId ? Member::find($resolvedMemberId) : null;
+            if (!$member) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid member',
+                ], 400);
+            }
 
             if ($validated['type'] === 'withdrawal' && $member->savings < $validated['amount']) {
                 return response()->json([
@@ -341,15 +424,45 @@ class ApiController extends Controller
                 ], 400);
             }
 
-            if ($validated['type'] === 'deposit') {
-                $member->increment('savings', $validated['amount']);
-            } elseif ($validated['type'] === 'withdrawal') {
-                $member->decrement('savings', $validated['amount']);
-            } elseif ($validated['type'] === 'loan_payment') {
-                $member->decrement('loan', $validated['amount']);
-            }
+            $transactionTypeId = TransactionType::query()->where('name', $validated['type'])->value('id');
+            $statusId = TransactionStatus::query()->where('name', 'completed')->value('id');
+            $categoryName = match ($validated['type']) {
+                'deposit' => 'savings_deposit',
+                'withdrawal' => 'savings_withdrawal',
+                'loan_payment' => 'loan_payment',
+                default => 'savings_deposit',
+            };
+            $categoryId = TransactionCategory::query()->where('name', $categoryName)->value('id');
+            $paymentMethodId = PaymentMethod::query()->where('name', 'cash')->value('id') ?? PaymentMethod::query()->value('id');
+            $currencyId = Currency::query()->where('code', 'UGX')->value('id') ?? Currency::query()->value('id');
 
-            $transaction = Transaction::create($validated);
+            $balanceBefore = (float) ($member->balance ?? 0);
+            $withdrawalFee = $validated['type'] === 'withdrawal'
+                ? ($validated['amount'] * setting('withdrawal_fee', 0)) / 100
+                : 0;
+            $netAmount = max((float) ($validated['amount'] - $withdrawalFee), 0);
+            $impact = TransactionType::query()->whereKey($transactionTypeId)->value('impact');
+            $balanceAfter = $impact === 'credit'
+                ? $balanceBefore + $netAmount
+                : $balanceBefore - $netAmount;
+
+            $transaction = Transaction::create([
+                'member_id' => $member->id,
+                'transaction_type_id' => $transactionTypeId,
+                'category_id' => $categoryId,
+                'status_id' => $statusId,
+                'amount' => $validated['amount'],
+                'net_amount' => $netAmount,
+                'fee' => $withdrawalFee,
+                'currency_id' => $currencyId,
+                'payment_method_id' => $paymentMethodId,
+                'balance_before' => $balanceBefore,
+                'balance_after' => $balanceAfter,
+                'description' => $validated['description'] ?? null,
+                'transaction_date' => now(),
+                'value_date' => now(),
+            ]);
+            $postingService->applyCategoryUpdates($transaction, $validated);
 
             DB::commit();
             Cache::flush();

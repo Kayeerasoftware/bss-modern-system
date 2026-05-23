@@ -12,6 +12,7 @@ use App\Models\System\AuditLog;
 use App\Models\Member;
 use App\Models\Transaction;
 use App\Models\Loan;
+use App\Models\LoanStatus;
 use App\Services\ProfilePictureStorageService;
 
 class ProfileController extends Controller
@@ -21,8 +22,8 @@ class ProfileController extends Controller
         $user = Auth::user();
         
         // Fetch real activity data from audit_logs (fallback to empty if none)
-        $activities = AuditLog::where('user', $user->name)
-            ->orderBy('timestamp', 'desc')
+        $activities = AuditLog::where('user_id', $user->id)
+            ->orderBy('created_at', 'desc')
             ->limit(10)
             ->get();
         
@@ -32,19 +33,19 @@ class ProfileController extends Controller
         }
         
         // Count today's actions
-        $todayActions = AuditLog::where('user', $user->name)
-            ->whereDate('timestamp', today())
+        $todayActions = AuditLog::where('user_id', $user->id)
+            ->whereDate('created_at', today())
             ->count();
         
         // Count total actions
-        $totalActions = AuditLog::where('user', $user->name)
+        $totalActions = AuditLog::where('user_id', $user->id)
             ->count();
         
         // Fetch real stats
         $totalMembers = Member::count();
         $totalTransactions = Transaction::count();
         $totalLoans = Loan::count();
-        $activeLoans = Loan::where('status', 'approved')->count();
+        $activeLoans = Loan::where('status_id', LoanStatus::query()->where('name', 'approved')->value('id'))->count();
         
         return view('cashier.profile', compact('user', 'activities', 'todayActions', 'totalActions', 'totalMembers', 'totalTransactions', 'totalLoans', 'activeLoans'));
     }
@@ -61,7 +62,17 @@ class ProfileController extends Controller
             'bio' => 'nullable|string|max:500',
         ]);
         
-        $user->update($request->only(['name', 'email', 'phone', 'location', 'bio']));
+        $user->username = $request->input('name');
+        $user->email = $request->input('email');
+        $user->save();
+
+        if ($user->member) {
+            $user->member->update([
+                'primary_phone' => $request->input('phone'),
+                'place_of_birth' => $request->input('location'),
+                'notes' => $request->input('bio'),
+            ]);
+        }
         
         return response()->json(['success' => true, 'message' => 'Profile updated successfully']);
     }
@@ -135,7 +146,9 @@ class ProfileController extends Controller
             'dark_mode' => $request->boolean('dark_mode'),
         ];
         
-        $user->update(['preferences' => json_encode($preferences)]);
+        if ($user->member) {
+            $user->member->update(['communication_preferences' => $preferences]);
+        }
         
         return response()->json(['success' => true, 'message' => 'Preferences updated successfully']);
     }

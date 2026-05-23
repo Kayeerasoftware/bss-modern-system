@@ -339,7 +339,7 @@
                     <i class="fas fa-images text-purple-100 text-xs"></i>
                 </div>
                 @php
-                    $projectPhotos = \App\Models\DashboardPhoto::active()->projects()->orderBy('order')->take(20)->get();
+                    $projectPhotos = \App\Models\DashboardPhoto::active()->projects()->orderBy('display_order')->take(20)->get();
                 @endphp
                 <div id="projectContainer" class="relative" style="height: calc(100% - 40px);">
                     <div id="projectGrid" class="grid grid-cols-2 gap-1 h-full p-2">
@@ -371,7 +371,7 @@
                     <i class="fas fa-calendar-alt text-green-100 text-xs"></i>
                 </div>
                 @php
-                    $meetingPhotos = \App\Models\DashboardPhoto::active()->meetings()->orderBy('order')->take(20)->get();
+                    $meetingPhotos = \App\Models\DashboardPhoto::active()->meetings()->orderBy('display_order')->take(20)->get();
                 @endphp
                 <div id="meetingContainer" class="relative" style="height: calc(100% - 40px);">
                     <div id="meetingGrid" class="grid grid-cols-2 gap-1 h-full p-2">

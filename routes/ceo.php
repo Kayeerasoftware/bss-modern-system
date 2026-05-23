@@ -108,6 +108,7 @@ Route::prefix('ceo')->name('ceo.')->middleware(['web', 'auth', 'role:ceo,admin']
         Route::get('/applications', [LoanController::class, 'applications'])->name('applications');
         Route::post('/{id}/approve', [LoanController::class, 'approve'])->name('approve');
         Route::post('/{id}/reject', [LoanController::class, 'reject'])->name('reject');
+        Route::post('/{id}/disburse', [LoanController::class, 'disburse'])->name('disburse');
         Route::get('/approvals', [LoanController::class, 'approvals'])->name('approvals');
         Route::get('/repayments', [LoanController::class, 'repayments'])->name('repayments');
     });

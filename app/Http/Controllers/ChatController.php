@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ChatConversation;
 use App\Models\ChatMessage;
+use App\Models\ChatParticipant;
 use App\Models\Member;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -30,10 +32,10 @@ class ChatController extends Controller
         }
     }
 
-    protected function currentMemberId(): ?string
+    protected function currentMemberId(): ?int
     {
         $user = Auth::user();
-        return $user?->member?->member_id;
+        return $user?->member?->id;
     }
 
     public function me()
@@ -44,10 +46,12 @@ class ChatController extends Controller
             return response()->json(['success' => false, 'message' => 'Member not found'], 404);
         }
 
+        $member = Auth::user()->member;
+
         return response()->json([
             'success' => true,
-            'member_id' => $memberId,
-            'full_name' => Auth::user()->member->full_name,
+            'member_id' => $member->member_number,
+            'full_name' => $member->full_name,
             'role' => Auth::user()->role,
         ]);
     }
@@ -65,35 +69,51 @@ class ChatController extends Controller
             return response()->json(['success' => false, 'message' => 'Member not found'], 404);
         }
 
-        $receiver = Member::where('member_id', $request->receiver_id)->first();
+        $receiverId = resolve_member_id($request->receiver_id) ?? null;
+        $receiver = $receiverId ? Member::find($receiverId) : null;
         if (!$receiver) {
             return response()->json(['success' => false, 'message' => 'Receiver not found'], 404);
         }
 
+        if ($receiverId === $currentMemberId) {
+            return response()->json(['success' => false, 'message' => 'You cannot message yourself'], 422);
+        }
+
         $cleanMessage = trim((string) $request->message);
         $attachmentPath = null;
+        $attachmentName = null;
+        $attachmentType = null;
+        $attachmentSize = null;
 
         if ($request->hasFile('attachment')) {
-            $attachmentPath = $request->file('attachment')->store('chat-attachments', 'public');
+            $file = $request->file('attachment');
+            $attachmentPath = $file->store('chat-attachments', 'public');
+            $attachmentName = $file->getClientOriginalName();
+            $attachmentType = $file->getClientMimeType();
+            $attachmentSize = $file->getSize();
         }
 
         if ($cleanMessage === '' && !$attachmentPath) {
             return response()->json(['success' => false, 'message' => 'Message or attachment is required'], 422);
         }
 
-        if ($request->receiver_id === $currentMemberId) {
-            return response()->json(['success' => false, 'message' => 'You cannot message yourself'], 422);
-        }
+        $conversation = $this->getOrCreateConversation($currentMemberId, $receiverId);
 
         $message = ChatMessage::create([
+            'conversation_id' => $conversation->id,
             'sender_id' => $currentMemberId,
-            'receiver_id' => $request->receiver_id,
             'message' => $cleanMessage !== '' ? $cleanMessage : '',
-            'attachment' => $attachmentPath,
-            'is_read' => false
+            'message_type' => $attachmentPath ? 'file' : 'text',
+            'attachment_path' => $attachmentPath,
+            'attachment_name' => $attachmentName,
+            'attachment_type' => $attachmentType,
+            'attachment_size' => $attachmentSize,
+            'is_read' => false,
         ]);
 
-        $this->invalidateChatCaches([$currentMemberId, $request->receiver_id]);
+        $conversation->update(['last_message_at' => now()]);
+
+        $this->invalidateChatCaches([$currentMemberId, $receiverId]);
 
         return response()->json([
             'success' => true,
@@ -106,10 +126,10 @@ class ChatController extends Controller
                 'status' => 'sent',
                 'is_read' => $message->is_read,
                 'sender_id' => $message->sender_id,
-                'receiver_id' => $message->receiver_id,
-                'attachment' => $message->attachment,
-                'attachment_url' => $message->attachment ? Storage::url($message->attachment) : null,
-                'attachment_name' => $message->attachment ? basename($message->attachment) : null,
+                'receiver_id' => $receiverId,
+                'attachment' => $message->attachment_path,
+                'attachment_url' => $message->attachment_path ? Storage::url($message->attachment_path) : null,
+                'attachment_name' => $message->attachment_name,
             ]
         ]);
     }
@@ -121,31 +141,35 @@ class ChatController extends Controller
             return response()->json(['success' => false, 'message' => 'Member not found'], 404);
         }
 
-        if ($otherMemberId === $currentMemberId) {
+        $resolvedOtherId = resolve_member_id($otherMemberId) ?? null;
+        if (!$resolvedOtherId || $resolvedOtherId === $currentMemberId) {
             return response()->json(['success' => false, 'message' => 'Invalid conversation'], 422);
         }
 
-        $otherMember = Member::where('member_id', $otherMemberId)->first();
+        $otherMember = Member::find($resolvedOtherId);
         if (!$otherMember) {
             return response()->json(['success' => false, 'message' => 'Member not found'], 404);
         }
 
-        $messages = ChatMessage::where(function ($query) use ($currentMemberId, $otherMemberId) {
-            $query->where('sender_id', $currentMemberId)->where('receiver_id', $otherMemberId);
-        })->orWhere(function ($query) use ($currentMemberId, $otherMemberId) {
-            $query->where('sender_id', $otherMemberId)->where('receiver_id', $currentMemberId);
-        })->orderBy('created_at', 'asc')->get();
+        $conversation = $this->findConversation($currentMemberId, $resolvedOtherId);
+        if (!$conversation) {
+            return response()->json(['success' => true, 'messages' => []]);
+        }
 
-        ChatMessage::where('sender_id', $otherMemberId)
-            ->where('receiver_id', $currentMemberId)
+        $messages = ChatMessage::where('conversation_id', $conversation->id)
+            ->orderBy('created_at', 'asc')
+            ->get();
+
+        ChatMessage::where('conversation_id', $conversation->id)
+            ->where('sender_id', $resolvedOtherId)
             ->where('is_read', false)
-            ->update(['is_read' => true]);
+            ->update(['is_read' => true, 'read_at' => now()]);
 
-        $this->invalidateChatCaches([$currentMemberId, $otherMemberId]);
+        $this->invalidateChatCaches([$currentMemberId, $resolvedOtherId]);
 
         return response()->json([
             'success' => true,
-            'messages' => $messages->map(function ($msg) use ($currentMemberId) {
+            'messages' => $messages->map(function ($msg) use ($currentMemberId, $resolvedOtherId) {
                 return [
                     'id' => $msg->id,
                     'text' => $msg->message,
@@ -157,10 +181,10 @@ class ChatController extends Controller
                         : 'delivered',
                     'is_read' => $msg->is_read,
                     'sender_id' => $msg->sender_id,
-                    'receiver_id' => $msg->receiver_id,
-                    'attachment' => $msg->attachment,
-                    'attachment_url' => $msg->attachment ? Storage::url($msg->attachment) : null,
-                    'attachment_name' => $msg->attachment ? basename($msg->attachment) : null,
+                    'receiver_id' => $resolvedOtherId,
+                    'attachment' => $msg->attachment_path,
+                    'attachment_url' => $msg->attachment_path ? Storage::url($msg->attachment_path) : null,
+                    'attachment_name' => $msg->attachment_name,
                 ];
             })
         ]);
@@ -173,11 +197,14 @@ class ChatController extends Controller
             return response()->json(['success' => false, 'message' => 'Member not found'], 404);
         }
 
-        if ($senderId === $currentMemberId) {
+        $resolvedSender = resolve_member_id($senderId);
+        $resolvedReceiver = resolve_member_id($receiverId);
+
+        if ($resolvedSender === $currentMemberId) {
             return $this->getMessagesWithMember($receiverId);
         }
 
-        if ($receiverId === $currentMemberId) {
+        if ($resolvedReceiver === $currentMemberId) {
             return $this->getMessagesWithMember($senderId);
         }
 
@@ -191,57 +218,60 @@ class ChatController extends Controller
             return response()->json(['success' => false, 'message' => 'Member not found'], 404);
         }
 
-        if ($memberId !== null && $memberId !== $currentMemberId) {
+        if ($memberId !== null && resolve_member_id($memberId) !== $currentMemberId) {
             return response()->json(['success' => false, 'message' => 'Unauthorized conversation access'], 403);
         }
 
-        $conversations = Cache::remember($this->conversationCacheKey($currentMemberId), now()->addSeconds(5), function () use ($currentMemberId) {
-            $conversationHeads = ChatMessage::query()
-                ->selectRaw('CASE WHEN sender_id = ? THEN receiver_id ELSE sender_id END as other_member_id, MAX(id) as last_id', [$currentMemberId])
-                ->where(function ($query) use ($currentMemberId) {
-                    $query->where('sender_id', $currentMemberId)
-                        ->orWhere('receiver_id', $currentMemberId);
-                })
-                ->groupBy('other_member_id')
-                ->orderByDesc(DB::raw('MAX(created_at)'))
-                ->get();
+        $conversations = Cache::remember($this->conversationCacheKey((string) $currentMemberId), now()->addSeconds(5), function () use ($currentMemberId) {
+            $conversationIds = ChatParticipant::query()
+                ->where('member_id', $currentMemberId)
+                ->pluck('conversation_id')
+                ->all();
 
-            if ($conversationHeads->isEmpty()) {
+            if (empty($conversationIds)) {
                 return collect();
             }
 
             $lastMessages = ChatMessage::query()
-                ->whereIn('id', $conversationHeads->pluck('last_id')->all())
+                ->select('conversation_id', DB::raw('MAX(id) as last_id'))
+                ->whereIn('conversation_id', $conversationIds)
+                ->groupBy('conversation_id')
+                ->get()
+                ->keyBy('conversation_id');
+
+            $messageMap = ChatMessage::whereIn('id', $lastMessages->pluck('last_id')->all())
                 ->get()
                 ->keyBy('id');
 
-            $unreadBySender = ChatMessage::query()
-                ->selectRaw('sender_id as other_member_id, COUNT(*) as unread_count')
-                ->where('receiver_id', $currentMemberId)
-                ->where('is_read', false)
-                ->groupBy('sender_id')
-                ->pluck('unread_count', 'other_member_id');
-
-            $members = Member::query()
-                ->with('user')
-                ->whereIn('member_id', $conversationHeads->pluck('other_member_id')->all())
+            $otherParticipants = ChatParticipant::query()
+                ->whereIn('conversation_id', $conversationIds)
+                ->where('member_id', '!=', $currentMemberId)
+                ->with('member.user')
                 ->get()
-                ->keyBy('member_id');
+                ->groupBy('conversation_id');
 
-            return $conversationHeads->map(function ($row) use ($lastMessages, $unreadBySender, $members) {
-                $otherMemberId = (string) $row->other_member_id;
-                $lastMessage = $lastMessages->get($row->last_id);
-                $member = $members->get($otherMemberId);
+            $unreadCounts = ChatMessage::query()
+                ->selectRaw('conversation_id, COUNT(*) as unread_count')
+                ->whereIn('conversation_id', $conversationIds)
+                ->where('sender_id', '!=', $currentMemberId)
+                ->where('is_read', false)
+                ->groupBy('conversation_id')
+                ->pluck('unread_count', 'conversation_id');
+
+            return collect($conversationIds)->map(function ($conversationId) use ($lastMessages, $messageMap, $otherParticipants, $unreadCounts) {
+                $lastMessageId = $lastMessages->get($conversationId)?->last_id;
+                $lastMessage = $lastMessageId ? $messageMap->get($lastMessageId) : null;
+                $member = $otherParticipants->get($conversationId)?->first()?->member;
 
                 return [
-                    'member_id' => $otherMemberId,
+                    'member_id' => $member?->member_number,
                     'full_name' => $member?->full_name ?? 'Unknown',
                     'role' => $member?->user?->role ?? 'client',
                     'profile_picture' => $member?->profile_picture_url,
                     'last_message' => $lastMessage?->message ?? '',
                     'last_time' => $lastMessage?->created_at?->format('H:i'),
                     'timestamp' => $lastMessage?->created_at ? $lastMessage->created_at->timestamp * 1000 : null,
-                    'unread' => (int) ($unreadBySender[$otherMemberId] ?? 0),
+                    'unread' => (int) ($unreadCounts[$conversationId] ?? 0),
                 ];
             })->values();
         });
@@ -267,16 +297,21 @@ class ChatController extends Controller
             ?? $request->member_id
             ?? $request->sender_id;
 
-        if (!$otherMemberId) {
+        $resolvedOtherId = $otherMemberId ? resolve_member_id($otherMemberId) : null;
+
+        if (!$resolvedOtherId) {
             return response()->json(['success' => false, 'message' => 'Member is required'], 422);
         }
 
-        ChatMessage::where('sender_id', $otherMemberId)
-            ->where('receiver_id', $currentMemberId)
-            ->where('is_read', false)
-            ->update(['is_read' => true]);
+        $conversation = $this->findConversation($currentMemberId, $resolvedOtherId);
+        if ($conversation) {
+            ChatMessage::where('conversation_id', $conversation->id)
+                ->where('sender_id', $resolvedOtherId)
+                ->where('is_read', false)
+                ->update(['is_read' => true, 'read_at' => now()]);
+        }
 
-        $this->invalidateChatCaches([$currentMemberId, $otherMemberId]);
+        $this->invalidateChatCaches([$currentMemberId, $resolvedOtherId]);
 
         return response()->json(['success' => true]);
     }
@@ -288,12 +323,20 @@ class ChatController extends Controller
             return response()->json(['success' => false, 'message' => 'Member not found'], 404);
         }
 
-        ChatMessage::where('sender_id', $otherMemberId)
-            ->where('receiver_id', $currentMemberId)
-            ->where('is_read', false)
-            ->update(['is_read' => true]);
+        $resolvedOtherId = resolve_member_id($otherMemberId);
+        if (!$resolvedOtherId) {
+            return response()->json(['success' => false, 'message' => 'Member not found'], 404);
+        }
 
-        $this->invalidateChatCaches([$currentMemberId, $otherMemberId]);
+        $conversation = $this->findConversation($currentMemberId, $resolvedOtherId);
+        if ($conversation) {
+            ChatMessage::where('conversation_id', $conversation->id)
+                ->where('sender_id', $resolvedOtherId)
+                ->where('is_read', false)
+                ->update(['is_read' => true, 'read_at' => now()]);
+        }
+
+        $this->invalidateChatCaches([$currentMemberId, $resolvedOtherId]);
 
         return response()->json(['success' => true]);
     }
@@ -305,13 +348,65 @@ class ChatController extends Controller
             return response()->json(['success' => false, 'message' => 'Member not found'], 404);
         }
 
-        $count = Cache::remember($this->unreadCacheKey($currentMemberId), now()->addSeconds(5), function () use ($currentMemberId) {
+        $count = Cache::remember($this->unreadCacheKey((string) $currentMemberId), now()->addSeconds(5), function () use ($currentMemberId) {
+            $conversationIds = ChatParticipant::query()
+                ->where('member_id', $currentMemberId)
+                ->pluck('conversation_id')
+                ->all();
+
+            if (empty($conversationIds)) {
+                return 0;
+            }
+
             return ChatMessage::query()
-                ->where('receiver_id', $currentMemberId)
+                ->whereIn('conversation_id', $conversationIds)
+                ->where('sender_id', '!=', $currentMemberId)
                 ->where('is_read', false)
                 ->count();
         });
 
         return response()->json(['success' => true, 'unread' => $count]);
+    }
+
+    private function findConversation(int $memberId, int $otherMemberId): ?ChatConversation
+    {
+        $conversationId = ChatParticipant::query()
+            ->select('conversation_id')
+            ->whereIn('member_id', [$memberId, $otherMemberId])
+            ->groupBy('conversation_id')
+            ->havingRaw('COUNT(DISTINCT member_id) = 2')
+            ->value('conversation_id');
+
+        return $conversationId ? ChatConversation::find($conversationId) : null;
+    }
+
+    private function getOrCreateConversation(int $memberId, int $otherMemberId): ChatConversation
+    {
+        $conversation = $this->findConversation($memberId, $otherMemberId);
+        if ($conversation) {
+            return $conversation;
+        }
+
+        $conversation = ChatConversation::create([
+            'conversation_type' => 'individual',
+            'created_by' => Auth::id() ?? 1,
+        ]);
+
+        ChatParticipant::insert([
+            [
+                'conversation_id' => $conversation->id,
+                'member_id' => $memberId,
+                'role' => 'member',
+                'joined_at' => now(),
+            ],
+            [
+                'conversation_id' => $conversation->id,
+                'member_id' => $otherMemberId,
+                'role' => 'member',
+                'joined_at' => now(),
+            ],
+        ]);
+
+        return $conversation;
     }
 }

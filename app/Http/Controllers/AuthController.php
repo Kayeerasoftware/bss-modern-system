@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\DB;
 use App\Services\AuditLogService;
 use App\Services\UserMemberSyncService;
+use App\Models\Role;
 
 class AuthController extends Controller
 {
@@ -102,19 +103,23 @@ class AuthController extends Controller
         }
 
         $normalizedRole = strtolower(trim((string) $validated['role']));
+        if (!Role::query()->where('name', $normalizedRole)->exists()) {
+            return back()->withErrors(['role' => 'Invalid role selected.'])->withInput();
+        }
 
         $user = DB::transaction(function () use ($validated, $normalizedRole) {
+            $roleId = Role::query()->where('name', $normalizedRole)->value('id');
+
             $user = User::create([
-                'name' => $validated['name'],
+                'username' => $validated['name'],
                 'email' => strtolower(trim((string) $validated['email'])),
                 'password' => Hash::make($validated['password']),
                 'role' => $normalizedRole,
+                'role_id' => $roleId,
+                'status' => 'active',
             ]);
 
             $user->assignRole($normalizedRole);
-
-            // Observer usually creates member automatically; this call guarantees linkage if observer is skipped.
-            app(UserMemberSyncService::class)->syncFromUser($user);
 
             $member = Member::query()
                 ->where('user_id', $user->id)
@@ -122,17 +127,12 @@ class AuthController extends Controller
                 ->first();
 
             if ($member) {
-                $member->fill([
-                    'full_name' => $user->name,
-                    'email' => $user->email,
-                    'role' => $normalizedRole,
-                    'user_id' => $user->id,
-                ]);
-
-                if ($member->isDirty()) {
-                    $member->saveQuietly();
-                }
-
+                $member->full_name = $validated['name'];
+                $member->email = $user->email;
+                $member->membership_status = 'active';
+                $member->join_date = $member->join_date ?: now()->toDateString();
+                $member->created_by = $member->created_by ?: $user->id;
+                $member->saveQuietly();
                 $member->assignRole($normalizedRole);
             }
 

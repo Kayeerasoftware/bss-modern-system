@@ -22,14 +22,14 @@ class ReportController extends Controller
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
-                $q->where('project_id', 'like', "%{$search}%")
+                $q->where('project_number', 'like', "%{$search}%")
                     ->orWhere('name', 'like', "%{$search}%")
                     ->orWhere('description', 'like', "%{$search}%");
             });
         }
 
         if ($request->filled('status')) {
-            $query->where('status', $request->status);
+            $query->whereHas('statusRelation', fn ($q) => $q->where('name', $request->status));
         }
 
         if ($request->filled('date_from')) {
@@ -55,11 +55,12 @@ class ReportController extends Controller
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
+                $q->where('username', 'like', "%{$search}%")
                     ->orWhere('email', 'like', "%{$search}%");
                 $q->orWhereHas('member', function ($memberQuery) use ($search) {
                     $memberQuery->withTrashed()
-                        ->where('member_id', 'like', "%{$search}%")
+                        ->where('member_account_number', 'like', "%{$search}%")
+                        ->orWhere('member_number', 'like', "%{$search}%")
                         ->orWhere('full_name', 'like', "%{$search}%")
                         ->orWhere('email', 'like', "%{$search}%");
                 });
@@ -67,7 +68,7 @@ class ReportController extends Controller
         }
 
         if ($request->filled('role')) {
-            $query->where('role', $request->role);
+            $query->whereHas('roleRecord', fn ($q) => $q->where('name', $request->role));
         }
 
         if ($request->filled('status')) {
@@ -77,9 +78,9 @@ class ReportController extends Controller
                     $memberQuery->onlyTrashed();
                 });
             } elseif ($status === 'active') {
-                $query->where('is_active', true);
+                $query->where('status', 'active');
             } elseif ($status === 'inactive') {
-                $query->where('is_active', false);
+                $query->where('status', 'inactive');
             } elseif ($status === 'unlinked') {
                 $query->whereDoesntHave('member');
             }
@@ -96,8 +97,10 @@ class ReportController extends Controller
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
-                $q->where('loan_id', 'like', "%{$search}%")
-                    ->orWhere('purpose', 'like', "%{$search}%")
+                $q->where('loan_number', 'like', "%{$search}%")
+                    ->orWhereHas('loanApplication', function ($loanAppQuery) use ($search) {
+                        $loanAppQuery->where('purpose', 'like', "%{$search}%");
+                    })
                     ->orWhereHas('member', function ($memberQuery) use ($search) {
                         $memberQuery->where('full_name', 'like', "%{$search}%");
                     });
@@ -105,7 +108,7 @@ class ReportController extends Controller
         }
 
         if ($request->filled('status')) {
-            $query->where('status', $request->status);
+            $query->whereHas('statusRelation', fn ($q) => $q->where('name', $request->status));
         }
 
         if ($request->filled('date_from')) {

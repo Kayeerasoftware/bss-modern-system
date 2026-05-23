@@ -18,6 +18,12 @@ class ProfileController extends Controller
     public function update(Request $request)
     {
         $user = auth()->user();
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|max:255|unique:users,email,' . $user->id,
+            'phone' => 'nullable|string|max:20',
+        ]);
         
         // Handle profile picture upload
         if ($request->hasFile('profile_picture')) {
@@ -26,21 +32,16 @@ class ProfileController extends Controller
             $user->update(['profile_picture' => $path]);
         }
         
-        // Only update fields that are provided
-        $updateData = [];
-        if ($request->filled('name')) {
-            $updateData['name'] = $request->name;
-        }
-        if ($request->filled('email')) {
-            $updateData['email'] = $request->email;
-        }
-        
-        if (!empty($updateData)) {
-            $user->update($updateData);
-        }
-        
-        if ($user->member && $request->filled('phone')) {
-            $user->member->update(['contact' => $request->phone]);
+        $user->username = $validated['name'];
+        $user->email = $validated['email'];
+        $user->save();
+
+        if ($user->member) {
+            $memberUpdates = [
+                'primary_phone' => $validated['phone'] ?? null,
+                'email' => $validated['email'],
+            ];
+            $user->member->update($memberUpdates);
         }
         
         return response()->json(['success' => true, 'message' => 'Profile updated successfully']);

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Member;
 use App\Models\User;
+use App\Services\System\AccountNumberService;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -12,8 +13,6 @@ class UserMemberSyncService
 {
     private const HEALTHY_UNTIL_CACHE_KEY = 'user_member_sync:healthy_until';
     private const LOCK_CACHE_KEY = 'user_member_sync:lock';
-
-    private ?int $nextMemberSequence = null;
 
     public function reconcileIfNeeded(): void
     {
@@ -115,22 +114,24 @@ class UserMemberSyncService
 
         if (!$member) {
             Member::withoutEvents(function () use ($user): void {
+                $name = $user->name ?: $user->username ?: 'Member';
+                $parts = preg_split('/\s+/', trim((string) $name));
+                $first = array_shift($parts) ?: 'Member';
+                $last = array_pop($parts) ?: $first;
+                $middle = !empty($parts) ? implode(' ', $parts) : null;
+                $memberNumber = AccountNumberService::generateMemberAccountNumber();
+
                 Member::create([
-                    'member_id' => $this->nextMemberId(),
+                    'member_number' => $memberNumber,
+                    'member_account_number' => $memberNumber,
                     'user_id' => $user->id,
-                    'full_name' => $user->name,
+                    'first_name' => $first,
+                    'middle_name' => $middle,
+                    'last_name' => $last,
                     'email' => $user->email,
-                    'contact' => $user->phone ?? '',
-                    'location' => $user->location ?? '',
-                    'occupation' => '',
-                    'password' => $user->password ?: Hash::make(Str::random(24)),
-                    'role' => $user->role ?: 'client',
-                    'status' => $user->is_active ? 'active' : 'inactive',
-                    'profile_picture' => $user->profile_picture,
-                    'savings' => 0,
-                    'loan' => 0,
-                    'savings_balance' => 0,
-                    'balance' => 0,
+                    'membership_status' => $user->is_active ? 'active' : 'inactive',
+                    'join_date' => now()->toDateString(),
+                    'created_by' => $user->id,
                 ]);
             });
 
@@ -148,18 +149,9 @@ class UserMemberSyncService
 
         $member->fill([
             'user_id' => $user->id,
-            'full_name' => $user->name,
             'email' => $user->email,
-            'contact' => $user->phone,
-            'location' => $user->location,
-            'role' => $user->role ?: $member->role,
-            'status' => $user->is_active ? 'active' : 'inactive',
-            'profile_picture' => $user->profile_picture,
+            'membership_status' => $user->is_active ? 'active' : 'inactive',
         ]);
-
-        if (!empty($user->password) && ($user->wasChanged('password') || empty($member->password))) {
-            $member->password = $user->password;
-        }
 
         $wasDirty = $member->isDirty();
         if ($wasDirty) {
@@ -189,21 +181,16 @@ class UserMemberSyncService
             $user = User::where('email', $member->email)->first();
         }
 
-        $userStatus = strtolower((string) ($member->status ?? 'active'));
-        $isActive = $userStatus !== 'inactive';
+        $userStatus = strtolower((string) ($member->membership_status ?? 'active'));
+        $isActive = $userStatus === 'active';
 
         if (!$user) {
             $user = User::withoutEvents(function () use ($member, $isActive) {
                 return User::create([
-                    'name' => $member->full_name ?: 'Member User',
+                    'username' => $member->full_name ?: $member->member_number ?: 'Member User',
                     'email' => $member->email,
-                    'password' => $member->password ?: Hash::make(Str::random(24)),
-                    'role' => $member->role ?: 'client',
+                    'password' => Hash::make(Str::random(24)),
                     'status' => $isActive ? 'active' : 'inactive',
-                    'is_active' => $isActive,
-                    'phone' => $member->contact,
-                    'location' => $member->location,
-                    'profile_picture' => $member->profile_picture,
                 ]);
             });
 
@@ -216,19 +203,10 @@ class UserMemberSyncService
         }
 
         $user->fill([
-            'name' => $member->full_name ?: $user->name,
+            'username' => $member->full_name ?: $user->name,
             'email' => $member->email ?: $user->email,
-            'role' => $member->role ?: $user->role,
             'status' => $isActive ? 'active' : 'inactive',
-            'is_active' => $isActive,
-            'phone' => $member->contact,
-            'location' => $member->location,
-            'profile_picture' => $member->profile_picture,
         ]);
-
-        if (!empty($member->password) && $member->password !== $user->password) {
-            $user->password = $member->password;
-        }
 
         $userWasDirty = $user->isDirty();
         if ($userWasDirty) {
@@ -275,25 +253,8 @@ class UserMemberSyncService
             ->exists();
     }
 
-    private function nextMemberId(): string
+    private function nextMemberNumber(): string
     {
-        if ($this->nextMemberSequence === null) {
-            $lastMemberId = Member::withTrashed()
-                ->where('member_id', 'like', 'BSS-C15-%')
-                ->orderBy('member_id', 'desc')
-                ->value('member_id');
-
-            $next = 1;
-            if (is_string($lastMemberId) && preg_match('/BSS-C15-(\d+)/', $lastMemberId, $matches)) {
-                $next = ((int) $matches[1]) + 1;
-            }
-
-            $this->nextMemberSequence = $next;
-        }
-
-        $memberId = 'BSS-C15-' . str_pad((string) $this->nextMemberSequence, 4, '0', STR_PAD_LEFT);
-        $this->nextMemberSequence++;
-
-        return $memberId;
+        return AccountNumberService::generateMemberAccountNumber();
     }
 }

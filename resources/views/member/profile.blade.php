@@ -141,10 +141,14 @@
                         </div>
                         <div class="space-y-2">
                             <label class="block text-sm font-bold text-gray-700">Phone Number</label>
-                            <input type="tel" name="phone" value="{{ auth()->user()->member->contact ?? '' }}" class="w-full px-5 py-4 bg-gray-50 border-2 border-gray-200 rounded-2xl focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all font-medium">
+                            <input type="tel" name="phone" value="{{ auth()->user()->phone ?? '' }}" class="w-full px-5 py-4 bg-gray-50 border-2 border-gray-200 rounded-2xl focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all font-medium">
                         </div>
                         <div class="space-y-2">
-                            <label class="block text-sm font-bold text-gray-700">Member ID</label>
+                            <label class="block text-sm font-bold text-gray-700">Member Account Number</label>
+                            <input type="text" name="member_account_number" value="{{ auth()->user()->member->member_account_number ?? '' }}" readonly class="w-full px-5 py-4 bg-gray-100 border-2 border-gray-200 rounded-2xl font-medium text-gray-600">
+                        </div>
+                        <div class="space-y-2">
+                            <label class="block text-sm font-bold text-gray-700">Member ID (Legacy)</label>
                             <input type="text" name="member_id" value="{{ auth()->user()->member->member_id ?? '' }}" readonly class="w-full px-5 py-4 bg-gray-100 border-2 border-gray-200 rounded-2xl font-medium text-gray-600">
                         </div>
                     </div>

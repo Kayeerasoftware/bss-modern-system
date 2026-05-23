@@ -5,12 +5,32 @@ namespace App\Http\Controllers\Shareholder;
 use App\Http\Controllers\Controller;
 use App\Models\Loan;
 use App\Models\LoanApplication;
+use App\Models\LoanStatus;
+use App\Models\LoanType;
 use App\Models\Transaction;
+use App\Models\TransactionCategory;
+use App\Models\TransactionStatus;
+use App\Models\TransactionType;
+use App\Models\PaymentMethod;
+use App\Models\Currency;
+use App\Services\Financial\TransactionPostingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class LoansController extends Controller
 {
+    private function resolveLoanSettings(): array
+    {
+        return [
+            'default_interest_rate' => (float) setting('default_interest_rate', 10),
+            'min_loan_amount' => (float) setting('min_loan_amount', 10000),
+            'max_loan_amount' => (float) setting('max_loan_amount', 10000000),
+            'min_repayment_months' => (int) setting('min_repayment_months', 3),
+            'max_repayment_months' => (int) setting('max_repayment_months', 60),
+            'default_repayment_months' => (int) setting('default_repayment_months', 12),
+        ];
+    }
+
     public function index(Request $request)
     {
         $user = auth()->user();
@@ -20,20 +40,20 @@ class LoansController extends Controller
             return redirect()->route('shareholder.dashboard')->with('error', 'Member profile not found.');
         }
         
-        $applicationsQuery = LoanApplication::with('member')
-            ->where('member_id', $member->member_id);
+        $applicationsQuery = LoanApplication::with(['member', 'statusRelation'])
+            ->where('member_id', $member->id);
 
         if ($request->filled('app_search')) {
             $search = $request->app_search;
             $applicationsQuery->where(function ($q) use ($search): void {
-                $q->where('application_id', 'like', "%{$search}%")
+                $q->where('application_number', 'like', "%{$search}%")
                     ->orWhere('purpose', 'like', "%{$search}%")
-                    ->orWhere('amount', 'like', "%{$search}%");
+                    ->orWhere('requested_amount', 'like', "%{$search}%");
             });
         }
 
         if ($request->filled('app_status')) {
-            $applicationsQuery->where('status', $request->app_status);
+            $applicationsQuery->status($request->app_status);
         }
 
         if ($request->filled('app_date_from')) {
@@ -46,10 +66,10 @@ class LoansController extends Controller
 
         switch ($request->app_sort) {
             case 'amount_high':
-                $applicationsQuery->orderBy('amount', 'desc');
+                $applicationsQuery->orderBy('requested_amount', 'desc');
                 break;
             case 'amount_low':
-                $applicationsQuery->orderBy('amount', 'asc');
+                $applicationsQuery->orderBy('requested_amount', 'asc');
                 break;
             case 'oldest':
                 $applicationsQuery->oldest();
@@ -69,10 +89,10 @@ class LoansController extends Controller
             ->appends($request->except('applications_page'));
 
         $applicationStats = [
-            'total' => LoanApplication::where('member_id', $member->member_id)->count(),
-            'pending' => LoanApplication::where('member_id', $member->member_id)->where('status', 'pending')->count(),
-            'approved' => LoanApplication::where('member_id', $member->member_id)->where('status', 'approved')->count(),
-            'rejected' => LoanApplication::where('member_id', $member->member_id)->where('status', 'rejected')->count(),
+            'total' => LoanApplication::where('member_id', $member->id)->count(),
+            'pending' => LoanApplication::where('member_id', $member->id)->status('pending')->count(),
+            'approved' => LoanApplication::where('member_id', $member->id)->status('approved')->count(),
+            'rejected' => LoanApplication::where('member_id', $member->id)->status('rejected')->count(),
         ];
 
         return view('shareholder.loans', compact('applications', 'applicationStats'));
@@ -84,7 +104,7 @@ class LoansController extends Controller
         $member = $user->member;
         
         $loan = Loan::with('member')
-            ->where('member_id', $member->member_id)
+            ->where('member_id', $member->id)
             ->findOrFail($id);
             
         return view('shareholder.loans.show', compact('loan'));
@@ -131,27 +151,69 @@ class LoansController extends Controller
     
     public function apply()
     {
-        return view('shareholder.loans.apply');
+        $loanSettings = $this->resolveLoanSettings();
+
+        return view('shareholder.loans.apply', compact('loanSettings'));
     }
     
     public function storeApplication(Request $request)
     {
         $user = auth()->user();
         $member = $user->member;
+        $loanSettings = $this->resolveLoanSettings();
+
+        if (!$request->filled('amount') && $request->filled('amount_display')) {
+            $normalized = preg_replace('/[^\d.]/', '', (string) $request->amount_display);
+            $request->merge(['amount' => $normalized]);
+        }
         
         $request->validate([
-            'amount' => 'required|numeric|min:1',
+            'amount' => 'required|numeric|min:' . $loanSettings['min_loan_amount'] . '|max:' . $loanSettings['max_loan_amount'],
             'purpose' => 'required|string|max:255',
-            'duration' => 'required|integer|min:1',
+            'duration' => 'required|integer|min:' . $loanSettings['min_repayment_months'] . '|max:' . $loanSettings['max_repayment_months'],
         ]);
         
-        LoanApplication::create([
-            'member_id' => $member->member_id,
-            'amount' => $request->amount,
-            'purpose' => $request->purpose,
-            'repayment_months' => $request->duration,
-            'status' => 'pending',
-        ]);
+        $loanTypeId = LoanType::query()->where('is_active', 1)->value('id') ?? LoanType::query()->value('id');
+        $pendingStatusId = LoanStatus::query()->where('name', 'pending')->value('id');
+        $interestRate = $loanSettings['default_interest_rate'];
+        $interest = (float) $request->amount * ($interestRate / 100) * ((int) $request->duration / 12);
+        $processingFeeRate = (float) setting('processing_fee_percentage', 2);
+        $processingFee = (float) $request->amount * ($processingFeeRate / 100);
+
+        DB::transaction(function () use (
+            $member,
+            $request,
+            $loanTypeId,
+            $pendingStatusId,
+            $interestRate,
+            $interest,
+            $processingFee
+        ): void {
+            $application = LoanApplication::create([
+                'member_id' => $member->id,
+                'loan_type_id' => $loanTypeId,
+                'requested_amount' => $request->amount,
+                'purpose' => $request->purpose,
+                'requested_tenure_months' => $request->duration,
+                'status_id' => $pendingStatusId,
+                'submission_date' => now(),
+            ]);
+
+            $loan = Loan::create([
+                'application_id' => $application->id,
+                'member_id' => $member->id,
+                'loan_type_id' => $loanTypeId,
+                'principal_amount' => $request->amount,
+                'interest_rate' => $interestRate,
+                'total_interest' => round($interest, 2),
+                'repayment_months' => (int) $request->duration,
+                'processing_fee' => round($processingFee, 2),
+                'application_date' => now(),
+                'status_id' => $pendingStatusId,
+                'notes' => $request->purpose,
+            ]);
+            $application->update(['converted_to_loan_id' => $loan->id]);
+        });
         
         return redirect()->to(route('shareholder.loans', ['tab' => 'applications']) . '#loan-applications')
             ->with('success', 'Loan application submitted successfully.');
@@ -162,39 +224,60 @@ class LoansController extends Controller
         $user = auth()->user();
         $member = $user->member;
         
-        $application = LoanApplication::with('member')
-            ->where('member_id', $member->member_id)
+        $application = LoanApplication::with(['member', 'statusRelation'])
+            ->where('member_id', $member->id)
             ->findOrFail($id);
             
         return view('shareholder.loans.application-details', compact('application'));
     }
     
-    public function makePayment(Request $request, $id)
+    public function makePayment(Request $request, $id, TransactionPostingService $postingService)
     {
         $user = auth()->user();
         $member = $user->member;
         
-        $loan = Loan::where('member_id', $member->member_id)->findOrFail($id);
+        $loan = Loan::where('member_id', $member->id)->findOrFail($id);
         
         $request->validate([
-            'amount' => 'required|numeric|min:1|max:' . $loan->remaining_balance,
+            'amount' => 'required|numeric|min:1|max:' . $loan->balance_due,
         ]);
 
-        DB::transaction(function () use ($loan, $member, $request): void {
-            Transaction::create([
-                'member_id' => $member->member_id,
-                'type' => 'loan_payment',
+        $transactionTypeId = TransactionType::query()->where('name', 'loan_payment')->value('id')
+            ?? TransactionType::query()->where('name', 'loan_repayment')->value('id');
+        $categoryId = TransactionCategory::query()->where('name', 'loan_payment')->value('id');
+        $statusId = TransactionStatus::query()->where('name', 'completed')->value('id');
+        $paymentMethodId = PaymentMethod::query()->where('name', 'cash')->value('id') ?? PaymentMethod::query()->value('id');
+        $currencyId = Currency::query()->where('code', 'UGX')->value('id') ?? Currency::query()->value('id');
+
+        DB::transaction(function () use (
+            $loan,
+            $member,
+            $request,
+            $transactionTypeId,
+            $categoryId,
+            $statusId,
+            $paymentMethodId,
+            $currencyId,
+            $postingService
+        ): void {
+            $transaction = Transaction::create([
+                'member_id' => $member->id,
+                'transaction_type_id' => $transactionTypeId,
+                'category_id' => $categoryId,
+                'status_id' => $statusId,
                 'amount' => $request->amount,
+                'net_amount' => $request->amount,
+                'currency_id' => $currencyId,
+                'payment_method_id' => $paymentMethodId,
                 'description' => 'Loan payment for loan #' . $loan->loan_id,
-                'status' => 'completed',
-                'metadata' => ['loan_id' => $loan->id],
+                'metadata' => ['loan_id' => $loan->id, 'loan_applied_amount' => (float) $request->amount],
                 'transaction_date' => now(),
+                'value_date' => now(),
+                'processed_by' => auth()->id(),
+                'processed_at' => now(),
             ]);
 
-            $loan->update([
-                'paid_amount' => $loan->paid_amount + (float) $request->amount,
-                'status' => 'approved',
-            ]);
+            $postingService->applyCategoryUpdates($transaction, ['metadata' => ['loan_id' => $loan->id, 'loan_applied_amount' => (float) $request->amount]]);
         });
         
         return response()->json([

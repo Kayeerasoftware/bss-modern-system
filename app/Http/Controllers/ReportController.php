@@ -8,6 +8,7 @@ use App\Models\Transaction;
 use App\Models\Project;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class ReportController extends Controller
 {
@@ -18,10 +19,10 @@ class ReportController extends Controller
 
         $data = [
             'total_members' => Member::count(),
-            'total_savings' => Member::sum('savings'),
+            'total_savings' => Member::transactionSavingsTotal(),
             'total_loans' => Member::sum('loan'),
-            'pending_loans' => Loan::where('status', 'pending')->count(),
-            'approved_loans' => Loan::where('status', 'approved')->count(),
+            'pending_loans' => Loan::status('pending')->count(),
+            'approved_loans' => Loan::status('approved')->count(),
             'monthly_transactions' => Transaction::whereBetween('created_at', [$startDate, $endDate])->count(),
             'active_projects' => Project::count(),
             'savings_growth' => $this->getSavingsGrowth(),
@@ -35,8 +36,9 @@ class ReportController extends Controller
     public function memberReport()
     {
         $members = Member::with(['loans', 'transactions'])
-            ->selectRaw('*, (savings - loan) as net_worth')
-            ->orderBy('savings', 'desc')
+            ->withTransactionSavings()
+            ->addSelect(DB::raw('(COALESCE(member_transaction_savings.transaction_savings, 0) - loan) as net_worth'))
+            ->orderByRaw('COALESCE(member_transaction_savings.transaction_savings, 0) desc')
             ->get();
 
         return response()->json($members);
@@ -59,7 +61,7 @@ class ReportController extends Controller
             $date = Carbon::now()->subMonths($i);
             $months[] = [
                 'month' => $date->format('M Y'),
-                'amount' => Member::sum('savings') // This would be more accurate with historical data
+                'amount' => Member::transactionSavingsTotal()
             ];
         }
         return $months;
@@ -68,9 +70,9 @@ class ReportController extends Controller
     private function getLoanDistribution()
     {
         return [
-            'pending' => Loan::where('status', 'pending')->count(),
-            'approved' => Loan::where('status', 'approved')->count(),
-            'rejected' => Loan::where('status', 'rejected')->count()
+            'pending' => Loan::status('pending')->count(),
+            'approved' => Loan::status('approved')->count(),
+            'rejected' => Loan::status('rejected')->count()
         ];
     }
 

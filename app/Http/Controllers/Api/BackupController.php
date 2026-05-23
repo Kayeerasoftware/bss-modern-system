@@ -28,7 +28,7 @@ class BackupController extends Controller
                 return [
                     'id' => $b->id,
                     'filename' => $b->filename,
-                    'size' => $this->formatBytes($b->size),
+                    'size' => $this->formatBytes($b->file_size ?? 0),
                     'type' => $b->type,
                     'status' => $b->status,
                     'created_at' => date('M d, Y g:i A', strtotime($b->created_at)),
@@ -58,13 +58,16 @@ class BackupController extends Controller
             $size = File::size($filepath);
 
             DB::table('backups')->insert([
+                'backup_number' => 'BKP-' . now()->format('Ymd') . '-' . str_pad((string) random_int(1, 9999), 4, '0', STR_PAD_LEFT),
                 'filename' => $filename,
-                'path' => $filepath,
-                'size' => $size,
-                'type' => 'full',
+                'filepath' => $filepath,
+                'file_size' => $size,
+                'type' => 'manual',
                 'status' => 'completed',
+                'includes' => 'full',
+                'compression' => 'gzip',
+                'created_by' => auth()->id() ?? 1,
                 'created_at' => now(),
-                'updated_at' => now(),
             ]);
 
             return response()->json(['success' => true, 'filename' => $filename, 'size' => $this->formatBytes($size)]);
@@ -76,11 +79,11 @@ class BackupController extends Controller
     public function download($id)
     {
         $backup = DB::table('backups')->find($id);
-        if (!$backup || !File::exists($backup->path)) {
+        if (!$backup || !File::exists($backup->filepath)) {
             return response()->json(['error' => 'Backup not found'], 404);
         }
 
-        return response()->download($backup->path, $backup->filename);
+        return response()->download($backup->filepath, $backup->filename);
     }
 
     public function restore(Request $request)
@@ -122,18 +125,14 @@ class BackupController extends Controller
         
         $filename = $backup->filename;
         
-        if (File::exists($backup->path)) {
-            File::delete($backup->path);
+        if (File::exists($backup->filepath)) {
+            File::delete($backup->filepath);
         }
         DB::table('backups')->where('id', $id)->delete();
-        
-        DB::table('audit_logs')->insert([
-            'user' => auth()->user()->name ?? 'Admin',
-            'action' => 'Backup Deleted',
-            'details' => "Deleted backup: {$filename}",
-            'timestamp' => now(),
-            'created_at' => now(),
-            'updated_at' => now()
+
+        \App\Services\AuditLogService::log(auth()->user() ?? 'System', 'backup_deleted', "Deleted backup: {$filename}", [
+            'entity_type' => 'backup',
+            'entity_identifier' => $filename,
         ]);
 
         return response()->json(['success' => true]);

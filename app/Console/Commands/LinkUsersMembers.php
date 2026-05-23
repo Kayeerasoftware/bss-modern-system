@@ -6,6 +6,7 @@ use Illuminate\Console\Command;
 use App\Models\User;
 use App\Models\Member;
 use Illuminate\Support\Facades\Hash;
+use App\Services\System\AccountNumberService;
 
 class LinkUsersMembers extends Command
 {
@@ -20,8 +21,10 @@ class LinkUsersMembers extends Command
         $created = 0;
         
         foreach ($users as $user) {
+            $memberNumber = AccountNumberService::generateMemberAccountNumber();
             Member::create([
-                'member_id' => 'BSS' . str_pad(Member::count() + 1, 3, '0', STR_PAD_LEFT),
+                'member_number' => $memberNumber,
+                'member_account_number' => $memberNumber,
                 'full_name' => $user->name,
                 'email' => $user->email,
                 'location' => 'N/A',

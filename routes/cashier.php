@@ -6,12 +6,26 @@ use App\Http\Controllers\Cashier\TransactionController;
 use App\Http\Controllers\Cashier\DepositController;
 use App\Http\Controllers\Cashier\WithdrawalController;
 use App\Http\Controllers\Cashier\MemberController;
+use App\Http\Controllers\Cashier\FundraisingController;
+use App\Http\Controllers\Cashier\FinancialController;
+use App\Http\Controllers\Cashier\LoanController;
+use App\Http\Controllers\Cashier\LoanApplicationController;
+use App\Http\Controllers\Cashier\LoanSettingsController;
+use App\Http\Controllers\Cashier\SavingsController;
+use App\Http\Controllers\Cashier\ReportController;
 
 Route::prefix('cashier')->name('cashier.')->middleware(['auth', 'role:cashier,admin'])->group(function () {
     
     // Dashboard
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/dashboard/data', [DashboardController::class, 'getData'])->name('dashboard.data');
+
+    // Profile
+    Route::get('/profile', [\App\Http\Controllers\Cashier\ProfileController::class, 'index'])->name('profile');
+    Route::put('/profile', [\App\Http\Controllers\Cashier\ProfileController::class, 'update'])->name('profile.update');
+    Route::post('/profile/password', [\App\Http\Controllers\Cashier\ProfileController::class, 'updatePassword'])->name('profile.password');
+    Route::post('/profile/picture', [\App\Http\Controllers\Cashier\ProfileController::class, 'uploadProfilePicture'])->name('profile.picture');
+    Route::post('/profile/preferences', [\App\Http\Controllers\Cashier\ProfileController::class, 'updatePreferences'])->name('profile.preferences');
     
     // Transactions
     Route::prefix('transactions')->name('transactions.')->group(function () {
@@ -19,7 +33,27 @@ Route::prefix('cashier')->name('cashier.')->middleware(['auth', 'role:cashier,ad
         Route::get('/create', [TransactionController::class, 'create'])->name('create');
         Route::post('/', [TransactionController::class, 'store'])->name('store');
         Route::get('/{id}', [TransactionController::class, 'show'])->name('show');
+        Route::get('/{id}/edit', [TransactionController::class, 'edit'])->name('edit');
+        Route::put('/{id}', [TransactionController::class, 'update'])->name('update');
+        Route::delete('/{id}', [TransactionController::class, 'destroy'])->name('destroy');
     });
+
+    // Loan Applications
+    Route::prefix('loan-applications')->name('loan-applications.')->group(function () {
+        Route::get('/', [LoanApplicationController::class, 'index'])->name('index');
+        Route::get('/create', [LoanApplicationController::class, 'create'])->name('create');
+        Route::post('/', [LoanApplicationController::class, 'store'])->name('store');
+        Route::get('/{id}', [LoanApplicationController::class, 'show'])->name('show');
+        Route::get('/{id}/edit', [LoanApplicationController::class, 'edit'])->name('edit');
+        Route::put('/{id}', [LoanApplicationController::class, 'update'])->name('update');
+        Route::delete('/{id}', [LoanApplicationController::class, 'destroy'])->name('destroy');
+        Route::post('/{id}/approve', [LoanApplicationController::class, 'approve'])->name('approve');
+        Route::post('/{id}/reject', [LoanApplicationController::class, 'reject'])->name('reject');
+    });
+
+    // Loan Settings
+    Route::get('/loan-settings', [LoanSettingsController::class, 'index'])->name('loan-settings');
+    Route::put('/loan-settings', [LoanSettingsController::class, 'update'])->name('loan-settings.update');
     
     // Deposits
     Route::prefix('deposits')->name('deposits.')->group(function () {
@@ -36,6 +70,9 @@ Route::prefix('cashier')->name('cashier.')->middleware(['auth', 'role:cashier,ad
         Route::post('/', [WithdrawalController::class, 'store'])->name('store');
         Route::get('/{id}', [WithdrawalController::class, 'show'])->name('show');
     });
+
+    // Transfers
+    Route::post('/transfers', [TransactionController::class, 'storeTransfer'])->name('transfers.store');
     
     // Members
     Route::prefix('members')->name('members.')->group(function () {
@@ -45,26 +82,67 @@ Route::prefix('cashier')->name('cashier.')->middleware(['auth', 'role:cashier,ad
     
     // Loans
     Route::prefix('loans')->name('loans.')->group(function () {
-        Route::get('/', [\App\Http\Controllers\Cashier\LoanController::class, 'index'])->name('index');
-        Route::get('/create', [\App\Http\Controllers\Cashier\LoanController::class, 'create'])->name('create');
-        Route::post('/', [\App\Http\Controllers\Cashier\LoanController::class, 'store'])->name('store');
-        Route::get('/{id}', [\App\Http\Controllers\Cashier\LoanController::class, 'show'])->name('show');
+        Route::get('/applications', [LoanController::class, 'applications'])->name('applications');
+        Route::get('/approvals', [LoanController::class, 'approvals'])->name('approvals');
+        Route::get('/repayments', [LoanController::class, 'repayments'])->name('repayments');
+        Route::get('/', [LoanController::class, 'index'])->name('index');
+        Route::get('/create', [LoanController::class, 'create'])->name('create');
+        Route::post('/', [LoanController::class, 'store'])->name('store');
+        Route::get('/{id}', [LoanController::class, 'show'])->name('show');
+        Route::get('/{id}/print', [LoanController::class, 'printPdf'])->name('print');
+        Route::get('/{id}/edit', [LoanController::class, 'edit'])->name('edit');
+        Route::put('/{id}', [LoanController::class, 'update'])->name('update');
+        Route::delete('/{id}', [LoanController::class, 'destroy'])->name('destroy');
+        Route::post('/{id}/approve', [LoanController::class, 'approve'])->name('approve');
+        Route::post('/{id}/reject', [LoanController::class, 'reject'])->name('reject');
+        Route::post('/{id}/disburse', [LoanController::class, 'disburse'])->name('disburse');
     });
     
     // Fundraising
     Route::prefix('fundraising')->name('fundraising.')->group(function () {
-        Route::view('/', 'cashier.fundraising.index')->name('index');
+        Route::get('/', [FundraisingController::class, 'index'])->name('index');
+        Route::get('/campaigns', [FundraisingController::class, 'campaigns'])->name('campaigns');
+        Route::get('/create', [FundraisingController::class, 'create'])->name('create');
+        Route::post('/', [FundraisingController::class, 'store'])->name('store');
+        Route::get('/{id}', [FundraisingController::class, 'show'])->name('show');
+        Route::get('/{id}/edit', [FundraisingController::class, 'edit'])->name('edit');
+        Route::put('/{id}', [FundraisingController::class, 'update'])->name('update');
+        Route::delete('/{id}', [FundraisingController::class, 'destroy'])->name('destroy');
+        Route::get('/{id}/contributions', [FundraisingController::class, 'contributions'])->name('contributions');
+        Route::get('/{id}/contributions/create', [FundraisingController::class, 'contributionsCreate'])->name('contributions.create');
+        Route::post('/{id}/contributions', [FundraisingController::class, 'contributionsStore'])->name('contributions.store');
+        Route::get('/{id}/contributions/{contributionId}', [FundraisingController::class, 'contributionsShow'])->name('contributions.show');
+        Route::get('/{id}/contributions/{contributionId}/edit', [FundraisingController::class, 'contributionsEdit'])->name('contributions.edit');
+        Route::put('/{id}/contributions/{contributionId}', [FundraisingController::class, 'contributionsUpdate'])->name('contributions.update');
+        Route::delete('/{id}/contributions/{contributionId}', [FundraisingController::class, 'contributionsDestroy'])->name('contributions.destroy');
+        Route::get('/{id}/contributions/{contributionId}/print', [FundraisingController::class, 'contributionsPrint'])->name('contributions.print');
     });
     
     // Financial
     Route::prefix('financial')->name('financial.')->group(function () {
-        Route::get('/', [\App\Http\Controllers\Cashier\FinancialController::class, 'index'])->name('index');
-        Route::get('/create', [\App\Http\Controllers\Cashier\FinancialController::class, 'create'])->name('create');
-        Route::post('/store', [\App\Http\Controllers\Cashier\FinancialController::class, 'store'])->name('store');
-        Route::get('/deposits', [\App\Http\Controllers\Cashier\FinancialController::class, 'deposits'])->name('deposits');
-        Route::get('/withdrawals', [\App\Http\Controllers\Cashier\FinancialController::class, 'withdrawals'])->name('withdrawals');
-        Route::get('/transfers', [\App\Http\Controllers\Cashier\FinancialController::class, 'transfers'])->name('transfers');
+        Route::get('/', [FinancialController::class, 'index'])->name('index');
+        Route::get('/create', [TransactionController::class, 'create'])->name('create');
+        Route::post('/store', [TransactionController::class, 'store'])->name('store');
+        Route::get('/transactions', [TransactionController::class, 'index'])->name('transactions');
+        Route::get('/transactions/create', [TransactionController::class, 'create'])->name('transactions.create');
+        Route::post('/transactions', [TransactionController::class, 'store'])->name('transactions.store');
+        Route::get('/transactions/{id}', [TransactionController::class, 'show'])->name('transactions.show');
+        Route::get('/transactions/{id}/edit', [TransactionController::class, 'edit'])->name('transactions.edit');
+        Route::put('/transactions/{id}', [TransactionController::class, 'update'])->name('transactions.update');
+        Route::delete('/transactions/{id}', [TransactionController::class, 'destroy'])->name('transactions.destroy');
+        Route::get('/deposits', [TransactionController::class, 'deposits'])->name('deposits');
+        Route::get('/withdrawals', [TransactionController::class, 'withdrawals'])->name('withdrawals');
+        Route::get('/transfers', [TransactionController::class, 'transfers'])->name('transfers');
+        Route::get('/reports', fn () => redirect()->route('cashier.reports.index'))->name('reports');
+        Route::get('/{id}', [TransactionController::class, 'show'])->name('show');
+        Route::get('/{id}/edit', [TransactionController::class, 'edit'])->name('edit');
+        Route::put('/{id}', [TransactionController::class, 'update'])->name('update');
+        Route::delete('/{id}', [TransactionController::class, 'destroy'])->name('destroy');
     });
+
+    // Savings
+    Route::get('/savings', [SavingsController::class, 'index'])->name('savings.index');
+    Route::post('/savings/interest-rate', [SavingsController::class, 'updateInterestRate'])->name('savings.interest-rate');
     
     // Projects
     Route::prefix('projects')->name('projects.')->group(function () {
@@ -94,12 +172,12 @@ Route::prefix('cashier')->name('cashier.')->middleware(['auth', 'role:cashier,ad
             }
             return view('cashier.reports.index', compact('summary', 'reports'));
         })->name('index');
-        Route::post('/generate', [\App\Http\Controllers\Admin\ReportController::class, 'generate'])->name('generate');
+        Route::post('/generate', [ReportController::class, 'generate'])->name('generate');
         Route::get('/{id}', function ($id) {
             $report = \App\Models\Reports\GeneratedReport::where('user_id', auth()->id())->findOrFail($id);
-            $controller = new \App\Http\Controllers\Admin\ReportController();
+            $controller = new \App\Http\Controllers\Cashier\ReportController();
             $data = $controller->getReportData($report->type, $report->from_date, $report->to_date);
-            return view('admin.reports.view', [
+            return view('cashier.reports.view', [
                 'type' => $report->type,
                 'data' => $data,
                 'from_date' => $report->from_date,
@@ -134,11 +212,4 @@ Route::prefix('cashier')->name('cashier.')->middleware(['auth', 'role:cashier,ad
     Route::prefix('settings')->name('settings.')->group(function () {
         Route::view('/', 'cashier.settings.index')->name('index');
     });
-    
-    // Profile
-    Route::get('/profile', [\App\Http\Controllers\Cashier\ProfileController::class, 'index'])->name('profile');
-    Route::put('/profile', [\App\Http\Controllers\Cashier\ProfileController::class, 'update'])->name('profile.update');
-    Route::post('/profile/password', [\App\Http\Controllers\Cashier\ProfileController::class, 'updatePassword'])->name('profile.password');
-    Route::post('/profile/picture', [\App\Http\Controllers\Cashier\ProfileController::class, 'uploadProfilePicture'])->name('profile.picture');
-    Route::post('/profile/preferences', [\App\Http\Controllers\Cashier\ProfileController::class, 'updatePreferences'])->name('profile.preferences');
 });

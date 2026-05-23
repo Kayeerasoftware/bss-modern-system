@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Shareholder;
 
 use App\Http\Controllers\Controller;
 use App\Models\Project;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 
 class ProjectController extends Controller
@@ -15,19 +16,29 @@ class ProjectController extends Controller
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
-                $q->where('project_id', 'like', "%{$search}%")
+                $q->where('project_number', 'like', "%{$search}%")
                     ->orWhere('name', 'like', "%{$search}%")
-                    ->orWhere('description', 'like', "%{$search}%")
-                    ->orWhere('manager', 'like', "%{$search}%");
+                    ->orWhere('description', 'like', "%{$search}%");
             });
         }
 
         if ($request->filled('status')) {
-            $query->where('status', $request->status);
+            $statusId = DB::table('project_statuses')->where('name', $request->status)->value('id');
+            if ($statusId) {
+                $query->where('status_id', $statusId);
+            }
         }
 
         if ($request->filled('category')) {
-            $query->where('category', $request->category);
+            $category = $request->category;
+            if (is_numeric($category)) {
+                $query->where('category_id', (int) $category);
+            } else {
+                $categoryId = DB::table('project_categories')->where('name', $category)->value('id');
+                if ($categoryId) {
+                    $query->where('category_id', $categoryId);
+                }
+            }
         }
 
         if ($request->filled('date_from')) {
@@ -35,7 +46,7 @@ class ProjectController extends Controller
         }
 
         if ($request->filled('date_to')) {
-            $query->whereDate('end_date', '<=', $request->date_to);
+            $query->whereDate('expected_end_date', '<=', $request->date_to);
         }
 
         $projects = $query->latest()->paginate(15)->appends($request->query());

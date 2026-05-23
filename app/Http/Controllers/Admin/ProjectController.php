@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Project;
+use App\Models\ProjectStatus;
 use Illuminate\Http\Request;
 
 class ProjectController extends Controller
@@ -15,20 +16,21 @@ class ProjectController extends Controller
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
-                $q->where('project_id', 'like', "%{$search}%")
+                $q->where('project_number', 'like', "%{$search}%")
                     ->orWhere('name', 'like', "%{$search}%")
                     ->orWhere('description', 'like', "%{$search}%")
-                    ->orWhere('manager', 'like', "%{$search}%")
-                    ->orWhere('location', 'like', "%{$search}%");
+                    ->orWhere('location_text', 'like', "%{$search}%");
             });
         }
 
         if ($request->filled('status')) {
-            $query->where('status', $request->status);
+            $query->whereHas('statusRelation', fn ($q) => $q->where('name', $request->status));
         }
 
         if ($request->filled('category')) {
-            $query->where('category', $request->category);
+            if (is_numeric($request->category)) {
+                $query->where('category_id', $request->category);
+            }
         }
 
         if ($request->filled('date_from')) {
@@ -36,7 +38,7 @@ class ProjectController extends Controller
         }
 
         if ($request->filled('date_to')) {
-            $query->whereDate('end_date', '<=', $request->date_to);
+            $query->whereDate('expected_end_date', '<=', $request->date_to);
         }
 
         $sort = $request->get('sort', 'newest');
@@ -45,10 +47,10 @@ class ProjectController extends Controller
                 $query->oldest();
                 break;
             case 'budget_high':
-                $query->orderBy('budget', 'desc');
+                $query->orderBy('budget_amount', 'desc');
                 break;
             case 'budget_low':
-                $query->orderBy('budget', 'asc');
+                $query->orderBy('budget_amount', 'asc');
                 break;
             default:
                 $query->latest();
@@ -81,7 +83,22 @@ class ProjectController extends Controller
             'notes' => 'nullable|string',
         ]);
 
-        Project::create($validated);
+        $statusId = ProjectStatus::query()->where('name', strtolower((string) $validated['status']))->value('id');
+        $categoryId = is_numeric($validated['category']) ? (int) $validated['category'] : null;
+
+        Project::create([
+            'name' => $validated['name'],
+            'description' => $validated['description'],
+            'category_id' => $categoryId,
+            'status_id' => $statusId,
+            'budget_amount' => $validated['budget'],
+            'actual_roi' => $validated['roi'] ?? null,
+            'progress_percentage' => $validated['progress'] ?? 0,
+            'start_date' => $validated['start_date'],
+            'expected_end_date' => $validated['end_date'] ?? null,
+            'location_text' => $validated['location'] ?? null,
+            'notes' => $validated['notes'] ?? null,
+        ]);
 
         return redirect()->route('admin.projects.index')->with('success', 'Project created successfully');
     }
@@ -117,7 +134,22 @@ class ProjectController extends Controller
             'notes' => 'nullable|string',
         ]);
 
-        $project->update($validated);
+        $statusId = ProjectStatus::query()->where('name', strtolower((string) $validated['status']))->value('id');
+        $categoryId = is_numeric($validated['category']) ? (int) $validated['category'] : null;
+
+        $project->update([
+            'name' => $validated['name'],
+            'description' => $validated['description'],
+            'category_id' => $categoryId,
+            'status_id' => $statusId,
+            'budget_amount' => $validated['budget'],
+            'actual_roi' => $validated['roi'] ?? null,
+            'progress_percentage' => $validated['progress'] ?? 0,
+            'start_date' => $validated['start_date'],
+            'expected_end_date' => $validated['end_date'] ?? null,
+            'location_text' => $validated['location'] ?? null,
+            'notes' => $validated['notes'] ?? null,
+        ]);
 
         return redirect()->route('admin.projects.index')->with('success', 'Project updated successfully');
     }

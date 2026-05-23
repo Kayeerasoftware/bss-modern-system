@@ -6,12 +6,21 @@ use App\Http\Controllers\Controller;
 use App\Models\Member;
 use App\Models\Transaction;
 use App\Models\Loan;
+use App\Models\LoanStatus;
 use App\Models\Share;
 use App\Models\Dividend;
 use App\Models\SavingsHistory;
+use App\Models\TransactionCategory;
+use App\Models\TransactionStatus;
+use App\Models\TransactionType;
+use App\Models\PaymentMethod;
+use App\Models\Currency;
 use App\Services\Financial\MemberFinancialSyncService;
+use App\Services\Financial\SavingsReconciliationService;
+use App\Services\Financial\TransactionPostingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
 class ClientDashboardController extends Controller
@@ -39,7 +48,12 @@ class ClientDashboardController extends Controller
 
         $memberId = (string) $request->input('member_id', '');
         if ($memberId !== '') {
-            return Member::where('member_id', $memberId)->first();
+            $resolvedMemberId = resolve_member_id($memberId);
+            return Member::query()
+                ->where('id', $resolvedMemberId ?? -1)
+                ->orWhere('member_account_number', $memberId)
+                ->orWhere('member_number', $memberId)
+                ->first();
         }
 
         return null;
@@ -74,6 +88,7 @@ class ClientDashboardController extends Controller
 
             // Get recent transactions
             $recentTransactions = $this->getRecentTransactions($member);
+            $reconSnapshot = app(SavingsReconciliationService::class)->getMemberSnapshot($member->id);
 
             return response()->json([
                 'success' => true,
@@ -82,7 +97,8 @@ class ClientDashboardController extends Controller
                 'analytics' => $analytics,
                 'savingsGoals' => $savingsGoals,
                 'monthlyComparison' => $monthlyComparison,
-                'recentTransactions' => $recentTransactions
+                'recentTransactions' => $recentTransactions,
+                'savingsReconciliation' => $reconSnapshot
             ]);
 
         } catch (\Exception $e) {
@@ -109,6 +125,8 @@ class ClientDashboardController extends Controller
 
             $summary = app(MemberFinancialSyncService::class)->getMemberFinancialSummary($member);
 
+            $reconSnapshot = app(SavingsReconciliationService::class)->getMemberSnapshot($member->id);
+
             return response()->json([
                 'success' => true,
                 'member_id' => $member->member_id,
@@ -121,6 +139,7 @@ class ClientDashboardController extends Controller
                 'total_withdrawals' => (float) $summary['total_withdrawals'],
                 'total_transfers' => (float) $summary['total_transfers'],
                 'total_loan_payments' => (float) $summary['total_loan_payments'],
+                'savings_reconciliation' => $reconSnapshot,
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -144,10 +163,10 @@ class ClientDashboardController extends Controller
                 ], 404);
             }
 
-            $query = Transaction::where('member_id', $member->member_id);
+            $query = Transaction::where('member_id', $member->id);
 
             if ($request->filled('type')) {
-                $query->where('type', $request->input('type'));
+                $query->ofType($request->input('type'));
             }
             if ($request->filled('date_from')) {
                 $query->whereDate('created_at', '>=', $request->input('date_from'));
@@ -186,21 +205,22 @@ class ClientDashboardController extends Controller
                 ], 404);
             }
 
-            $loans = Loan::where('member_id', $member->member_id)
+            $loans = Loan::where('member_id', $member->id)
                 ->latest()
                 ->get()
                 ->map(function ($loan) {
-                    $paid = (float) ($loan->paid_amount ?? 0);
-                    $amount = (float) ($loan->amount ?? 0);
+                    $paid = (float) ($loan->amount_paid ?? 0);
+                    $amount = (float) ($loan->principal_amount ?? 0);
+                    $outstanding = (float) ($loan->balance_due ?? max($amount - $paid, 0));
                     return [
                         'id' => $loan->id,
                         'loan_id' => $loan->loan_id,
                         'status' => $loan->status,
                         'amount' => $amount,
                         'paid_amount' => $paid,
-                        'outstanding' => max($amount - $paid, 0),
+                        'outstanding' => $outstanding,
                         'interest_rate' => (float) ($loan->interest_rate ?? 0),
-                        'duration' => $loan->duration ?? $loan->repayment_months,
+                        'duration' => $loan->repayment_months,
                         'created_at' => $loan->created_at,
                     ];
                 });
@@ -253,12 +273,28 @@ class ClientDashboardController extends Controller
                 ], 422);
             }
 
+            $transactionTypeId = TransactionType::query()->where('name', 'withdrawal')->value('id');
+            $statusId = TransactionStatus::query()->where('name', 'pending')->value('id');
+            $categoryId = TransactionCategory::query()->where('name', 'savings_withdrawal')->value('id');
+            $paymentMethodId = PaymentMethod::query()->where('name', 'cash')->value('id') ?? PaymentMethod::query()->value('id');
+            $currencyId = Currency::query()->where('code', 'UGX')->value('id') ?? Currency::query()->value('id');
+
             $transaction = Transaction::create([
-                'member_id' => $member->member_id,
+                'member_id' => $member->id,
+                'transaction_type_id' => $transactionTypeId,
+                'category_id' => $categoryId,
+                'status_id' => $statusId,
                 'amount' => $amount,
-                'type' => 'withdrawal',
+                'net_amount' => $amount,
+                'currency_id' => $currencyId,
+                'payment_method_id' => $paymentMethodId,
                 'description' => $request->input('description', 'Withdrawal request'),
-                'status' => 'pending',
+                'transaction_date' => now(),
+                'value_date' => now(),
+                'processed_by' => Auth::id() ?? \App\Models\User::query()->value('id'),
+                'processed_at' => now(),
+                'balance_before' => (float) ($member->balance ?? 0),
+                'balance_after' => (float) ($member->balance ?? 0),
             ]);
 
             return response()->json([
@@ -282,11 +318,11 @@ class ClientDashboardController extends Controller
         $summary = app(MemberFinancialSyncService::class)->getMemberFinancialSummary($member);
 
         // Calculate monthly deposits (last 30 days)
-        $monthlyDeposits = Transaction::where('member_id', $member->member_id)
-            ->where('type', 'deposit')
+        $monthlyDeposits = Transaction::where('member_id', $member->id)
+            ->ofType('deposit')
             ->where(function ($query): void {
-                $query->where('status', 'completed')
-                    ->orWhereNull('status');
+                $query->ofStatus('completed')
+                    ->orWhereNull('status_id');
             })
             ->where('created_at', '>=', Carbon::now()->subDays(30))
             ->sum('amount');
@@ -305,16 +341,16 @@ class ClientDashboardController extends Controller
     private function getAnalytics($member)
     {
         // Calculate savings growth rate
-        $lastMonth = Transaction::where('member_id', $member->member_id)
-            ->where('type', 'deposit')
+        $lastMonth = Transaction::where('member_id', $member->id)
+            ->ofType('deposit')
             ->whereBetween('created_at', [
                 Carbon::now()->subMonths(2),
                 Carbon::now()->subMonths(1)
             ])
             ->sum('amount');
 
-        $thisMonth = Transaction::where('member_id', $member->member_id)
-            ->where('type', 'deposit')
+        $thisMonth = Transaction::where('member_id', $member->id)
+            ->ofType('deposit')
             ->where('created_at', '>=', Carbon::now()->subMonths(1))
             ->sum('amount');
 
@@ -349,15 +385,16 @@ class ClientDashboardController extends Controller
         $score = $baseScore + ($monthsMember * 10);
 
         // Add points for consistent deposits
-        $depositCount = Transaction::where('member_id', $member->member_id)
-            ->where('type', 'deposit')
+        $depositCount = Transaction::where('member_id', $member->id)
+            ->ofType('deposit')
             ->count();
         $score += min($depositCount * 5, 100);
 
         // Subtract points for loan defaults
-        $defaultedLoans = Loan::where('member_id', $member->member_id)
-            ->where('status', 'rejected')
-            ->count();
+        $rejectedStatusId = LoanStatus::query()->where('name', 'rejected')->value('id');
+        $defaultedLoans = $rejectedStatusId
+            ? Loan::where('member_id', $member->id)->where('status_id', $rejectedStatusId)->count()
+            : 0;
         $score -= $defaultedLoans * 50;
 
         return max(300, min(850, $score));
@@ -395,16 +432,17 @@ class ClientDashboardController extends Controller
         }
 
         // Add points for no active loans
-        $activeLoans = Loan::where('member_id', $member->member_id)
-            ->where('status', 'approved')
-            ->count();
+        $approvedStatusId = LoanStatus::query()->where('name', 'approved')->value('id');
+        $activeLoans = $approvedStatusId
+            ? Loan::where('member_id', $member->id)->where('status_id', $approvedStatusId)->count()
+            : 0;
         if ($activeLoans === 0) {
             $score += 15;
             $factors[] = 'No active debt';
         }
 
         // Add points for consistent transaction history
-        $transactionCount = Transaction::where('member_id', $member->member_id)->count();
+        $transactionCount = Transaction::where('member_id', $member->id)->count();
         if ($transactionCount > 10) {
             $score += 10;
             $factors[] = 'Active account usage';
@@ -476,14 +514,14 @@ class ClientDashboardController extends Controller
      */
     private function getMonthlyComparison($member)
     {
-        $thisMonth = Transaction::where('member_id', $member->member_id)
-            ->where('type', 'deposit')
+        $thisMonth = Transaction::where('member_id', $member->id)
+            ->ofType('deposit')
             ->whereMonth('created_at', Carbon::now()->month)
             ->whereYear('created_at', Carbon::now()->year)
             ->sum('amount');
 
-        $lastMonth = Transaction::where('member_id', $member->member_id)
-            ->where('type', 'deposit')
+        $lastMonth = Transaction::where('member_id', $member->id)
+            ->ofType('deposit')
             ->whereMonth('created_at', Carbon::now()->subMonth()->month)
             ->whereYear('created_at', Carbon::now()->subMonth()->year)
             ->sum('amount');
@@ -502,7 +540,7 @@ class ClientDashboardController extends Controller
      */
     private function getRecentTransactions($member)
     {
-        return Transaction::where('member_id', $member->member_id)
+        return Transaction::where('member_id', $member->id)
             ->orderBy('created_at', 'desc')
             ->limit(5)
             ->get()
@@ -519,7 +557,7 @@ class ClientDashboardController extends Controller
     /**
      * Make a deposit
      */
-    public function makeDeposit(Request $request)
+    public function makeDeposit(Request $request, TransactionPostingService $postingService)
     {
         try {
             $request->validate([
@@ -537,15 +575,51 @@ class ClientDashboardController extends Controller
                 ], 404);
             }
 
-            // Create transaction
-            $transaction = new Transaction();
-            $transaction->member_id = $member->member_id;
-            $transaction->amount = $request->amount;
-            $transaction->type = 'deposit';
-            $transaction->description = $request->description ?? 'Manual deposit';
-            $transaction->status = 'completed';
-            $transaction->processed_by = Auth::id();
-            $transaction->save();
+            $transactionTypeId = TransactionType::query()->where('name', 'deposit')->value('id');
+            $statusId = TransactionStatus::query()->where('name', 'completed')->value('id');
+            $categoryId = TransactionCategory::query()->where('name', 'savings_deposit')->value('id');
+            $paymentMethodId = PaymentMethod::query()->where('name', 'cash')->value('id') ?? PaymentMethod::query()->value('id');
+            $currencyId = Currency::query()->where('code', 'UGX')->value('id') ?? Currency::query()->value('id');
+
+            $balanceBefore = (float) ($member->balance ?? 0);
+            $netAmount = (float) $request->amount;
+            $balanceAfter = $balanceBefore + $netAmount;
+
+            $transaction = null;
+            DB::transaction(function () use (
+                $member,
+                $transactionTypeId,
+                $statusId,
+                $categoryId,
+                $paymentMethodId,
+                $currencyId,
+                $balanceBefore,
+                $balanceAfter,
+                $netAmount,
+                $request,
+                &$transaction,
+                $postingService
+            ): void {
+                $transaction = Transaction::create([
+                    'member_id' => $member->id,
+                    'transaction_type_id' => $transactionTypeId,
+                    'category_id' => $categoryId,
+                    'status_id' => $statusId,
+                    'amount' => $request->amount,
+                    'net_amount' => $netAmount,
+                    'currency_id' => $currencyId,
+                    'payment_method_id' => $paymentMethodId,
+                    'balance_before' => $balanceBefore,
+                    'balance_after' => $balanceAfter,
+                    'description' => $request->description ?? 'Manual deposit',
+                    'processed_by' => Auth::id(),
+                    'processed_at' => now(),
+                    'transaction_date' => now(),
+                    'value_date' => now(),
+                ]);
+
+                $postingService->applyCategoryUpdates($transaction, $request->all());
+            });
 
             $summary = app(MemberFinancialSyncService::class)->syncMember($member);
 
@@ -579,7 +653,7 @@ class ClientDashboardController extends Controller
                 ], 404);
             }
 
-            $memberId = $member->member_id;
+            $memberId = $member->id;
             $months = $request->input('months', 6);
 
             $history = [];
@@ -591,12 +665,12 @@ class ClientDashboardController extends Controller
                 $monthEnd = $month->endOfMonth();
 
                 $deposits = Transaction::where('member_id', $memberId)
-                    ->where('type', 'deposit')
+                    ->ofType('deposit')
                     ->whereBetween('created_at', [$monthStart, $monthEnd])
                     ->sum('amount');
 
                 $withdrawals = Transaction::where('member_id', $memberId)
-                    ->where('type', 'withdrawal')
+                    ->ofType('withdrawal')
                     ->whereBetween('created_at', [$monthStart, $monthEnd])
                     ->sum('amount');
 
@@ -635,18 +709,18 @@ class ClientDashboardController extends Controller
                     'message' => 'Member not found'
                 ], 404);
             }
-            $memberId = $member->member_id;
+            $memberId = $member->id;
 
             $deposits = Transaction::where('member_id', $memberId)
-                ->where('type', 'deposit')
+                ->ofType('deposit')
                 ->sum('amount');
 
             $withdrawals = Transaction::where('member_id', $memberId)
-                ->where('type', 'withdrawal')
+                ->ofType('withdrawal')
                 ->sum('amount');
 
             $transfers = Transaction::where('member_id', $memberId)
-                ->where('type', 'transfer')
+                ->ofType('transfer')
                 ->sum('amount');
 
             $total = $deposits + $withdrawals + $transfers;
@@ -690,15 +764,15 @@ class ClientDashboardController extends Controller
                     'message' => 'Member not found'
                 ], 404);
             }
-            $memberId = $member->member_id;
+            $memberId = $member->id;
 
             // Mock spending categories based on transaction patterns
             $totalDeposits = Transaction::where('member_id', $memberId)
-                ->where('type', 'deposit')
+                ->ofType('deposit')
                 ->sum('amount');
 
             $totalWithdrawals = Transaction::where('member_id', $memberId)
-                ->where('type', 'withdrawal')
+                ->ofType('withdrawal')
                 ->sum('amount');
 
             if ($totalDeposits == 0) {

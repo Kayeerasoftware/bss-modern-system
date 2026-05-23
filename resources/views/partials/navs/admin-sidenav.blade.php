@@ -54,12 +54,15 @@
             <a href="{{ route('admin.fundraising.index') }}" class="nav-item flex items-center space-x-2 px-2 py-2 rounded-lg transition text-xs {{ request()->routeIs('admin.fundraising.*') ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-orange-50 hover:text-orange-600' }}" data-search="fundraising">
                 <i class="fas fa-hand-holding-heart w-3 text-xs"></i><span>Fundraising</span>
             </a>
-            <a href="{{ route('admin.financial.transactions') }}" class="nav-item flex items-center space-x-2 px-2 py-2 rounded-lg transition text-xs {{ request()->routeIs('admin.financial.transactions') ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-orange-50 hover:text-orange-600' }}" data-search="transactions">
+            <a href="{{ route('admin.financial.transactions') }}" class="nav-item flex items-center space-x-2 px-2 py-2 rounded-lg transition text-xs {{ request()->routeIs('admin.financial.transactions*', 'admin.financial.deposits', 'admin.financial.withdrawals', 'admin.financial.transfers', 'admin.financial.reports') ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-orange-50 hover:text-orange-600' }}" data-search="transactions">
                 <i class="fas fa-exchange-alt w-3 text-xs"></i><span>Transactions</span>
             </a>
-            <a href="{{ route('admin.financial.transactions') }}" class="nav-item flex items-center space-x-2 px-2 py-2 rounded-lg transition text-xs {{ request()->routeIs('admin.financial.*') ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-orange-50 hover:text-orange-600' }}" data-search="financial">
+            <a href="{{ route('admin.financial.index') }}" class="nav-item flex items-center space-x-2 px-2 py-2 rounded-lg transition text-xs {{ request()->routeIs('admin.financial.index') ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-orange-50 hover:text-orange-600' }}" data-search="financial">
                 <i class="fas fa-dollar-sign w-3 text-xs"></i><span>Financial</span>
             </a>            
+            <a href="{{ route('admin.savings.index') }}" class="nav-item flex items-center space-x-2 px-2 py-2 rounded-lg transition text-xs {{ request()->routeIs('admin.savings.*') ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-orange-50 hover:text-orange-600' }}" data-search="savings">
+                <i class="fas fa-piggy-bank w-3 text-xs"></i><span>Savings</span>
+            </a>
             <a href="{{ route('admin.projects.index') }}" class="nav-item flex items-center space-x-2 px-2 py-2 rounded-lg transition text-xs {{ request()->routeIs('admin.projects.*') ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-orange-50 hover:text-orange-600' }}" data-search="projects">
                 <i class="fas fa-project-diagram w-3 text-xs"></i><span>Projects</span>
             </a>

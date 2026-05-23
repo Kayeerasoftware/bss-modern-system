@@ -4,8 +4,8 @@ namespace App\Observers;
 
 use App\Models\Member;
 use App\Models\User;
+use App\Services\Member\MemberDeletionService;
 use App\Services\UserMemberSyncService;
-use Illuminate\Support\Facades\DB;
 
 class UserObserver
 {
@@ -52,10 +52,7 @@ class UserObserver
                 return;
             }
 
-            DB::table('loans')->where('member_id', $member->member_id)->delete();
-            DB::table('transactions')->where('member_id', $member->member_id)->delete();
-            DB::table('savings_history')->where('member_id', $member->member_id)->delete();
-
+            app(MemberDeletionService::class)->purgeDependencies($member->id);
             $member->forceDeleteQuietly();
         } finally {
             self::$syncing = false;

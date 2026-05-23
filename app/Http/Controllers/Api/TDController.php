@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Project;
+use App\Models\ProjectStatus;
 use Illuminate\Http\Request;
 
 class TDController extends Controller
@@ -11,8 +12,10 @@ class TDController extends Controller
     public function dashboard()
     {
         $total = Project::count();
-        $active = Project::where('status', 'active')->count();
-        $completed = Project::where('status', 'completed')->count();
+        $activeStatusId = ProjectStatus::query()->where('name', 'active')->value('id');
+        $completedStatusId = ProjectStatus::query()->where('name', 'completed')->value('id');
+        $active = $activeStatusId ? Project::where('status_id', $activeStatusId)->count() : 0;
+        $completed = $completedStatusId ? Project::where('status_id', $completedStatusId)->count() : 0;
 
         return response()->json([
             'success' => true,

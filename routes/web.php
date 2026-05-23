@@ -24,10 +24,10 @@ Route::get('/login', function () {
     ];
     
     $adminPhone = \Illuminate\Support\Facades\Cache::remember('ui:admin_phone:v1', now()->addMinutes(5), function () {
-        return \App\Models\User::query()
-            ->where('role', 'admin')
-            ->whereNotNull('phone')
-            ->value('phone');
+        return \App\Models\Member::query()
+            ->whereHas('roles', fn ($q) => $q->where('name', 'admin'))
+            ->whereNotNull('primary_phone')
+            ->value('primary_phone');
     });
 
     $rememberedLogin = [
@@ -39,7 +39,7 @@ Route::get('/login', function () {
     $registeredEmail = session('registered_email');
     if (is_string($registeredEmail) && $registeredEmail !== '') {
         $recentRegisteredUser = \App\Models\User::query()
-            ->select('name', 'email', 'role', 'is_active')
+            ->select('id', 'username', 'email', 'role_id', 'status')
             ->where('email', strtolower(trim($registeredEmail)))
             ->first();
     }
@@ -68,11 +68,11 @@ Route::get('/register', function () {
         'admin' => \App\Models\Setting::get('allow_registration_admin', 1),
     ];
     
-    $adminPhone = \Illuminate\Support\Facades\Cache::remember('ui:admin_phone:v1', now()->addMinutes(5), function () {
-        return \App\Models\User::query()
-            ->where('role', 'admin')
-            ->whereNotNull('phone')
-            ->value('phone');
+        $adminPhone = \Illuminate\Support\Facades\Cache::remember('ui:admin_phone:v1', now()->addMinutes(5), function () {
+        return \App\Models\Member::query()
+            ->whereHas('roles', fn ($q) => $q->where('name', 'admin'))
+            ->whereNotNull('primary_phone')
+            ->value('primary_phone');
     });
     
     return view('auth.register', compact('roleStatuses', 'registrationAllowed', 'adminPhone')); 
@@ -159,9 +159,12 @@ Route::get('/dashboard', function () {
                 ->groupBy('yr')
                 ->pluck('total', 'yr');
 
-            $memberSummary = \App\Models\Member::query()
-                ->selectRaw('COUNT(*) as total_members, COALESCE(SUM(savings_balance),0) as savings_balance_total, COALESCE(SUM(balance),0) as balance_total, COALESCE(SUM(savings),0) as savings_total')
-                ->first();
+            $memberSummary = (object) [
+                'total_members' => \App\Models\Member::count(),
+                'savings_balance_total' => (float) \Illuminate\Support\Facades\DB::table('savings_accounts')->sum('current_balance'),
+                'balance_total' => (float) \Illuminate\Support\Facades\DB::table('savings_accounts')->sum('current_balance'),
+                'savings_total' => (float) \Illuminate\Support\Facades\DB::table('savings_accounts')->sum('current_balance'),
+            ];
 
             $currentMonthMembers = \App\Models\Member::query()
                 ->where('created_at', '>=', $currentMonthStart)
@@ -170,17 +173,20 @@ Route::get('/dashboard', function () {
                 ->whereBetween('created_at', [$previousMonthStart, $previousMonthEnd])
                 ->count();
 
+            $activeProjectStatusId = \App\Models\ProjectStatus::query()->where('name', 'active')->value('id');
             $projectSummary = \App\Models\Project::query()
-                ->selectRaw('SUM(CASE WHEN status = "active" THEN 1 ELSE 0 END) as active_projects, SUM(CASE WHEN status = "active" AND progress >= 80 THEN 1 ELSE 0 END) as nearing_completion, COALESCE(AVG(roi),0) as avg_roi')
+                ->selectRaw('SUM(CASE WHEN status_id = ? THEN 1 ELSE 0 END) as active_projects, SUM(CASE WHEN status_id = ? AND progress_percentage >= 80 THEN 1 ELSE 0 END) as nearing_completion, COALESCE(AVG(actual_roi),0) as avg_roi', [$activeProjectStatusId, $activeProjectStatusId])
                 ->first();
 
+            $pendingLoanStatusId = \App\Models\LoanStatus::query()->where('name', 'pending')->value('id');
+            $approvedLoanStatusId = \App\Models\LoanStatus::query()->where('name', 'approved')->value('id');
             $loanSummary = \App\Models\Loan::query()
-                ->selectRaw('SUM(CASE WHEN status = "pending" THEN 1 ELSE 0 END) as pending_loans, SUM(CASE WHEN status = "approved" THEN 1 ELSE 0 END) as approved_loans')
+                ->selectRaw('SUM(CASE WHEN status_id = ? THEN 1 ELSE 0 END) as pending_loans, SUM(CASE WHEN status_id = ? THEN 1 ELSE 0 END) as approved_loans', [$pendingLoanStatusId, $approvedLoanStatusId])
                 ->first();
 
             $userSummary = \App\Models\User::query()
                 ->whereHas('member')
-                ->selectRaw('COUNT(*) as total_users, SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END) as active_users')
+                ->selectRaw('COUNT(*) as total_users, SUM(CASE WHEN status = "active" THEN 1 ELSE 0 END) as active_users')
                 ->first();
 
             $todayTransactions = \App\Models\Transaction::query()
@@ -197,18 +203,26 @@ Route::get('/dashboard', function () {
                 ? (($currentMonthMembers - $lastMonthMembers) / $lastMonthMembers) * 100
                 : 0;
 
-            $totalAssets = (float) (($memberSummary->savings_balance_total ?? 0) + ($memberSummary->balance_total ?? 0));
+            // Both fields currently point to the same savings_accounts total.
+            // Adding them together doubled the dashboard asset figure.
+            $totalAssets = (float) ($memberSummary->savings_balance_total ?? 0);
             $totalSavings = (float) ($memberSummary->savings_total ?? 0);
             $activeProjects = (int) ($projectSummary->active_projects ?? 0);
             $approvedLoans = (int) ($loanSummary->approved_loans ?? 0);
 
+            $roleCounts = \Illuminate\Support\Facades\DB::table('member_roles')
+                ->join('roles', 'roles.id', '=', 'member_roles.role_id')
+                ->selectRaw('LOWER(roles.name) as role, COUNT(*) as count')
+                ->groupBy('roles.name')
+                ->pluck('count', 'role');
+
             $roleData = [
-                'client' => \App\Models\Member::where('role', 'client')->count(),
-                'shareholder' => \App\Models\Member::where('role', 'shareholder')->count(),
-                'cashier' => \App\Models\Member::where('role', 'cashier')->count(),
-                'td' => \App\Models\Member::where('role', 'td')->count(),
-                'ceo' => \App\Models\Member::where('role', 'ceo')->count(),
-                'admin' => \App\Models\Member::where('role', 'admin')->count(),
+                'client' => (int) ($roleCounts['client'] ?? 0),
+                'shareholder' => (int) ($roleCounts['shareholder'] ?? 0),
+                'cashier' => (int) ($roleCounts['cashier'] ?? 0),
+                'td' => (int) ($roleCounts['td'] ?? 0),
+                'ceo' => (int) ($roleCounts['ceo'] ?? 0),
+                'admin' => (int) ($roleCounts['admin'] ?? 0),
                 'total' => (int) ($memberSummary->total_members ?? 0),
                 'active' => (int) ($userSummary->active_users ?? 0),
             ];
@@ -356,25 +370,6 @@ Route::get('/debug-members', function() {
     
     $members = \App\Models\Member::limit(5)->get();
     
-    if ($currentMemberId) {
-        foreach ($members as $member) {
-            if ($member->member_id !== $currentMemberId) {
-                $member->unread_count = \App\Models\ChatMessage::where('sender_id', $member->member_id)
-                    ->where('receiver_id', $currentMemberId)
-                    ->where('is_read', false)
-                    ->count();
-                
-                $member->last_message = \App\Models\ChatMessage::where(function($q) use ($currentMemberId, $member) {
-                    $q->where(function($q2) use ($currentMemberId, $member) {
-                        $q2->where('sender_id', $currentMemberId)->where('receiver_id', $member->member_id);
-                    })->orWhere(function($q2) use ($currentMemberId, $member) {
-                        $q2->where('sender_id', $member->member_id)->where('receiver_id', $currentMemberId);
-                    });
-                })->latest()->first();
-            }
-        }
-    }
-    
     return response()->json([
         'current_user_id' => $currentUser ? $currentUser->id : null,
         'current_member_id' => $currentMemberId,
@@ -383,13 +378,8 @@ Route::get('/debug-members', function() {
                 'id' => $m->id,
                 'member_id' => $m->member_id,
                 'name' => $m->full_name,
-                'unread_count' => $m->unread_count ?? 0,
-                'last_message' => $m->last_message ? [
-                    'message' => $m->last_message->message,
-                    'sender_id' => $m->last_message->sender_id,
-                    'is_read' => $m->last_message->is_read,
-                    'created_at' => $m->last_message->created_at
-                ] : null
+                'unread_count' => 0,
+                'last_message' => null
             ];
         })
     ]);

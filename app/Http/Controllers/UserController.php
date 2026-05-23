@@ -11,7 +11,7 @@ class UserController extends Controller
 {
     public function index()
     {
-        $users = User::select('id', 'name', 'email', 'role', 'is_active', 'created_at')
+        $users = User::select('id', 'username', 'email', 'role_id', 'status', 'created_at')
             ->latest()
             ->get();
             
@@ -24,7 +24,7 @@ class UserController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email',
             'password' => 'required|string|min:6',
-            'role' => 'required|in:admin,manager,treasurer,secretary,member'
+            'role' => 'required|in:admin,ceo,td,cashier,shareholder,client'
         ]);
 
         $user = User::create([
@@ -32,28 +32,19 @@ class UserController extends Controller
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
             'role' => $validated['role'],
-            'is_active' => true
-        ]);
-
-        $lastMember = Member::withTrashed()
-            ->where('member_id', 'like', 'BSS-C15-%')
-            ->orderBy('member_id', 'desc')
-            ->first();
-
-        $nextNumber = 1;
-        if ($lastMember && preg_match('/BSS-C15-(\d+)/', (string) $lastMember->member_id, $matches)) {
-            $nextNumber = ((int) $matches[1]) + 1;
-        }
-
-        Member::create([
-            'member_id' => 'BSS-C15-' . str_pad((string) $nextNumber, 4, '0', STR_PAD_LEFT),
-            'full_name' => $user->name,
-            'email' => $user->email,
-            'password' => $user->password,
-            'role' => $user->role,
             'status' => 'active',
-            'user_id' => $user->id,
         ]);
+
+        $member = Member::query()->where('user_id', $user->id)->first();
+        if ($member) {
+            $member->full_name = $user->name;
+            $member->email = $user->email;
+            $member->membership_status = 'active';
+            $member->join_date = $member->join_date ?: now()->toDateString();
+            $member->created_by = $member->created_by ?: $user->id;
+            $member->saveQuietly();
+            $member->assignRole($validated['role']);
+        }
 
         return response()->json([
             'success' => true,
@@ -69,8 +60,8 @@ class UserController extends Controller
         $validated = $request->validate([
             'name' => 'sometimes|string|max:255',
             'email' => 'sometimes|email|unique:users,email,' . $id,
-            'role' => 'sometimes|in:admin,manager,treasurer,secretary,member',
-            'is_active' => 'sometimes|boolean'
+            'role' => 'sometimes|in:admin,ceo,td,cashier,shareholder,client',
+            'status' => 'sometimes|in:active,inactive,suspended,locked'
         ]);
 
         $user->update($validated);
@@ -88,13 +79,10 @@ class UserController extends Controller
         $userName = $user->name;
         $user->delete();
         
-        \DB::table('audit_logs')->insert([
-            'user' => auth()->user()->name ?? 'Admin',
-            'action' => 'User Deleted',
-            'details' => "Deleted user: {$userName}",
-            'timestamp' => now(),
-            'created_at' => now(),
-            'updated_at' => now()
+        \App\Services\AuditLogService::log(auth()->user(), 'delete', "Deleted user: {$userName}", [
+            'entity_type' => 'user',
+            'entity_id' => $user->id,
+            'entity_identifier' => $user->email,
         ]);
 
         return response()->json([
@@ -109,10 +97,11 @@ class UserController extends Controller
             'success' => true,
             'data' => [
                 'admin' => 'Administrator - Full system access',
-                'manager' => 'Manager - Manage members and operations',
-                'treasurer' => 'Treasurer - Handle finances and loans',
-                'secretary' => 'Secretary - Manage records and meetings',
-                'member' => 'Member - Basic access'
+                'ceo' => 'Chief Executive Officer - Executive oversight',
+                'td' => 'Technical Director - Projects and technical operations',
+                'cashier' => 'Cashier - Handle transactions',
+                'shareholder' => 'Shareholder - Investment access',
+                'client' => 'Client - Member access'
             ]
         ]);
     }

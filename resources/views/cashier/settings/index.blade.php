@@ -92,7 +92,7 @@
                             <i class="fas fa-percentage text-green-600"></i>
                             Default Interest Rate (%)
                         </label>
-                        <input type="text" value="{{ cache('default_interest_rate', 10) }}" readonly class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl bg-gray-50 text-gray-600 text-sm">
+                        <input type="text" value="{{ setting('default_interest_rate', 10) }}" readonly class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl bg-gray-50 text-gray-600 text-sm">
                     </div>
                     <div class="space-y-2">
                         <label class="flex items-center gap-2 text-sm font-bold text-gray-700">

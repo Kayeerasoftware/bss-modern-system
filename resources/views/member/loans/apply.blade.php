@@ -306,7 +306,7 @@
                     </div>
                     <div class="flex justify-between border-b pb-2">
                         <span class="font-bold">Interest Rate:</span>
-                        <span id="preview_interest_rate">10%</span>
+                        <span id="preview_interest_rate">{{ number_format($loanSettings['default_interest_rate'] ?? 10, 2) }}%</span>
                     </div>
                     <div class="flex justify-between border-b pb-2">
                         <span class="font-bold">Duration:</span>
@@ -364,7 +364,7 @@ function formatAndCalculate(input) {
 
 function calculateLoan() {
     const amount = parseFloat(document.getElementById('amount').value) || 0;
-    const rate = 10; // Fixed 10% interest rate
+    const rate = {{ json_encode($loanSettings['default_interest_rate'] ?? 10) }};
     const months = parseInt(document.getElementById('duration').value) || 0;
     
     if (amount > 0 && months > 0) {
@@ -393,7 +393,7 @@ function previewLoan() {
     }
     
     const amountNum = parseFloat(amount);
-    const rate = 10;
+    const rate = {{ json_encode($loanSettings['default_interest_rate'] ?? 10) }};
     const monthsNum = parseInt(months);
     const interest = amountNum * (rate / 100) * (monthsNum / 12);
     const total = amountNum + interest;

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Notification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class NotificationController extends Controller
 {
@@ -14,9 +15,17 @@ class NotificationController extends Controller
         $user = Auth::user();
         $member = $user->member;
         
-        $query = Notification::where('member_id', $member->member_id ?? null)
-            ->orWhere('member_id', null)
-            ->latest();
+        $query = Notification::query()
+            ->leftJoin('notification_receipts as nr', function ($join) use ($member) {
+                $join->on('notifications.id', '=', 'nr.notification_id')
+                    ->where('nr.member_id', '=', $member?->id);
+            })
+            ->where(function ($q) use ($member) {
+                $q->where('notifications.member_id', $member?->id)
+                  ->orWhereNull('notifications.member_id');
+            })
+            ->select('notifications.*', DB::raw('COALESCE(nr.is_read, 0) as is_read'))
+            ->latest('notifications.created_at');
         
         if (request('search')) {
             $query->where(function($q) {
@@ -25,14 +34,12 @@ class NotificationController extends Controller
             });
         }
         
-        if (request('type')) {
-            $query->where('type', request('type'));
-        }
-        
         if (request('status') == 'read') {
-            $query->where('is_read', true);
+            $query->where('nr.is_read', true);
         } elseif (request('status') == 'unread') {
-            $query->where('is_read', false);
+            $query->where(function ($q) {
+                $q->whereNull('nr.is_read')->orWhere('nr.is_read', false);
+            });
         }
         
         $notifications = $query->get();
@@ -43,7 +50,7 @@ class NotificationController extends Controller
     public function show($id)
     {
         $notification = Notification::findOrFail($id);
-        $notification->update(['is_read' => true]);
+        $this->markReceipt(Auth::user()?->member?->id, $notification->id);
         
         return view('member.notifications.show', compact('notification'));
     }
@@ -51,7 +58,7 @@ class NotificationController extends Controller
     public function markAsRead($id)
     {
         $notification = Notification::findOrFail($id);
-        $notification->update(['is_read' => true]);
+        $this->markReceipt(Auth::user()?->member?->id, $notification->id);
         
         return response()->json(['success' => true]);
     }
@@ -60,11 +67,23 @@ class NotificationController extends Controller
     {
         $user = Auth::user();
         $member = $user->member;
-        
-        Notification::where('member_id', $member->member_id ?? null)
-            ->where('is_read', false)
-            ->update(['is_read' => true]);
+
+        DB::table('notification_receipts')
+            ->where('member_id', $member?->id)
+            ->update(['is_read' => true, 'read_at' => now()]);
         
         return redirect()->back()->with('success', 'All notifications marked as read');
+    }
+
+    private function markReceipt(?int $memberId, int $notificationId): void
+    {
+        if (!$memberId) {
+            return;
+        }
+
+        DB::table('notification_receipts')->updateOrInsert(
+            ['member_id' => $memberId, 'notification_id' => $notificationId],
+            ['is_read' => true, 'read_at' => now()]
+        );
     }
 }

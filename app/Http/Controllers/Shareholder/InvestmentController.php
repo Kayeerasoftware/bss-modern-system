@@ -5,16 +5,20 @@ namespace App\Http\Controllers\Shareholder;
 use App\Http\Controllers\Controller;
 use App\Models\InvestmentOpportunity;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class InvestmentController extends Controller
 {
     public function index()
     {
-        $investments = InvestmentOpportunity::where('status', 'active')->paginate(10);
+        $activeStatusId = DB::table('investment_statuses')->where('name', 'active')->value('id');
+        $investments = InvestmentOpportunity::query()
+            ->when($activeStatusId, fn ($q) => $q->where('status_id', $activeStatusId))
+            ->paginate(10);
         
         $stats = [
             'total' => InvestmentOpportunity::count(),
-            'active' => InvestmentOpportunity::where('status', 'active')->count(),
+            'active' => $activeStatusId ? InvestmentOpportunity::where('status_id', $activeStatusId)->count() : 0,
             'total_value' => 0,
             'avg_roi' => 0,
         ];

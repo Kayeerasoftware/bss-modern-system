@@ -7,22 +7,13 @@ use Illuminate\Http\Request;
 use App\Models\Member;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
+use App\Services\System\AccountNumberService;
 
 class BulkController extends Controller
 {
     private function generateMemberId(): string
     {
-        $lastMember = Member::withTrashed()
-            ->where('member_id', 'like', 'BSS-C15-%')
-            ->orderBy('member_id', 'desc')
-            ->first();
-
-        $nextNumber = 1;
-        if ($lastMember && preg_match('/BSS-C15-(\d+)/', (string) $lastMember->member_id, $matches)) {
-            $nextNumber = ((int) $matches[1]) + 1;
-        }
-
-        return 'BSS-C15-' . str_pad((string) $nextNumber, 4, '0', STR_PAD_LEFT);
+        return AccountNumberService::generateMemberAccountNumber();
     }
 
     public function importMembers(Request $request)
@@ -64,33 +55,35 @@ class BulkController extends Controller
                     $role = 'client';
                 }
                 
-                $user = User::create([
-                    'name' => $data['full_name'],
-                    'email' => $data['email'],
-                    'password' => Hash::make('password123'),
-                    'role' => $role,
-                    'status' => 'active',
-                    'is_active' => true,
-                    'phone' => $data['contact'] ?? null,
-                    'location' => $data['location'] ?? null,
-                ]);
+                $user = User::withoutEvents(function () use ($data, $role) {
+                    return User::create([
+                        'name' => $data['full_name'],
+                        'email' => $data['email'],
+                        'password' => Hash::make('password123'),
+                        'role' => $role,
+                        'status' => 'active',
+                        'is_active' => true,
+                        'phone' => $data['contact'] ?? null,
+                        'location' => $data['location'] ?? null,
+                    ]);
+                });
 
-                Member::create([
-                    'member_id' => $this->generateMemberId(),
-                    'full_name' => $data['full_name'],
-                    'email' => $data['email'],
-                    'contact' => $data['contact'],
-                    'location' => $data['location'] ?? '',
-                    'occupation' => $data['occupation'] ?? '',
-                    'role' => $role,
-                    'savings' => $data['savings'] ?? 0,
-                    'loan' => 0,
-                    'balance' => $data['savings'] ?? 0,
-                    'savings_balance' => $data['savings'] ?? 0,
-                    'status' => 'active',
-                    'password' => $user->password,
-                    'user_id' => $user->id,
-                ]);
+                $memberNumber = $this->generateMemberId();
+                $member = new Member();
+                $member->member_number = $memberNumber;
+                $member->member_account_number = $memberNumber;
+                $member->full_name = $data['full_name'];
+                $member->email = $data['email'];
+                $member->primary_phone = $data['contact'];
+                $member->place_of_birth = $data['location'] ?? '';
+                $member->occupation = $data['occupation'] ?? '';
+                $member->password = $user->password;
+                $member->user_id = $user->id;
+                $member->membership_status = 'active';
+                $member->join_date = now()->toDateString();
+                Member::queueOpeningSavings($member, (float) ($data['savings'] ?? 0));
+                $member->save();
+                $member->assignRole($role);
                 
                 $imported++;
             }

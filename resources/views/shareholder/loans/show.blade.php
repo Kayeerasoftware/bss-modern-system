@@ -29,7 +29,7 @@
                 </div>
                 <div>
                     <h1 class="text-xl md:text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent mb-1">Loan Details</h1>
-                    <p class="text-gray-600 text-xs md:text-sm font-medium">Loan #{{ $loan->id }} - {{ $loan->purpose ?? 'General Purpose' }}</p>
+                    <p class="text-gray-600 text-xs md:text-sm font-medium">Loan #{{ $loan->id }} - {{ $loan->purpose ?? 'General Purpose' }} | Member: {{ $loan->member->member_account_number ?? $loan->member->member_number ?? 'N/A' }}</p>
                 </div>
             </div>
             <button onclick="window.print()" class="px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl hover:shadow-lg transition-all text-sm font-semibold">
