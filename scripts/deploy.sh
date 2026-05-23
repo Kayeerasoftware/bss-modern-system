@@ -6,6 +6,7 @@ git pull origin master
 
 composer install --no-dev --optimize-autoloader
 
+php artisan deploy:seed-imported-migrations --no-interaction
 php artisan migrate --force --no-interaction
 
 php artisan config:cache
