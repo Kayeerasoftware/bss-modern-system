@@ -32,3 +32,18 @@ if (!function_exists('format_account_number')) {
         return $number;
     }
 }
+
+if (!function_exists('table_sum_or_zero')) {
+    function table_sum_or_zero(string $table, string $column, float|int $default = 0): float|int
+    {
+        try {
+            if (!\Illuminate\Support\Facades\Schema::hasTable($table)) {
+                return $default;
+            }
+
+            return (float) \Illuminate\Support\Facades\DB::table($table)->sum($column);
+        } catch (\Throwable) {
+            return $default;
+        }
+    }
+}

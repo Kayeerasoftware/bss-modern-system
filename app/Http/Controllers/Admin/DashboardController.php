@@ -30,7 +30,7 @@ class DashboardController extends Controller
                 ->selectRaw('COUNT(*) as total_members')
                 ->first();
 
-            $totalSavings = (float) DB::table('savings_accounts')->sum('current_balance');
+            $totalSavings = (float) table_sum_or_zero('savings_accounts', 'current_balance');
 
             $userSummary = User::query()
                 ->whereHas('member')
@@ -314,7 +314,7 @@ class DashboardController extends Controller
                 $approvedStatusId = LoanStatus::query()->where('name', 'approved')->value('id');
                 $pendingLoans = $pendingStatusId ? (clone $loanScope)->where('status_id', $pendingStatusId)->count() : 0;
                 $approvedLoans = $approvedStatusId ? (clone $loanScope)->where('status_id', $approvedStatusId)->count() : 0;
-                $totalSavings = (float) DB::table('savings_accounts')->sum('current_balance');
+                $totalSavings = (float) table_sum_or_zero('savings_accounts', 'current_balance');
 
                 $monthly['stats'] = [
                     'totalMembers' => (int) ($memberSummary->total_members ?? 0),

@@ -159,11 +159,12 @@ Route::get('/dashboard', function () {
                 ->groupBy('yr')
                 ->pluck('total', 'yr');
 
+            $savingsTotal = table_sum_or_zero('savings_accounts', 'current_balance');
             $memberSummary = (object) [
                 'total_members' => \App\Models\Member::count(),
-                'savings_balance_total' => (float) \Illuminate\Support\Facades\DB::table('savings_accounts')->sum('current_balance'),
-                'balance_total' => (float) \Illuminate\Support\Facades\DB::table('savings_accounts')->sum('current_balance'),
-                'savings_total' => (float) \Illuminate\Support\Facades\DB::table('savings_accounts')->sum('current_balance'),
+                'savings_balance_total' => $savingsTotal,
+                'balance_total' => $savingsTotal,
+                'savings_total' => $savingsTotal,
             ];
 
             $currentMonthMembers = \App\Models\Member::query()

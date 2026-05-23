@@ -37,7 +37,7 @@ class DashboardController extends Controller
                 ->each
                 ->append(['member_id', 'role', 'status', 'savings', 'balance', 'savings_balance']);
 
-            $totalSavings = (float) ($viewStats['total_system_balance'] ?? DB::table('savings_accounts')->sum('current_balance'));
+            $totalSavings = (float) ($viewStats['total_system_balance'] ?? table_sum_or_zero('savings_accounts', 'current_balance'));
 
             $approvedStatusId = LoanStatus::query()->where('name', 'approved')->value('id');
             $disbursedStatusId = LoanStatus::query()->where('name', 'disbursed')->value('id');
