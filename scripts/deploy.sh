@@ -2,11 +2,11 @@
 
 echo "Deploying BSS System..."
 
-git pull origin main
+git pull origin master
 
 composer install --no-dev --optimize-autoloader
 
-php artisan migrate --force
+php artisan migrate --force --no-interaction
 
 php artisan config:cache
 php artisan route:cache

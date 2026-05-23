@@ -42,13 +42,15 @@ if [[ -d "${PERSISTENT_DISK_PATH}" ]]; then
 fi
 
 php artisan storage:link || true
+
+# Run migrations before warming caches so boot-time commands see the latest schema.
+# Defaults to on for Render deployments, but can still be disabled explicitly.
+if [[ "${RUN_MIGRATIONS:-true}" == "true" ]]; then
+  php artisan migrate --force --no-interaction || exit 1
+fi
+
 php artisan config:cache || true
 php artisan route:cache || true
 php artisan view:cache || true
-
-# Set RUN_MIGRATIONS=true in Render to auto-run migrations on container boot.
-if [[ "${RUN_MIGRATIONS:-false}" == "true" ]]; then
-  php artisan migrate --force || exit 1
-fi
 
 exec apache2-foreground
