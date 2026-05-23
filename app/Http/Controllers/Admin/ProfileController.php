@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
 use App\Models\User;
 use App\Models\System\AuditLog;
@@ -14,6 +13,7 @@ use App\Models\Member;
 use App\Models\Transaction;
 use App\Models\Loan;
 use App\Models\LoanStatus;
+use App\Services\ProfilePictureStorageService;
 
 class ProfileController extends Controller
 {
@@ -125,15 +125,9 @@ class ProfileController extends Controller
                 return response()->json(['success' => false, 'message' => 'Invalid file'], 400);
             }
             
-            // Delete old picture if exists
             $oldPath = DB::table('users')->where('id', $user->id)->value('profile_picture');
-            if ($oldPath && Storage::disk('uploads')->exists($oldPath)) {
-                Storage::disk('uploads')->delete($oldPath);
-            }
-            
-            // Store new picture
-            $path = $file->store('profile_pictures', 'uploads');
-            
+            $path = ProfilePictureStorageService::storeProfilePicture($file, $oldPath, 'bss/profile_pictures/users');
+
             if (!$path) {
                 return response()->json(['success' => false, 'message' => 'Failed to store file'], 500);
             }
@@ -152,13 +146,10 @@ class ProfileController extends Controller
                 ]);
             }
             
-            // Return the full URL
-            $fullUrl = asset('uploads/' . $path);
-            
             return response()->json([
                 'success' => true,
                 'message' => 'Profile picture updated successfully',
-                'profile_picture_url' => $fullUrl,
+                'profile_picture_url' => $user->fresh()->profile_picture_url,
                 'path' => $path
             ]);
         } catch (\Exception $e) {

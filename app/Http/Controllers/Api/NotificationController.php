@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Models\NotificationType;
+use Illuminate\Support\Facades\Auth;
 
 class NotificationController extends Controller
 {
@@ -15,22 +16,40 @@ class NotificationController extends Controller
             'title' => 'required|string',
             'message' => 'required|string',
             'target' => 'required|string',
+            'member_id' => 'nullable|integer|exists:members,id',
             'method' => 'nullable|string',
             'priority' => 'nullable|string',
         ]);
-
-        $roles = $validated['target'] === 'all' ? ['client', 'shareholder', 'cashier', 'td', 'ceo', 'admin'] : [$validated['target']];
 
         $typeName = $this->mapPriorityToType($validated['priority'] ?? 'normal');
         $typeId = NotificationType::query()->where('name', $typeName)->value('id')
             ?? NotificationType::query()->value('id');
 
-        $memberIds = DB::table('member_roles')
-            ->join('roles', 'roles.id', '=', 'member_roles.role_id')
-            ->whereIn('roles.name', $roles)
-            ->pluck('member_roles.member_id')
-            ->unique()
-            ->values();
+        $target = strtolower(trim((string) $validated['target']));
+        $memberIds = collect();
+        $roleId = null;
+
+        if ($target === 'all') {
+            $memberIds = DB::table('members')->orderBy('id')->pluck('id');
+        } elseif ($target === 'member' && !empty($validated['member_id'])) {
+            $memberIds = collect([(int) $validated['member_id']]);
+        } else {
+            $roleId = DB::table('roles')
+                ->whereRaw('LOWER(name) = ?', [$target])
+                ->value('id');
+
+            if ($roleId) {
+                $memberIds = DB::table('member_roles')
+                    ->where('role_id', $roleId)
+                    ->pluck('member_id')
+                    ->unique()
+                    ->values();
+            } elseif (!empty($validated['member_id'])) {
+                $memberIds = collect([(int) $validated['member_id']]);
+            } else {
+                $memberIds = DB::table('members')->orderBy('id')->pluck('id');
+            }
+        }
 
         $createdIds = [];
         foreach ($memberIds as $memberId) {
@@ -38,21 +57,38 @@ class NotificationController extends Controller
                 'notification_number' => 'NOT-' . now()->format('Ymd') . '-' . str_pad((string) random_int(1, 9999), 4, '0', STR_PAD_LEFT),
                 'type_id' => $typeId,
                 'member_id' => $memberId,
+                'role_id' => $roleId,
                 'title' => $validated['title'],
                 'message' => $validated['message'],
                 'created_by' => auth()->id() ?? 1,
                 'created_at' => now(),
+                'updated_at' => now(),
             ]);
 
             DB::table('notification_receipts')->updateOrInsert(
                 ['notification_id' => $notificationId, 'member_id' => $memberId],
-                ['is_read' => false]
+                ['is_read' => false, 'created_at' => now()]
             );
 
             $createdIds[] = $notificationId;
         }
 
         return response()->json(['success' => true, 'ids' => $createdIds]);
+    }
+
+    public function markAsRead($id)
+    {
+        $memberId = Auth::user()?->member?->id;
+        if (!$memberId) {
+            return response()->json(['success' => false, 'message' => 'Member not found'], 403);
+        }
+
+        DB::table('notification_receipts')->updateOrInsert(
+            ['notification_id' => $id, 'member_id' => $memberId],
+            ['is_read' => true, 'read_at' => now(), 'created_at' => now()]
+        );
+
+        return response()->json(['success' => true]);
     }
 
     public function history()

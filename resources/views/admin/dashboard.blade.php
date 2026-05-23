@@ -9,14 +9,7 @@
         <div class="flex items-center justify-between gap-2">
             <div class="flex items-center gap-3 flex-1 min-w-0">
                 <div class="w-12 h-12 md:w-14 md:h-14 rounded-xl overflow-hidden bg-white shadow-lg flex-shrink-0">
-                    @php
-                        $profilePicPath = auth()->user()->profile_picture;
-                    @endphp
-                    @if($profilePicPath)
-                        <img src="{{ asset('uploads/' . $profilePicPath) }}" alt="{{ auth()->user()->name }}" class="w-full h-full object-cover" onerror="this.src='{{ asset('images/default-avatar.svg') }}'">
-                    @else
-                        <img src="{{ asset('images/default-avatar.svg') }}" alt="{{ auth()->user()->name }}" class="w-full h-full object-cover">
-                    @endif
+                    <img src="{{ auth()->user()->profile_picture_url }}" alt="{{ auth()->user()->name }}" class="w-full h-full object-cover" onerror="this.src='{{ asset('images/default-avatar.svg') }}'">
                 </div>
                 <div class="min-w-0">
                 <h1 class="text-sm sm:text-lg md:text-2xl font-bold text-white truncate">Welcome, <span class="text-black text-base sm:text-xl md:text-3xl">{{ auth()->user()->name }}</span> <span class="text-blue-200 font-normal text-xs sm:text-sm md:text-lg">({{ ucfirst(auth()->user()->role) }})</span> 👋</h1>
