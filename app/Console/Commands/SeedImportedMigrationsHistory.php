@@ -15,10 +15,6 @@ class SeedImportedMigrationsHistory extends Command
 
     public function handle(): int
     {
-        if (! $this->looksLikeImportedSchema()) {
-            return self::SUCCESS;
-        }
-
         if (! Schema::hasTable('migrations')) {
             Schema::create('migrations', function (Blueprint $table): void {
                 $table->id();
@@ -63,24 +59,6 @@ class SeedImportedMigrationsHistory extends Command
         $this->info('Seeded existing create-table migrations for the imported Render database.');
 
         return self::SUCCESS;
-    }
-
-    private function looksLikeImportedSchema(): bool
-    {
-        $requiredTables = [
-            'roles',
-            'users',
-            'members',
-            'transactions',
-        ];
-
-        foreach ($requiredTables as $table) {
-            if (! Schema::hasTable($table)) {
-                return false;
-            }
-        }
-
-        return true;
     }
 
     private function createdTableName(string $migration): ?string
