@@ -14,6 +14,8 @@ if [[ -d "${PERSISTENT_DISK_PATH}" ]]; then
   ln -sfn "${PERSISTENT_DISK_PATH}/storage-public" storage/app/public
 fi
 
+bash scripts/ensure-public-storage-link.sh
+
 # Ensure app key exists in environment.
 if [[ -z "${APP_KEY:-}" ]]; then
   echo "APP_KEY is missing. Set APP_KEY in Render environment variables."

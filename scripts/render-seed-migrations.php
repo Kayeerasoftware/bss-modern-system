@@ -8,7 +8,54 @@ $database = getenv('DB_DATABASE') ?: '';
 $username = getenv('DB_USERNAME') ?: '';
 $password = getenv('DB_PASSWORD') ?: '';
 $timeout = getenv('DB_CONNECT_TIMEOUT');
-$sslCa = getenv('MYSQL_ATTR_SSL_CA');
+$resolveSslCa = static function (): ?string {
+    $envSslCa = getenv('MYSQL_ATTR_SSL_CA');
+    if (is_string($envSslCa) && trim($envSslCa) !== '') {
+        if (is_readable($envSslCa)) {
+            return $envSslCa;
+        }
+
+        $basename = basename($envSslCa);
+        foreach ([
+            '/etc/ssl/certs/' . $basename,
+            '/etc/pki/tls/certs/' . $basename,
+        ] as $candidate) {
+            if (is_readable($candidate)) {
+                return $candidate;
+            }
+        }
+    }
+
+    $aivenCaPem = getenv('AIVEN_CA_PEM');
+    if (is_string($aivenCaPem) && trim($aivenCaPem) !== '') {
+        $certDir = __DIR__ . '/../storage/certs';
+        $certPath = $certDir . '/aiven-ca.pem';
+
+        if (!is_dir($certDir)) {
+            mkdir($certDir, 0755, true);
+        }
+
+        $existing = is_file($certPath) ? file_get_contents($certPath) : '';
+        if (trim((string) $existing) !== trim($aivenCaPem)) {
+            file_put_contents($certPath, $aivenCaPem . PHP_EOL);
+        }
+
+        if (is_readable($certPath)) {
+            return $certPath;
+        }
+    }
+
+    foreach ([
+        '/etc/ssl/certs/ca-certificates.crt',
+        '/etc/pki/tls/certs/ca-bundle.crt',
+    ] as $candidate) {
+        if (is_readable($candidate)) {
+            return $candidate;
+        }
+    }
+
+    return null;
+};
 
 if ($database === '') {
     fwrite(STDERR, "DB_DATABASE is missing\n");
@@ -24,11 +71,38 @@ if ($timeout !== false && $timeout !== '') {
     $options[PDO::ATTR_TIMEOUT] = (int) $timeout;
 }
 
-if ($sslCa !== false && $sslCa !== '') {
+if (($sslCa = $resolveSslCa()) !== null) {
     $options[PDO::MYSQL_ATTR_SSL_CA] = $sslCa;
 }
 
-$pdo = new PDO($dsn, $username, $password, $options);
+$connect = static function (array $pdoOptions) use ($dsn, $username, $password): PDO {
+    return new PDO($dsn, $username, $password, $pdoOptions);
+};
+
+try {
+    $pdo = $connect($options);
+} catch (PDOException $exception) {
+    $message = strtolower($exception->getMessage());
+    $shouldRetryWithoutSsl = isset($options[PDO::MYSQL_ATTR_SSL_CA]) && (
+        str_contains($message, 'ssl') ||
+        str_contains($message, 'cafile') ||
+        str_contains($message, 'certificate')
+    );
+
+    if (! $shouldRetryWithoutSsl) {
+        throw $exception;
+    }
+
+    fwrite(STDERR, "Warning: SSL connection failed for migration seeding, retrying without MYSQL_ATTR_SSL_CA.\n");
+    $fallbackOptions = [
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+    ];
+    if (isset($options[PDO::ATTR_TIMEOUT])) {
+        $fallbackOptions[PDO::ATTR_TIMEOUT] = $options[PDO::ATTR_TIMEOUT];
+    }
+
+    $pdo = $connect($fallbackOptions);
+}
 
 $pdo->exec(<<<'SQL'
 CREATE TABLE IF NOT EXISTS `migrations` (

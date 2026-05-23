@@ -5,7 +5,7 @@ use Illuminate\Support\Str;
 $resolveMysqlSslCa = static function (): ?string {
     $sslCa = env('MYSQL_ATTR_SSL_CA');
 
-    if (is_string($sslCa) && $sslCa !== '' && is_file($sslCa)) {
+    if (is_string($sslCa) && $sslCa !== '' && is_readable($sslCa)) {
         return $sslCa;
     }
 

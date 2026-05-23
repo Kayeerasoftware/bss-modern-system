@@ -3,12 +3,7 @@ set -euo pipefail
 
 cd /var/www/html
 
-# Prepare Aiven CA cert when provided as raw PEM in env.
-if [[ -n "${AIVEN_CA_PEM:-}" ]]; then
-  mkdir -p storage/certs
-  printf '%s\n' "${AIVEN_CA_PEM}" > storage/certs/aiven-ca.pem
-  export MYSQL_ATTR_SSL_CA="storage/certs/aiven-ca.pem"
-fi
+source scripts/render-prepare-cert.sh
 
 if [[ -z "${APP_KEY:-}" ]]; then
   echo "ERROR: APP_KEY is missing. Set APP_KEY in Render env vars."
@@ -24,7 +19,6 @@ sed -ri "s/<VirtualHost \*:80>/<VirtualHost *:${PORT}>/" /etc/apache2/sites-avai
 mkdir -p public/uploads storage/app/public storage/framework/{cache,sessions,views} storage/logs bootstrap/cache
 chown -R www-data:www-data storage bootstrap/cache public/uploads || true
 chmod -R ug+rwx storage bootstrap/cache public/uploads || true
-ln -sfn /var/www/html/storage/app/public /var/www/html/public/storage
 
 # Persist uploads on Render disk when available.
 PERSISTENT_DISK_PATH="${PERSISTENT_DISK_PATH:-/var/data}"
@@ -41,7 +35,7 @@ if [[ -d "${PERSISTENT_DISK_PATH}" ]]; then
   chmod -R ug+rwx "${PERSISTENT_DISK_PATH}/uploads" "${PERSISTENT_DISK_PATH}/storage-public" || true
 fi
 
-php artisan storage:link || true
+bash scripts/ensure-public-storage-link.sh
 
 # Run migrations before warming caches so boot-time commands see the latest schema.
 # Defaults to on for Render deployments, but can still be disabled explicitly.

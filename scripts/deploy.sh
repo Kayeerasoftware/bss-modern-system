@@ -2,6 +2,8 @@
 
 echo "Deploying BSS System..."
 
+source scripts/render-prepare-cert.sh
+
 git pull origin master
 
 composer install --no-dev --optimize-autoloader
