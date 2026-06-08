@@ -128,7 +128,7 @@ class ChatController extends Controller
                 'sender_id' => $message->sender_id,
                 'receiver_id' => $receiverId,
                 'attachment' => $message->attachment_path,
-                'attachment_url' => $message->attachment_path ? Storage::url($message->attachment_path) : null,
+                'attachment_url' => $message->attachment_path ? Storage::disk('public')->url($message->attachment_path) : null,
                 'attachment_name' => $message->attachment_name,
             ]
         ]);
@@ -183,7 +183,7 @@ class ChatController extends Controller
                     'sender_id' => $msg->sender_id,
                     'receiver_id' => $resolvedOtherId,
                     'attachment' => $msg->attachment_path,
-                    'attachment_url' => $msg->attachment_path ? Storage::url($msg->attachment_path) : null,
+                    'attachment_url' => $msg->attachment_path ? Storage::disk('public')->url($msg->attachment_path) : null,
                     'attachment_name' => $msg->attachment_name,
                 ];
             })

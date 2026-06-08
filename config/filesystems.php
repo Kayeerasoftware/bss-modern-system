@@ -13,7 +13,7 @@ return [
     |
     */
 
-    'default' => env('FILESYSTEM_DISK', 'uploads'),
+    'default' => env('FILESYSTEM_DISK', 'public'),
 
     /*
     |--------------------------------------------------------------------------
@@ -39,7 +39,7 @@ return [
         ],
 
         'public' => [
-            'driver' => env('PUBLIC_DISK_DRIVER', 'local'),
+            'driver' => env('PUBLIC_DISK_DRIVER', env('AWS_BUCKET') ? 's3' : 'local'),
             'root' => env('PUBLIC_DISK_ROOT', storage_path('app/public')),
             'url' => env('PUBLIC_DISK_URL', env('APP_URL').'/storage'),
             'visibility' => 'public',

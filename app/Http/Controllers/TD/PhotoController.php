@@ -203,7 +203,7 @@ class PhotoController extends Controller
         }
 
         $localPath = $file->store('dashboard-photos', 'public');
-        return Storage::url($localPath);
+        return Storage::disk('public')->url($localPath);
     }
 
     private function deletePhotoFile(?string $photoPath): void
