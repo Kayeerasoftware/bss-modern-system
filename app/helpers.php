@@ -64,3 +64,37 @@ if (!function_exists('table_average_or_zero')) {
         }
     }
 }
+
+if (!function_exists('resolve_database_connection')) {
+    function resolve_database_connection(): string
+    {
+        $connection = strtolower((string) env('DB_CONNECTION', 'mysql'));
+        $dbUrl = strtolower((string) env('DB_URL', ''));
+        $dbPort = (string) env('DB_PORT', '');
+        $mysqlSslCa = trim((string) env('MYSQL_ATTR_SSL_CA', ''));
+        $aivenCaPem = trim((string) env('AIVEN_CA_PEM', ''));
+
+        if ($dbUrl !== '' && (str_starts_with($dbUrl, 'mysql:') || str_starts_with($dbUrl, 'mariadb:'))) {
+            return 'mysql';
+        }
+
+        if ($connection === 'pgsql') {
+            $mysqlHints = [
+                $dbPort === '3306',
+                $mysqlSslCa !== '',
+                $aivenCaPem !== '',
+            ];
+
+            foreach ($mysqlHints as $hint) {
+                if ($hint) {
+                    return 'mysql';
+                }
+            }
+        }
+
+        return match ($connection) {
+            'mysql', 'mariadb', 'pgsql', 'sqlite', 'sqlsrv' => $connection,
+            default => 'mysql',
+        };
+    }
+}
