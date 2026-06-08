@@ -78,6 +78,10 @@ if (!function_exists('resolve_database_connection')) {
             return 'mysql';
         }
 
+        if ($dbUrl !== '' && (str_starts_with($dbUrl, 'pgsql:') || str_starts_with($dbUrl, 'postgres:'))) {
+            return 'pgsql';
+        }
+
         if ($connection === 'pgsql') {
             $mysqlHints = [
                 $dbPort === '3306',
@@ -90,6 +94,10 @@ if (!function_exists('resolve_database_connection')) {
                     return 'mysql';
                 }
             }
+
+            // This application ships MySQL-only migrations and schema DDL.
+            // Prefer MySQL unless a PostgreSQL URL is explicitly configured.
+            return 'mysql';
         }
 
         return match ($connection) {
