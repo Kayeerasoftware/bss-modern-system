@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Console\Events\CommandStarting;
 use App\Models\User;
 use App\Models\Member;
 use App\Models\Loan;
@@ -19,6 +20,7 @@ use App\Observers\MemberFinancialLoanObserver;
 use App\Observers\MemberFinancialTransactionObserver;
 use App\Observers\TransactionObserver;
 use App\Services\UserMemberSyncService;
+use App\Services\Deployment\MigrationHistorySeeder;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -85,6 +87,27 @@ class AppServiceProvider extends ServiceProvider
                 if ($model instanceof Model) {
                     GlobalAuditObserver::deleted($model);
                 }
+            });
+        }
+
+        if ($this->app->runningInConsole()) {
+            Event::listen(CommandStarting::class, function (CommandStarting $event): void {
+                if (!preg_match('/^migrate(\s|$)/', $event->command)) {
+                    return;
+                }
+
+                if (str_contains($event->command, '--pretend')) {
+                    return;
+                }
+
+                static $seeded = false;
+                if ($seeded) {
+                    return;
+                }
+
+                $seeded = true;
+
+                app(MigrationHistorySeeder::class)->seed();
             });
         }
         
