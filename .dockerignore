@@ -14,3 +14,4 @@ storage/debugbar
 *.zip
 *.sql
 public/storage
+public/build
