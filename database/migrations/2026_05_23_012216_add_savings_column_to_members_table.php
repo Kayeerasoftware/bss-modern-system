@@ -1,0 +1,32 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        if (!Schema::hasColumn('members', 'savings_transaction_id')) {
+            Schema::table('members', function (Blueprint $table) {
+                $table->unsignedBigInteger('savings_transaction_id')->nullable()->after('membership_status');
+            });
+        }
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        if (Schema::hasColumn('members', 'savings_transaction_id')) {
+            Schema::table('members', function (Blueprint $table) {
+                $table->dropColumn('savings_transaction_id');
+            });
+        }
+    }
+};

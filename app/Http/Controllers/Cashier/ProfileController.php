@@ -1,0 +1,155 @@
+<?php
+
+namespace App\Http\Controllers\Cashier;
+
+use App\Http\Controllers\Controller;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
+use App\Models\User;
+use Illuminate\Support\Facades\DB;
+use App\Models\System\AuditLog;
+use App\Models\Member;
+use App\Models\Transaction;
+use App\Models\Loan;
+use App\Models\LoanStatus;
+use App\Services\ProfilePictureStorageService;
+
+class ProfileController extends Controller
+{
+    public function index()
+    {
+        $user = Auth::user();
+        
+        // Fetch real activity data from audit_logs (fallback to empty if none)
+        $activities = AuditLog::where('user_id', $user->id)
+            ->orderBy('created_at', 'desc')
+            ->limit(10)
+            ->get();
+        
+        // If no audit logs, use empty collection
+        if ($activities->isEmpty()) {
+            $activities = collect();
+        }
+        
+        // Count today's actions
+        $todayActions = AuditLog::where('user_id', $user->id)
+            ->whereDate('created_at', today())
+            ->count();
+        
+        // Count total actions
+        $totalActions = AuditLog::where('user_id', $user->id)
+            ->count();
+        
+        // Fetch real stats
+        $totalMembers = Member::count();
+        $totalTransactions = Transaction::count();
+        $totalLoans = Loan::count();
+        $activeLoans = Loan::where('status_id', LoanStatus::query()->where('name', 'approved')->value('id'))->count();
+        
+        return view('cashier.profile', compact('user', 'activities', 'todayActions', 'totalActions', 'totalMembers', 'totalTransactions', 'totalLoans', 'activeLoans'));
+    }
+    
+    public function update(Request $request)
+    {
+        $user = Auth::user();
+        
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|unique:users,email,' . $user->id,
+            'phone' => 'nullable|string|max:20',
+            'location' => 'nullable|string|max:255',
+            'bio' => 'nullable|string|max:500',
+        ]);
+        
+        $user->username = $request->input('name');
+        $user->email = $request->input('email');
+        $user->save();
+
+        if ($user->member) {
+            $user->member->update([
+                'primary_phone' => $request->input('phone'),
+                'place_of_birth' => $request->input('location'),
+                'notes' => $request->input('bio'),
+            ]);
+        }
+        
+        return response()->json(['success' => true, 'message' => 'Profile updated successfully']);
+    }
+    
+    public function updatePassword(Request $request)
+    {
+        $request->validate([
+            'current_password' => 'required',
+            'new_password' => 'required|min:8|confirmed',
+        ]);
+        
+        $user = Auth::user();
+        
+        if (!Hash::check($request->current_password, $user->password)) {
+            return response()->json(['success' => false, 'message' => 'Current password is incorrect'], 422);
+        }
+        
+        $user->update(['password' => Hash::make($request->new_password)]);
+        
+        return response()->json(['success' => true, 'message' => 'Password updated successfully']);
+    }
+    
+    public function uploadProfilePicture(Request $request)
+    {
+        try {
+            $request->validate([
+                'profile_picture' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048'
+            ]);
+            
+            $user = Auth::user();
+            
+            if (!$request->hasFile('profile_picture')) {
+                return response()->json(['success' => false, 'message' => 'No file uploaded'], 400);
+            }
+            
+            $file = $request->file('profile_picture');
+            
+            if (!$file->isValid()) {
+                return response()->json(['success' => false, 'message' => 'Invalid file'], 400);
+            }
+            
+            $path = ProfilePictureStorageService::storeProfilePicture($file, $user->profile_picture);
+            
+            if (!$path) {
+                return response()->json(['success' => false, 'message' => 'Failed to store file'], 500);
+            }
+            
+            $user->update(['profile_picture' => $path]);
+            
+            if ($user->member) {
+                $user->member->update(['profile_picture' => $path]);
+            }
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Profile picture updated successfully',
+                'profile_picture_url' => $user->fresh()->profile_picture_url
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+    
+    public function updatePreferences(Request $request)
+    {
+        $user = Auth::user();
+        
+        $preferences = [
+            'email_notifications' => $request->boolean('email_notifications'),
+            'sms_notifications' => $request->boolean('sms_notifications'),
+            'dark_mode' => $request->boolean('dark_mode'),
+        ];
+        
+        if ($user->member) {
+            $user->member->update(['communication_preferences' => $preferences]);
+        }
+        
+        return response()->json(['success' => true, 'message' => 'Preferences updated successfully']);
+    }
+}

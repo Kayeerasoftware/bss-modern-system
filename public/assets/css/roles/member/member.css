@@ -1,0 +1,13 @@
+/* Member panel specific styles */
+.member-panel {
+    background-color: #f3f4f6;
+}
+
+.transaction-item {
+    border-bottom: 1px solid #e5e7eb;
+    padding: 1rem 0;
+}
+
+.transaction-item:last-child {
+    border-bottom: none;
+}

@@ -1,0 +1,88 @@
+<?php
+
+namespace App\Http\Controllers\Api;
+
+use App\Http\Controllers\Controller;
+use App\Models\Project;
+use App\Models\ProjectStatus;
+use Illuminate\Http\Request;
+
+class ProjectController extends Controller
+{
+    public function index(Request $request)
+    {
+        $query = Project::query()->latest();
+
+        if ($request->filled('status')) {
+            $query->whereHas('statusRelation', fn ($q) => $q->where('name', $request->status));
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => $query->paginate(20),
+        ]);
+    }
+
+    public function store(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'budget' => 'nullable|numeric|min:0',
+            'status' => 'nullable|string|max:30',
+        ]);
+
+        $statusId = ProjectStatus::query()->where('name', strtolower((string) ($validated['status'] ?? 'pending')))->value('id')
+            ?? ProjectStatus::query()->value('id');
+
+        $project = Project::create([
+            'name' => $validated['name'],
+            'description' => $validated['description'] ?? null,
+            'budget_amount' => $validated['budget'] ?? 0,
+            'status_id' => $statusId,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'data' => $project,
+        ], 201);
+    }
+
+    public function show($id)
+    {
+        return response()->json([
+            'success' => true,
+            'data' => Project::findOrFail($id),
+        ]);
+    }
+
+    public function update(Request $request, $id)
+    {
+        $project = Project::findOrFail($id);
+        $payload = $request->only(['name', 'description']);
+        if ($request->filled('budget')) {
+            $payload['budget_amount'] = $request->budget;
+        }
+        if ($request->filled('progress')) {
+            $payload['progress_percentage'] = $request->progress;
+        }
+        if ($request->filled('status')) {
+            $payload['status_id'] = ProjectStatus::query()->where('name', strtolower((string) $request->status))->value('id');
+        }
+        $project->update($payload);
+
+        return response()->json([
+            'success' => true,
+            'data' => $project,
+        ]);
+    }
+
+    public function destroy($id)
+    {
+        Project::findOrFail($id)->delete();
+
+        return response()->json([
+            'success' => true,
+        ]);
+    }
+}

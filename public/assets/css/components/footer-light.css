@@ -1,0 +1,14 @@
+footer {
+    position: relative !important;
+    transform: translateZ(0);
+    will-change: auto;
+    contain: layout;
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    scroll-padding-top: 0;
+}

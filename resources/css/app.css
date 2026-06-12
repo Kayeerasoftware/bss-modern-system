@@ -1,0 +1,11 @@
+/* Main application styles */
+@import "tailwindcss";
+
+body {
+    font-family: 'Inter', sans-serif;
+}
+
+.main-content {
+    min-height: 100vh;
+    padding-top: 1rem;
+}
