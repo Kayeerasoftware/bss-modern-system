@@ -16,7 +16,7 @@ class DashboardController extends Controller
 {
     public function index()
     {
-        $stats = Cache::remember('td_dashboard:stats:v2', now()->addSeconds(60), static function () {
+        $stats = Cache::remember('td_dashboard:stats:v3', now()->addSeconds(60), static function () {
             $viewStats = app(DashboardStatsService::class)->get();
             $activeStatusId    = \App\Models\ProjectStatus::query()->where('name', 'active')->value('id');
             $completedStatusId = \App\Models\ProjectStatus::query()->where('name', 'completed')->value('id');
@@ -32,7 +32,7 @@ class DashboardController extends Controller
                 ->first();
 
             $memberSummary = User::query()
-                ->selectRaw('COUNT(*) as total_members, SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END) as active_members')
+                ->selectRaw('COUNT(*) as total_members, SUM(CASE WHEN status = "active" THEN 1 ELSE 0 END) as active_members')
                 ->first();
 
             $approvedStatusId = LoanStatus::query()->where('name', 'approved')->value('id');
@@ -45,7 +45,7 @@ class DashboardController extends Controller
                 ->first();
 
             $userSummary = User::query()
-                ->selectRaw('COUNT(*) as total_users, SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END) as active_users')
+                ->selectRaw('COUNT(*) as total_users, SUM(CASE WHEN status = "active" THEN 1 ELSE 0 END) as active_users')
                 ->first();
 
             $linkedSummary = Member::query()
@@ -74,11 +74,11 @@ class DashboardController extends Controller
             ];
         });
 
-        $recentProjects = Cache::remember('td_dashboard:recent_projects:v1', now()->addSeconds(30), static function () {
+        $recentProjects = Cache::remember('td_dashboard:recent_projects:v2', now()->addSeconds(30), static function () {
             return Project::query()->latest()->take(5)->get();
         });
 
-        $recentMembers = Cache::remember('td_dashboard:recent_members:v2', now()->addSeconds(30), static function () {
+        $recentMembers = Cache::remember('td_dashboard:recent_members:v3', now()->addSeconds(30), static function () {
             return User::query()
                 ->with([
                     'member' => static function ($query) {

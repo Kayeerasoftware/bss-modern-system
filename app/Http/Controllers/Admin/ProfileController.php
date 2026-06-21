@@ -149,7 +149,7 @@ class ProfileController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Profile picture updated successfully',
-                'profile_picture_url' => $user->fresh()->profile_picture_url,
+                'profile_picture_url' => $path,
                 'path' => $path
             ]);
         } catch (\Exception $e) {
