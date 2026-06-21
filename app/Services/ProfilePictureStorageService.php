@@ -47,7 +47,10 @@ class ProfilePictureStorageService
             self::deleteProfilePicture($oldPath);
         }
 
-        return $file->store('profile_pictures', 'public');
+        $path = 'profile_pictures/' . \Illuminate\Support\Str::uuid() . '.' . $file->getClientOriginalExtension();
+        Storage::disk('s3')->put($path, file_get_contents($file->getRealPath()), 'public');
+
+        return Storage::disk('s3')->url($path);
     }
 
     public static function deleteProfilePicture(?string $path): bool

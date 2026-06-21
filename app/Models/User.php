@@ -491,40 +491,20 @@ class User extends Authenticatable
             return null;
         }
 
-        // Cache the result to avoid repeated file checks
         static $cache = [];
         if (isset($cache[$path])) {
             return $cache[$path];
         }
 
-        $normalizedPath = ltrim($path, '/');
-
-        if (filter_var($normalizedPath, FILTER_VALIDATE_URL)) {
-            return $cache[$path] = $normalizedPath;
+        // Full URL (Cloudinary or R2) — return as-is
+        if (filter_var($path, FILTER_VALIDATE_URL)) {
+            return $cache[$path] = $path;
         }
 
-        if (str_starts_with($normalizedPath, 'public/')) {
-            $normalizedPath = substr($normalizedPath, 7);
-        }
-
-        $trimmedPath = preg_replace('#^(storage|uploads)/#', '', $normalizedPath);
-        
-        // Quick check: most common path first
-        $quickPath = 'uploads/' . $trimmedPath;
-        if (is_file(public_path($quickPath))) {
-            return $cache[$path] = asset($quickPath);
-        }
-
-        // Fallback to comprehensive check only if quick check fails
-        $candidates = [
-            'uploads/' . $trimmedPath,
-            'storage/' . $trimmedPath,
-        ];
-
-        foreach ($candidates as $candidate) {
-            if (is_file(public_path($candidate))) {
-                return $cache[$path] = asset($candidate);
-            }
+        // Relative path — build R2 URL
+        $s3Url = rtrim((string) env('AWS_URL', ''), '/');
+        if ($s3Url !== '') {
+            return $cache[$path] = $s3Url . '/' . ltrim($path, '/');
         }
 
         return $cache[$path] = null;

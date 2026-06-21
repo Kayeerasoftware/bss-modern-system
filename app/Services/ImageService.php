@@ -27,7 +27,7 @@ class ImageService
 
         Storage::disk('s3')->put($path, file_get_contents($file->getRealPath()), 'public');
 
-        return $path;
+        return Storage::disk('s3')->url($path);
     }
 
     /**
