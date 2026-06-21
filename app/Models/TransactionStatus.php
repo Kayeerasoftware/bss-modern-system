@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class TransactionStatus extends Model
 {
     protected $table = 'transaction_statuses';
+    public $timestamps = false;
 
     protected $fillable = [
         'name',

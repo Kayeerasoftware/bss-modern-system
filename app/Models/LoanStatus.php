@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class LoanStatus extends Model
 {
     protected $table = 'loan_statuses';
+    public $timestamps = false;
 
     protected $fillable = [
         'name',
