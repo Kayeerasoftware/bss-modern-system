@@ -18,8 +18,17 @@ class DashboardController extends Controller
     {
         $stats = Cache::remember('td_dashboard:stats:v2', now()->addSeconds(60), static function () {
             $viewStats = app(DashboardStatsService::class)->get();
+            $activeStatusId    = \App\Models\ProjectStatus::query()->where('name', 'active')->value('id');
+            $completedStatusId = \App\Models\ProjectStatus::query()->where('name', 'completed')->value('id');
+            $pendingStatusId   = \App\Models\ProjectStatus::query()->where('name', 'pending')->value('id');
+
             $projectSummary = Project::query()
-                ->selectRaw('COUNT(*) as total_projects, SUM(CASE WHEN status = "active" THEN 1 ELSE 0 END) as active_projects, SUM(CASE WHEN status = "completed" THEN 1 ELSE 0 END) as completed_projects, SUM(CASE WHEN status = "pending" THEN 1 ELSE 0 END) as pending_projects')
+                ->selectRaw('
+                    COUNT(*) as total_projects,
+                    SUM(CASE WHEN status_id = ? THEN 1 ELSE 0 END) as active_projects,
+                    SUM(CASE WHEN status_id = ? THEN 1 ELSE 0 END) as completed_projects,
+                    SUM(CASE WHEN status_id = ? THEN 1 ELSE 0 END) as pending_projects
+                ', [$activeStatusId, $completedStatusId, $pendingStatusId])
                 ->first();
 
             $memberSummary = User::query()
@@ -75,8 +84,9 @@ class DashboardController extends Controller
                     'member' => static function ($query) {
                         $query->withTrashed();
                     },
+                    'roleRecord',
                 ])
-                ->select('id', 'name', 'email', 'role', 'profile_picture', 'created_at')
+                ->select('id', 'username', 'email', 'role_id', 'profile_picture', 'created_at')
                 ->latest()
                 ->take(5)
                 ->get();

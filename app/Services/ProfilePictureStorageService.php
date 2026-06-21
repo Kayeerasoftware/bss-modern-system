@@ -50,7 +50,7 @@ class ProfilePictureStorageService
         $path = 'profile_pictures/' . \Illuminate\Support\Str::uuid() . '.' . $file->getClientOriginalExtension();
         Storage::disk('s3')->put($path, file_get_contents($file->getRealPath()), 'public');
 
-        return Storage::disk('s3')->url($path);
+        return self::buildPublicUrl($path);
     }
 
     public static function deleteProfilePicture(?string $path): bool
@@ -90,7 +90,13 @@ class ProfilePictureStorageService
             return $path;
         }
 
-        return Storage::disk('public')->url($path);
+        return self::buildPublicUrl($path);
+    }
+
+    public static function buildPublicUrl(string $path): string
+    {
+        $base = rtrim((string) env('R2_PUBLIC_URL', env('AWS_URL', '')), '/');
+        return $base . '/' . ltrim($path, '/');
     }
 
     private static function isCloudinaryEnabled(): bool

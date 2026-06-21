@@ -27,7 +27,7 @@ class ImageService
 
         Storage::disk('s3')->put($path, file_get_contents($file->getRealPath()), 'public');
 
-        return Storage::disk('s3')->url($path);
+        return ProfilePictureStorageService::buildPublicUrl($path);
     }
 
     /**
@@ -69,11 +69,7 @@ class ImageService
             return $picturePath;
         }
 
-        if (Storage::disk('s3')->exists($picturePath)) {
-            return Storage::disk('s3')->url($picturePath);
-        }
-
-        return asset('images/default-avatar.svg');
+        return ProfilePictureStorageService::buildPublicUrl($picturePath);
     }
 
     /**
@@ -119,17 +115,14 @@ class ImageService
             return ['exists' => true, 'url' => $picturePath, 'size' => 0, 'dimensions' => null, 'thumbnail_url' => $picturePath, 'small_url' => $picturePath];
         }
 
-        if (!Storage::disk('s3')->exists($picturePath)) {
-            return ['exists' => false, 'url' => asset('images/default-avatar.svg'), 'size' => 0, 'dimensions' => null];
-        }
-
+        $url = ProfilePictureStorageService::buildPublicUrl($picturePath);
         return [
             'exists' => true,
-            'url' => Storage::disk('s3')->url($picturePath),
-            'size' => Storage::disk('s3')->size($picturePath),
+            'url' => $url,
+            'size' => 0,
             'dimensions' => null,
-            'thumbnail_url' => Storage::disk('s3')->url($picturePath),
-            'small_url' => Storage::disk('s3')->url($picturePath),
+            'thumbnail_url' => $url,
+            'small_url' => $url,
         ];
     }
 }

@@ -69,6 +69,8 @@ services:
         sync: false
       - key: AWS_URL
         sync: false
+      - key: R2_PUBLIC_URL
+        sync: false
       - key: CACHE_STORE
         value: file
       - key: SESSION_DRIVER

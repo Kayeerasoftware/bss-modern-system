@@ -496,18 +496,11 @@ class User extends Authenticatable
             return $cache[$path];
         }
 
-        // Full URL (Cloudinary or R2) — return as-is
         if (filter_var($path, FILTER_VALIDATE_URL)) {
             return $cache[$path] = $path;
         }
 
-        // Relative path — build R2 URL
-        $s3Url = rtrim((string) env('AWS_URL', ''), '/');
-        if ($s3Url !== '') {
-            return $cache[$path] = $s3Url . '/' . ltrim($path, '/');
-        }
-
-        return $cache[$path] = null;
+        return $cache[$path] = \App\Services\ProfilePictureStorageService::buildPublicUrl($path);
     }
 
     public function syncProfilePictureToMember($picturePath)
