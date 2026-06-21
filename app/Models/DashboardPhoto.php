@@ -10,12 +10,15 @@ class DashboardPhoto extends Model
     use HasFactory;
 
     protected $fillable = [
+        'photo_number',
         'type',
         'photo_path',
+        'thumbnail_path',
         'title',
         'description',
         'display_order',
-        'is_active'
+        'is_active',
+        'uploaded_by',
     ];
 
     protected $casts = [

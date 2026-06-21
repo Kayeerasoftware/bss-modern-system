@@ -6,6 +6,7 @@ use Cloudinary\Api\Upload\UploadApi;
 use Cloudinary\Configuration\Configuration;
 use App\Http\Controllers\Controller;
 use App\Models\DashboardPhoto;
+use App\Services\ProfilePictureStorageService;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
@@ -16,6 +17,8 @@ use Throwable;
 class PhotoController extends Controller
 {
     private static bool $cloudinaryConfigured = false;
+
+    private const VALID_TYPES = ['project', 'meeting', 'event', 'achievement', 'slider'];
 
     public function index(Request $request)
     {
@@ -41,22 +44,22 @@ class PhotoController extends Controller
         $photoTypes = $photos->pluck('type')->filter()->unique()->values();
         $projectPhotos = $photos->where('type', 'project');
         $meetingPhotos = $photos->where('type', 'meeting');
-        
+
         return view('td.photos.index', compact('photos', 'projectPhotos', 'meetingPhotos', 'photoTypes'));
     }
 
     public function store(Request $request)
     {
         $request->validate([
-            'type' => 'required|string|max:50',
-            'custom_type' => 'nullable|string|max:50',
-            'photo' => 'nullable|image|max:5120',
-            'photos' => 'nullable|array|max:30',
-            'photos.*' => 'image|max:5120',
-            'title' => 'nullable|string|max:255',
-            'description' => 'nullable|string',
+            'type'          => 'required|string|max:50',
+            'custom_type'   => 'nullable|string|max:50',
+            'photo'         => 'nullable|image|max:5120',
+            'photos'        => 'nullable|array|max:30',
+            'photos.*'      => 'image|max:5120',
+            'title'         => 'nullable|string|max:255',
+            'description'   => 'nullable|string',
             'display_order' => 'nullable|integer|min:0',
-            'order' => 'nullable|integer|min:0',
+            'order'         => 'nullable|integer|min:0',
         ]);
 
         $type = $this->normalizeType($request->input('type'), $request->input('custom_type'));
@@ -76,9 +79,9 @@ class PhotoController extends Controller
             ]);
         }
 
-        $baseTitle = trim((string) $request->input('title', ''));
+        $baseTitle  = trim((string) $request->input('title', ''));
         $description = $request->input('description');
-        $startOrder = (int) $request->input('display_order', $request->input('order', 0));
+        $startOrder  = (int) $request->input('display_order', $request->input('order', 0));
         $uploadedCount = 0;
 
         foreach ($files as $index => $file) {
@@ -89,12 +92,14 @@ class PhotoController extends Controller
                 : Str::title(str_replace(['-', '_'], ' ', $generatedTitle));
 
             DashboardPhoto::create([
-                'type' => $type,
-                'photo_path' => $storedPath,
-                'title' => Str::limit($finalTitle, 255, ''),
-                'description' => $description,
+                'photo_number'  => 'PHO-' . now()->format('Ymd') . '-' . strtoupper(Str::random(6)),
+                'type'          => in_array($type, self::VALID_TYPES, true) ? $type : 'event',
+                'photo_path'    => $storedPath,
+                'title'         => Str::limit($finalTitle, 255, ''),
+                'description'   => $description,
                 'display_order' => $startOrder + $index,
-                'is_active' => true,
+                'is_active'     => true,
+                'uploaded_by'   => auth()->id(),
             ]);
             $uploadedCount++;
         }
@@ -106,13 +111,13 @@ class PhotoController extends Controller
     public function update(Request $request, $id)
     {
         $photo = DashboardPhoto::findOrFail($id);
-        
+
         $request->validate([
-            'title' => 'required|string|max:255',
-            'description' => 'nullable|string',
+            'title'         => 'required|string|max:255',
+            'description'   => 'nullable|string',
             'display_order' => 'nullable|integer',
-            'order' => 'nullable|integer',
-            'is_active' => 'boolean'
+            'order'         => 'nullable|integer',
+            'is_active'     => 'boolean',
         ]);
 
         $updateData = $request->only(['title', 'description', 'display_order', 'is_active']);
@@ -128,9 +133,7 @@ class PhotoController extends Controller
     public function destroy($id)
     {
         $photo = DashboardPhoto::findOrFail($id);
-
         $this->deletePhotoFile($photo->photo_path);
-        
         $photo->delete();
 
         return redirect()->route('td.photos.index')->with('success', 'Photo deleted successfully');
@@ -139,12 +142,11 @@ class PhotoController extends Controller
     public function batchDestroy(Request $request)
     {
         $validated = $request->validate([
-            'photo_ids' => 'required|array|min:1',
+            'photo_ids'   => 'required|array|min:1',
             'photo_ids.*' => 'integer|exists:dashboard_photos,id',
         ]);
 
-        $photoIds = array_values(array_unique($validated['photo_ids']));
-        $photos = DashboardPhoto::query()->whereIn('id', $photoIds)->get();
+        $photos = DashboardPhoto::query()->whereIn('id', $validated['photo_ids'])->get();
 
         foreach ($photos as $photo) {
             $this->deletePhotoFile($photo->photo_path);
@@ -172,11 +174,15 @@ class PhotoController extends Controller
         if ($baseType === 'other') {
             $custom = strtolower(trim((string) $customType));
             $slug = Str::slug($custom, '_');
-            return $slug !== '' ? Str::limit($slug, 50, '') : 'other';
+            return $slug !== '' ? Str::limit($slug, 50, '') : 'event';
         }
 
-        $slug = Str::slug($baseType, '_');
-        return $slug !== '' ? Str::limit($slug, 50, '') : 'other';
+        // Map to valid ENUM values
+        if (in_array($baseType, self::VALID_TYPES, true)) {
+            return $baseType;
+        }
+
+        return 'event';
     }
 
     private function storePhoto(UploadedFile $file, string $type): string
@@ -185,9 +191,9 @@ class PhotoController extends Controller
             try {
                 $this->configureCloudinary();
                 $result = (new UploadApi())->upload($file->getRealPath(), [
-                    'folder' => 'bss/dashboard_photos/' . $type,
+                    'folder'        => 'bss/dashboard_photos/' . $type,
                     'resource_type' => 'image',
-                    'overwrite' => true,
+                    'overwrite'     => true,
                 ]);
 
                 $url = (string) ($result['secure_url'] ?? $result['url'] ?? '');
@@ -195,15 +201,17 @@ class PhotoController extends Controller
                     return $url;
                 }
             } catch (Throwable $e) {
-                Log::error('Cloudinary dashboard photo upload failed. Falling back to local disk.', [
+                Log::error('Cloudinary dashboard photo upload failed. Falling back to R2.', [
                     'error' => $e->getMessage(),
-                    'type' => $type,
+                    'type'  => $type,
                 ]);
             }
         }
 
-        $localPath = $file->store('dashboard-photos', 'public');
-        return Storage::disk('public')->url($localPath);
+        $path = 'dashboard-photos/' . $type . '/' . Str::uuid() . '.' . $file->getClientOriginalExtension();
+        Storage::disk('s3')->put($path, file_get_contents($file->getRealPath()), 'public');
+
+        return ProfilePictureStorageService::buildPublicUrl($path);
     }
 
     private function deletePhotoFile(?string $photoPath): void
@@ -219,22 +227,29 @@ class PhotoController extends Controller
                 if ($publicId) {
                     (new UploadApi())->destroy($publicId, [
                         'resource_type' => 'image',
-                        'invalidate' => true,
+                        'invalidate'    => true,
                     ]);
                     return;
                 }
             } catch (Throwable $e) {
                 Log::warning('Failed to delete dashboard photo from Cloudinary.', [
-                    'error' => $e->getMessage(),
+                    'error'      => $e->getMessage(),
                     'photo_path' => $photoPath,
                 ]);
             }
         }
 
-        $normalizedPath = ltrim(str_replace('/storage/', '', $photoPath), '/');
-        if ($normalizedPath !== '') {
-            Storage::disk('public')->delete($normalizedPath);
+        if (filter_var($photoPath, FILTER_VALIDATE_URL)) {
+            // R2 full URL — extract relative path and delete from s3
+            $r2Base = rtrim((string) env('R2_PUBLIC_URL', env('AWS_URL', '')), '/');
+            if ($r2Base !== '' && str_starts_with($photoPath, $r2Base)) {
+                $relativePath = ltrim(substr($photoPath, strlen($r2Base)), '/');
+                Storage::disk('s3')->delete($relativePath);
+            }
+            return;
         }
+
+        Storage::disk('s3')->delete($photoPath);
     }
 
     private function isCloudinaryEnabled(): bool
