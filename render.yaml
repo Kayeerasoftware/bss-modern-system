@@ -1,0 +1,105 @@
+services:
+  - type: web
+    name: bss-system
+    env: php
+    plan: free
+    disk:
+      name: bss-uploads
+      mountPath: /var/data
+      sizeGB: 1
+    buildCommand: |
+      composer install --no-dev --optimize-autoloader
+      npm install && npm run build
+      php artisan config:cache
+      php artisan route:cache
+      php artisan view:cache
+    startCommand: php artisan migrate --force && php artisan storage:link && php -S 0.0.0.0:$PORT -t public
+    envVars:
+      - key: APP_NAME
+        value: BSS-c15-Investment-System
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: "false"
+      - key: APP_URL
+        sync: false
+      - key: APP_KEY
+        sync: false
+      - key: APP_TIMEZONE
+        value: Africa/Kampala
+      - key: LOG_CHANNEL
+        value: stderr
+      - key: LOG_LEVEL
+        value: error
+      - key: DB_CONNECTION
+        value: mysql
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        sync: false
+      - key: DB_DATABASE
+        sync: false
+      - key: DB_USERNAME
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_PERSISTENT
+        value: "true"
+      - key: DB_CONNECT_TIMEOUT
+        value: "5"
+      - key: DB_EMULATE_PREPARES
+        value: "false"
+      - key: AIVEN_CA_PEM
+        sync: false
+      - key: MYSQL_ATTR_SSL_VERIFY_SERVER_CERT
+        value: "true"
+      - key: FILESYSTEM_DISK
+        value: s3
+      - key: AWS_DEFAULT_REGION
+        value: auto
+      - key: AWS_USE_PATH_STYLE_ENDPOINT
+        value: "true"
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+      - key: AWS_BUCKET
+        sync: false
+      - key: AWS_ENDPOINT
+        sync: false
+      - key: AWS_URL
+        sync: false
+      - key: CACHE_STORE
+        value: file
+      - key: SESSION_DRIVER
+        value: file
+      - key: SESSION_SECURE_COOKIE
+        value: "true"
+      - key: SESSION_SAME_SITE
+        value: lax
+      - key: QUEUE_CONNECTION
+        value: database
+      - key: UPLOADS_ROOT
+        value: /var/data/uploads
+      - key: UPLOADS_URL
+        sync: false
+      - key: PUBLIC_DISK_DRIVER
+        value: s3
+      - key: CLOUDINARY_URL
+        sync: false
+      - key: MAIL_MAILER
+        sync: false
+      - key: MAIL_HOST
+        sync: false
+      - key: MAIL_PORT
+        sync: false
+      - key: MAIL_USERNAME
+        sync: false
+      - key: MAIL_PASSWORD
+        sync: false
+      - key: MAIL_ENCRYPTION
+        value: tls
+      - key: MAIL_FROM_ADDRESS
+        sync: false
+      - key: MAIL_FROM_NAME
+        value: BSS-c15-Investment-System
