@@ -311,11 +311,16 @@ class User extends Authenticatable
         }
 
         $roleId = $this->attributes['role_id'] ?? null;
-        if ($roleId) {
-            return Role::query()->whereKey($roleId)->value('name');
+        if (!$roleId) {
+            return null;
         }
 
-        return null;
+        static $cache = [];
+        if (!isset($cache[$roleId])) {
+            $cache[$roleId] = Role::query()->whereKey($roleId)->value('name');
+        }
+
+        return $cache[$roleId];
     }
 
     public function setRoleAttribute($value): void

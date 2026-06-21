@@ -9,6 +9,20 @@ class StatusesSeeder extends Seeder
 {
     public function run(): void
     {
+        // Loan types
+        $loanTypes = [
+            ['name' => 'Personal Loan',  'description' => 'General personal loan',       'default_interest_rate' => 10.00, 'min_repayment_months' => 3,  'max_repayment_months' => 60],
+            ['name' => 'Business Loan',  'description' => 'Business development loan',   'default_interest_rate' => 12.00, 'min_repayment_months' => 6,  'max_repayment_months' => 60],
+            ['name' => 'Emergency Loan', 'description' => 'Emergency short-term loan',   'default_interest_rate' => 8.00,  'min_repayment_months' => 1,  'max_repayment_months' => 12],
+            ['name' => 'Education Loan', 'description' => 'Education financing loan',    'default_interest_rate' => 7.00,  'min_repayment_months' => 6,  'max_repayment_months' => 48],
+        ];
+        foreach ($loanTypes as $t) {
+            DB::table('loan_types')->updateOrInsert(
+                ['name' => $t['name']],
+                array_merge($t, ['is_active' => 1])
+            );
+        }
+
         // Project statuses
         $projectStatuses = [
             ['name' => 'planning',    'display_name' => 'Planning',     'color' => 'blue'],
