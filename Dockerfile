@@ -22,7 +22,10 @@ COPY . .
 RUN composer install --no-dev --optimize-autoloader
 
 # Set permissions
-RUN chown -R www-data:www-data /var/www/html \
+RUN mkdir -p /var/www/html/storage/framework/views \
+    && mkdir -p /var/www/html/storage/framework/cache/data \
+    && mkdir -p /var/www/html/storage/framework/sessions \
+    && chown -R www-data:www-data /var/www/html \
     && chmod -R 755 /var/www/html/storage \
     && chmod -R 755 /var/www/html/bootstrap/cache
 
@@ -38,8 +41,8 @@ EXPOSE 80
 
 # Start Apache and run Laravel setup
 CMD php artisan migrate --force \
-    && php artisan storage:link \
     && php artisan config:cache \
     && php artisan route:cache \
     && php artisan view:cache \
+    && php artisan storage:link 2>/dev/null || true \
     && apache2-foreground
