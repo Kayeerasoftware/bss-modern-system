@@ -178,6 +178,26 @@ class LoanController extends Controller
         $pendingStatusId = LoanStatus::query()->where('name', 'pending')->value('id');
         $approvedStatusId = LoanStatus::query()->where('name', 'approved')->value('id');
 
+        // Fallback: create statuses if missing
+        if (!$pendingStatusId) {
+            $pendingStatusId = LoanStatus::firstOrCreate(
+                ['name' => 'pending'],
+                ['display_name' => 'Pending', 'color' => 'yellow', 'is_active' => 1]
+            )->id;
+        }
+        if (!$approvedStatusId) {
+            $approvedStatusId = LoanStatus::firstOrCreate(
+                ['name' => 'approved'],
+                ['display_name' => 'Approved', 'color' => 'green', 'is_active' => 1]
+            )->id;
+        }
+        if (!$loanTypeId) {
+            $loanTypeId = LoanType::firstOrCreate(
+                ['name' => 'Personal Loan'],
+                ['description' => 'General personal loan', 'default_interest_rate' => 10, 'is_active' => 1]
+            )->id;
+        }
+
         $minRate = (float) ($settings->min_interest_rate ?? 0);
         $maxRate = (float) ($settings->max_interest_rate ?? 100);
         $interestRate = (float) ($validated['interest_rate'] ?? $settings->default_interest_rate ?? 0);
