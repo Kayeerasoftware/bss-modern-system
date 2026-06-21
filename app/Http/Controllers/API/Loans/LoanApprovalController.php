@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Api\Loans;
+namespace App\Http\Controllers\API\Loans;
 
 use App\Http\Controllers\Controller;
 

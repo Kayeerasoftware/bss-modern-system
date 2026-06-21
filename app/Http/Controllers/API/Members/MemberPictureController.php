@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Api\Members;
+namespace App\Http\Controllers\API\Members;
 
 use App\Http\Controllers\Controller;
 use App\Models\Member;

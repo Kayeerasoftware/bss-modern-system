@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Api\Notifications;
+namespace App\Http\Controllers\API\Notifications;
 
 use App\Http\Controllers\Controller;
 

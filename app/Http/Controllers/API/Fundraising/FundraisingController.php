@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Api\Fundraising;
+namespace App\Http\Controllers\API\Fundraising;
 
 use App\Http\Controllers\Controller;
 

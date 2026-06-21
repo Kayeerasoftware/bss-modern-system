@@ -41,6 +41,7 @@ EXPOSE 80
 
 # Start Apache and run Laravel setup
 CMD php artisan migrate --force \
+    && php artisan db:seed --class=RolesSeeder --force \
     && php artisan config:cache \
     && php artisan route:cache \
     && php artisan view:cache \
