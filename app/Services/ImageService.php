@@ -5,7 +5,6 @@ namespace App\Services;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use Intervention\Image\Facades\Image;
 use App\Services\ProfilePictureStorageService;
 
 class ImageService
@@ -19,18 +18,16 @@ class ImageService
             return ProfilePictureStorageService::storeProfilePicture($file, $oldPicture, 'bss/profile_pictures/members');
         }
 
-        // Delete old picture if exists
         if ($oldPicture) {
             $this->deletePicture($oldPicture);
         }
 
-        // Generate unique filename
         $filename = $this->generateFilename($file);
-        
-        // Process and save image
-        $this->processAndSaveImage($file, $filename);
-        
-        return 'profile-pictures/members/' . $filename;
+        $path = 'profile-pictures/members/' . $filename;
+
+        Storage::disk('s3')->put($path, file_get_contents($file->getRealPath()), 'public');
+
+        return $path;
     }
 
     /**
@@ -46,7 +43,11 @@ class ImageService
             return false;
         }
 
-        return Storage::disk('public')->delete($picturePath);
+        if (filter_var($picturePath, FILTER_VALIDATE_URL)) {
+            return false;
+        }
+
+        return Storage::disk('s3')->delete($picturePath);
     }
 
     /**
@@ -58,38 +59,6 @@ class ImageService
         return 'member_' . time() . '_' . Str::random(10) . '.' . $extension;
     }
 
-    /**
-     * Process and save image with multiple sizes
-     */
-    private function processAndSaveImage(UploadedFile $file, string $filename): void
-    {
-        $disk = Storage::disk('public');
-        $basePath = 'profile-pictures/members/';
-
-        // Original image (resized to max 800x800)
-        $image = Image::make($file->getRealPath());
-        $image->resize(800, 800, function ($constraint) {
-            $constraint->aspectRatio();
-            $constraint->upsize();
-        });
-        $disk->put($basePath . $filename, (string) $image->encode(null, 85), 'public');
-
-        // Thumbnail (150x150)
-        $thumbnailName = 'thumb_' . $filename;
-        $thumbnail = Image::make($file->getRealPath());
-        $thumbnail->fit(150, 150);
-        $disk->put($basePath . $thumbnailName, (string) $thumbnail->encode(null, 80), 'public');
-
-        // Small size (300x300)
-        $smallName = 'small_' . $filename;
-        $small = Image::make($file->getRealPath());
-        $small->fit(300, 300);
-        $disk->put($basePath . $smallName, (string) $small->encode(null, 80), 'public');
-    }
-
-    /**
-     * Get picture URL with size option
-     */
     public function getPictureUrl(?string $picturePath, string $size = 'original'): string
     {
         if (!$picturePath) {
@@ -100,30 +69,11 @@ class ImageService
             return $picturePath;
         }
 
-        $pathInfo = pathinfo($picturePath);
-        $directory = $pathInfo['dirname'];
-        $filename = $pathInfo['filename'];
-        $extension = $pathInfo['extension'];
-
-        switch ($size) {
-            case 'thumbnail':
-                $sizedPath = $directory . '/thumb_' . $filename . '.' . $extension;
-                break;
-            case 'small':
-                $sizedPath = $directory . '/small_' . $filename . '.' . $extension;
-                break;
-            default:
-                $sizedPath = $picturePath;
+        if (Storage::disk('s3')->exists($picturePath)) {
+            return Storage::disk('s3')->url($picturePath);
         }
 
-        // Check if sized version exists, fallback to original
-        if (Storage::disk('public')->exists($sizedPath)) {
-            return Storage::disk('public')->url($sizedPath);
-        }
-
-        return Storage::disk('public')->exists($picturePath) 
-            ? Storage::disk('public')->url($picturePath)
-            : asset('images/default-avatar.svg');
+        return asset('images/default-avatar.svg');
     }
 
     /**
@@ -161,42 +111,25 @@ class ImageService
      */
     public function getImageInfo(?string $picturePath): array
     {
-        if (!$picturePath || !Storage::disk('public')->exists($picturePath)) {
-            if (filter_var((string) $picturePath, FILTER_VALIDATE_URL)) {
-                return [
-                    'exists' => true,
-                    'url' => $picturePath,
-                    'size' => 0,
-                    'dimensions' => null,
-                    'thumbnail_url' => $picturePath,
-                    'small_url' => $picturePath,
-                ];
-            }
-
-            return [
-                'exists' => false,
-                'url' => asset('images/default-avatar.svg'),
-                'size' => 0,
-                'dimensions' => null
-            ];
+        if (!$picturePath) {
+            return ['exists' => false, 'url' => asset('images/default-avatar.svg'), 'size' => 0, 'dimensions' => null];
         }
 
-        $imageSize = null;
-        try {
-            $fullPath = Storage::disk('public')->path($picturePath);
-            $imageSize = @getimagesize($fullPath) ?: null;
-        } catch (\Throwable $e) {
-            // Not all disks support local file paths (e.g. S3).
-            $imageSize = null;
+        if (filter_var($picturePath, FILTER_VALIDATE_URL)) {
+            return ['exists' => true, 'url' => $picturePath, 'size' => 0, 'dimensions' => null, 'thumbnail_url' => $picturePath, 'small_url' => $picturePath];
         }
-        
+
+        if (!Storage::disk('s3')->exists($picturePath)) {
+            return ['exists' => false, 'url' => asset('images/default-avatar.svg'), 'size' => 0, 'dimensions' => null];
+        }
+
         return [
             'exists' => true,
-            'url' => Storage::disk('public')->url($picturePath),
-            'size' => Storage::disk('public')->size($picturePath),
-            'dimensions' => $imageSize ? ['width' => $imageSize[0], 'height' => $imageSize[1]] : null,
-            'thumbnail_url' => $this->getPictureUrl($picturePath, 'thumbnail'),
-            'small_url' => $this->getPictureUrl($picturePath, 'small')
+            'url' => Storage::disk('s3')->url($picturePath),
+            'size' => Storage::disk('s3')->size($picturePath),
+            'dimensions' => null,
+            'thumbnail_url' => Storage::disk('s3')->url($picturePath),
+            'small_url' => Storage::disk('s3')->url($picturePath),
         ];
     }
 }
